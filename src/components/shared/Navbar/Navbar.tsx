@@ -124,7 +124,7 @@ export default function Navbar() {
             </button>
             <Logo />
           </div>
-
+          {/* hola  */}
           {/* Desktop Nav - oculto en móvil */}
           <div className="hidden lg:flex items-center gap-3">
             {navLinks.map(link => (
