@@ -1,6 +1,7 @@
+import { notFound, okRaw, serverError } from '@/lib/api/responses';
 import { requireRole } from '@/lib/auth-guard';
 import { prisma } from '@/lib/prisma';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
 // GET /api/users/[id] - Detalles de usuario
 export async function GET(
@@ -8,8 +9,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const authResult = await requireRole(request, ['ADMIN']);
-    if (authResult instanceof NextResponse) return authResult;
+    await requireRole(['ADMIN']);
     const { id } = await context.params;
     const user = await prisma.user.findUnique({
       where: { id },
@@ -28,15 +28,11 @@ export async function GET(
       },
     });
     if (!user) {
-      return NextResponse.json(
-        { error: 'Usuario no encontrado' },
-        { status: 404 },
-      );
+      return notFound('Usuario no encontrado');
     }
-    return NextResponse.json(user);
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+    return okRaw(user);
+  } catch {
+    return serverError('Error interno');
   }
 }
 
@@ -46,8 +42,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const authResult = await requireRole(request, ['ADMIN']);
-    if (authResult instanceof NextResponse) return authResult;
+    await requireRole(['ADMIN']);
     const { id } = await context.params;
     const body = await request.json();
     const { firstName, lastName, email, role, avatar, isActive } = body;
@@ -62,10 +57,9 @@ export async function PATCH(
         isActive,
       },
     });
-    return NextResponse.json(user);
-  } catch (error) {
-    console.error('Error updating user:', error);
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+    return okRaw(user);
+  } catch {
+    return serverError('Error interno');
   }
 }
 
@@ -75,13 +69,11 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const authResult = await requireRole(request, ['ADMIN']);
-    if (authResult instanceof NextResponse) return authResult;
+    await requireRole(['ADMIN']);
     const { id } = await context.params;
     await prisma.user.delete({ where: { id } });
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+    return okRaw({ success: true });
+  } catch {
+    return serverError('Error interno');
   }
 }

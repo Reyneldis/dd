@@ -1,10 +1,11 @@
 'use client';
-import UserAvatar from '@/components/shared/UserAvatar';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
 import { ArrowRight, Quote, Star, Users } from 'lucide-react';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
-// hola mundo
+
 interface Testimonial {
   id: string;
   name: string;
@@ -17,35 +18,15 @@ interface Testimonial {
 export default function Testimonials() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchTestimonials = async () => {
-      try {
-        const response = await fetch('/api/reviews/testimonials');
-
-        if (!response.ok) {
-          throw new Error('Error al cargar los testimonios');
-        }
-
-        const data = await response.json();
-
-        // Verificar si hay testimonios en la respuesta
-        if (data.testimonials && Array.isArray(data.testimonials)) {
-          setTestimonials(data.testimonials);
-        } else {
-          // Si no hay testimonios, establecer el array como vacío
-          setTestimonials([]);
-        }
-      } catch (err) {
-        console.error('Error fetching testimonials:', err);
-        setError('Error de conexión al cargar testimonios');
-      } finally {
+    fetch('/api/reviews/testimonials')
+      .then(res => res.json())
+      .then(data => {
+        setTestimonials(data.testimonials || []);
         setLoading(false);
-      }
-    };
-
-    fetchTestimonials();
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   const containerVariants = {
@@ -90,6 +71,7 @@ export default function Testimonials() {
         <div className="absolute bottom-10 right-1/4 w-48 h-48 bg-secondary/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/3 rounded-full blur-3xl animate-pulse delay-2000"></div>
       </div>
+
       <div className="relative z-10 max-w-7xl mx-auto px-4">
         {/* Header */}
         <motion.div
@@ -113,20 +95,6 @@ export default function Testimonials() {
             ya disfrutan de la experiencia express
           </p>
         </motion.div>
-
-        {/* Mensaje de error */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="col-span-full text-center py-16"
-          >
-            <div className="inline-flex items-center gap-3 px-8 py-4 bg-red-50 text-red-700 rounded-2xl">
-              <Users className="h-8 w-8" />
-              <span className="text-xl font-semibold">{error}</span>
-            </div>
-          </motion.div>
-        )}
 
         {/* Testimonios Grid */}
         <motion.div
@@ -205,21 +173,30 @@ export default function Testimonials() {
 
                   {/* Información del cliente */}
                   <div className="flex items-center gap-3 mt-auto">
-                    <UserAvatar
-                      user={{
-                        id: testimonial.id,
-                        firstName: testimonial.name.split(' ')[0],
-                        lastName:
-                          testimonial.name.split(' ').slice(1).join(' ') || '',
-                        imageUrl: testimonial.avatar,
-                        primaryEmailAddress: {
-                          emailAddress: `${testimonial.name
-                            .toLowerCase()
-                            .replace(' ', '.')}@example.com`,
-                        },
-                      }}
-                      className="w-10 h-10"
-                    />
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+                      {testimonial.avatar ? (
+                        <Image
+                          src={testimonial.avatar}
+                          alt={testimonial.name}
+                          width={48}
+                          height={48}
+                          unoptimized
+                          className="w-full h-full object-cover"
+                          onError={() => {
+                            // sin-op fallback
+                          }}
+                        />
+                      ) : (
+                        <span className="text-lg font-bold text-primary">
+                          {testimonial.name
+                            .split(' ')
+                            .map(word => word[0])
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </span>
+                      )}
+                    </div>
                     <div>
                       <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors duration-300">
                         {testimonial.name}

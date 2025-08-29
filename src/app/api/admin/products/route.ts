@@ -1,82 +1,227 @@
+// import { requireRole } from '@/lib/auth-guard';
+// import { prisma } from '@/lib/prisma';
+// import { productSchema } from '@/schemas/productSchema';
+// import { NextResponse } from 'next/server';
+
+// // GET /api/admin/products - Obtener todos los productos para el admin
+// export async function GET(request: Request) {
+//   try {
+//     await requireRole(['ADMIN']);
+//     const { searchParams } = new URL(request.url);
+//     const page = parseInt(searchParams.get('page') || '1');
+//     const limit = parseInt(searchParams.get('limit') || '12');
+//     const skip = (page - 1) * limit;
+//     const search = searchParams.get('search');
+//     const category = searchParams.get('category');
+//     // Construir filtros
+//     const where: Record<string, unknown> = {};
+//     if (search) {
+//       where.OR = [
+//         { productName: { contains: search, mode: 'insensitive' } },
+//         { description: { contains: search, mode: 'insensitive' } },
+//       ];
+//     }
+//     if (category) {
+//       where.category = { slug: category };
+//     }
+//     // Obtener productos paginados
+//     const [products, total] = await Promise.all([
+//       prisma.product.findMany({
+//         where,
+//         include: {
+//           category: { select: { categoryName: true } },
+//           images: { select: { url: true, isPrimary: true } },
+//           _count: { select: { reviews: true } },
+//         },
+//         orderBy: { createdAt: 'desc' },
+//         skip,
+//         take: limit,
+//       }),
+//       prisma.product.count({ where }),
+//     ]);
+//     // Transformar datos para el frontend admin
+//     const transformedProducts = products.map(product => ({
+//       id: product.id,
+//       slug: product.slug,
+//       productName: product.productName,
+//       name: product.productName,
+//       price: Number(product.price),
+//       description: product.description || '',
+//       category: product.category?.categoryName || '',
+//       categoryId: product.categoryId,
+//       image:
+//         product.images?.find((img: { isPrimary: boolean }) => img.isPrimary)
+//           ?.url ||
+//         product.images?.[0]?.url ||
+//         '/img/placeholder-product.jpg',
+//       images: product.images?.map((img: { url: string }) => img.url) || [],
+//       stock: Number(product.stock ?? 0),
+//       rating: 4.5, // Placeholder
+//       reviews: product._count.reviews,
+//       status: product.status || 'ACTIVE',
+//       featured: product.featured ?? false,
+//       createdAt: product.createdAt.toISOString(),
+//       updatedAt: product.updatedAt.toISOString(),
+//       features: (product.features as string[]) || [],
+//     }));
+//     return NextResponse.json({
+//       products: transformedProducts,
+//       pagination: {
+//         page,
+//         limit,
+//         total,
+//         pages: Math.ceil(total / limit),
+//       },
+//     });
+//   } catch (error) {
+//     console.error('Error fetching admin products:', error);
+//     return NextResponse.json(
+//       { error: 'Error al obtener productos' },
+//       { status: 500 },
+//     );
+//   }
+// }
+
+// // type VariantInput = never; // Comentado porque no se usa
+// type ImageInput = {
+//   url: string;
+//   alt?: string;
+//   sortOrder?: number;
+//   isPrimary?: boolean;
+// };
+
+// // POST /api/admin/products - Crear nuevo producto
+// export async function POST(request: Request) {
+//   try {
+//     await requireRole(['ADMIN']);
+//     const body = await request.json();
+//     // Validar con Zod
+//     const result = productSchema.safeParse(body);
+//     if (!result.success) {
+//       return NextResponse.json(
+//         { error: 'Datos inválidos', details: result.error.flatten() },
+//         { status: 400 },
+//       );
+//     }
+//     const {
+//       productName,
+//       slug,
+//       price,
+//       description,
+//       categoryId,
+//       features,
+//       images,
+//       status,
+//       featured,
+//       stock,
+//     } = result.data;
+//     // Verificar que el slug sea único
+//     const existingProduct = await prisma.product.findUnique({
+//       where: { slug },
+//     });
+//     if (existingProduct) {
+//       return NextResponse.json(
+//         { error: 'Ya existe un producto con este slug' },
+//         { status: 400 },
+//       );
+//     }
+//     // Crear el producto
+//     const product = await prisma.product.create({
+//       data: {
+//         slug,
+//         productName,
+//         price,
+//         description,
+//         categoryId,
+//         features: features || [],
+//         status,
+//         featured: featured ?? false,
+//         images: {
+//           create:
+//             (images as ImageInput[] | undefined)?.map((image, index) => ({
+//               url: image.url,
+//               alt: image.alt || productName,
+//               sortOrder: image.sortOrder ?? index,
+//               isPrimary: image.isPrimary ?? index === 0,
+//             })) || [],
+//         },
+//         stock: typeof stock === 'number' ? stock : 0,
+//       },
+//       include: {
+//         category: { select: { categoryName: true } },
+//         images: { select: { url: true, isPrimary: true } },
+//       },
+//     });
+//     // Transformar respuesta para el frontend
+//     const transformedProduct = {
+//       id: product.id,
+//       slug: product.slug,
+//       productName: product.productName,
+//       name: product.productName,
+//       price: Number(product.price),
+//       description: product.description || '',
+//       category: product.category.categoryName,
+//       categoryId: product.categoryId,
+//       image:
+//         product.images.find(img => img.isPrimary)?.url ||
+//         product.images[0]?.url ||
+//         '/img/placeholder-product.jpg',
+//       images: product.images.map(img => img.url),
+//       stock: Number(product.stock) || 0,
+//       rating: 4.5,
+//       reviews: 0,
+//       status: 'ACTIVE',
+//       featured: product.featured,
+//       createdAt: product.createdAt.toISOString(),
+//       updatedAt: product.updatedAt.toISOString(),
+//       features: (product.features as string[]) || [],
+//     };
+//     return NextResponse.json(transformedProduct, { status: 201 });
+//   } catch (error) {
+//     console.error('Error creating product:', error);
+//     return NextResponse.json(
+//       { error: 'Error al crear el producto' },
+//       { status: 500 },
+//     );
+//   }
+// }
 import { requireRole } from '@/lib/auth-guard';
 import { prisma } from '@/lib/prisma';
 import { productSchema } from '@/schemas/productSchema';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-// Esquema para la consulta de paginación y filtros
-const querySchema = z.object({
-  page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(12),
-  search: z.string().optional(),
-  category: z.string().optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-  featured: z.coerce.boolean().optional(),
-});
-
-// GET /api/admin/products - Obtener todos los productos (solo admin)
-export async function GET(request: NextRequest) {
+// GET /api/admin/products - Obtener todos los productos para el admin
+export async function GET(request: Request) {
   try {
-    // Corrección: Pasamos el objeto request como primer parámetro
-    await requireRole(request, ['ADMIN']);
-
+    await requireRole(['ADMIN']);
     const { searchParams } = new URL(request.url);
-    const query = querySchema.parse({
-      page: searchParams.get('page'),
-      limit: searchParams.get('limit'),
-      search: searchParams.get('search'),
-      category: searchParams.get('category'),
-      status: searchParams.get('status'),
-      featured: searchParams.get('featured'),
-    });
-
-    const { page, limit, search, category, status, featured } = query;
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '12');
     const skip = (page - 1) * limit;
+    const search = searchParams.get('search');
+    const category = searchParams.get('category');
 
+    // Construir filtros
     const where: Record<string, unknown> = {};
-
     if (search) {
       where.OR = [
         { productName: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
       ];
     }
-
     if (category) {
-      where.categoryId = category;
+      where.category = { slug: category };
     }
 
-    if (status) {
-      where.status = status;
-    }
-
-    if (featured !== undefined) {
-      where.featured = featured;
-    }
-
+    // Obtener productos paginados
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
         include: {
-          category: {
-            select: {
-              id: true,
-              categoryName: true,
-            },
-          },
-          images: {
-            where: { isPrimary: true },
-            take: 1,
-            select: {
-              id: true,
-              url: true,
-            },
-          },
-          _count: {
-            select: {
-              reviews: true,
-            },
-          },
+          category: { select: { categoryName: true } },
+          images: { select: { url: true, isPrimary: true } },
+          _count: { select: { reviews: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -85,10 +230,35 @@ export async function GET(request: NextRequest) {
       prisma.product.count({ where }),
     ]);
 
+    // Transformar datos para el frontend admin
+    const transformedProducts = products.map(product => ({
+      id: product.id,
+      slug: product.slug,
+      productName: product.productName,
+      name: product.productName,
+      price: Number(product.price),
+      description: product.description || '',
+      category: product.category?.categoryName || '',
+      categoryId: product.categoryId,
+      image:
+        product.images?.find((img: { isPrimary: boolean }) => img.isPrimary)
+          ?.url ||
+        product.images?.[0]?.url ||
+        '/img/placeholder-product.jpg',
+      images: product.images?.map((img: { url: string }) => img.url) || [],
+      stock: Number(product.stock ?? 0),
+      rating: 4.5, // Placeholder
+      reviews: product._count.reviews,
+      status: product.status || 'ACTIVE',
+      featured: product.featured ?? false,
+      createdAt: product.createdAt.toISOString(),
+      updatedAt: product.updatedAt.toISOString(),
+      features: (product.features as string[]) || [],
+    }));
+
     return NextResponse.json({
-      success: true,
-      data: products,
-      meta: {
+      products: transformedProducts,
+      pagination: {
         page,
         limit,
         total,
@@ -96,72 +266,155 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Parámetros inválidos',
-          details: error.errors,
-        },
-        { status: 400 },
-      );
-    }
-    console.error('Error fetching products:', error);
+    console.error('Error fetching admin products:', error);
     return NextResponse.json(
-      { success: false, error: 'Error al obtener los productos' },
+      { error: 'Error al obtener productos' },
       { status: 500 },
     );
   }
 }
 
-// POST /api/admin/products - Crear un nuevo producto
-export async function POST(request: NextRequest) {
+// Tipos mejorados
+type ImageInput = {
+  url: string;
+  alt?: string;
+  sortOrder?: number;
+  isPrimary?: boolean;
+};
+
+// POST /api/admin/products - Crear nuevo producto
+export async function POST(request: Request) {
   try {
-    // Corrección: Pasamos el objeto request como primer parámetro
-    await requireRole(request, ['ADMIN']);
-
+    await requireRole(['ADMIN']);
     const body = await request.json();
-    const validation = productSchema.safeParse(body);
 
-    if (!validation.success) {
+    // Validar con Zod
+    const result = productSchema.safeParse(body);
+    if (!result.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Datos inválidos',
-          details: validation.error.errors,
-        },
+        { error: 'Datos inválidos', details: result.error.flatten() },
         { status: 400 },
       );
     }
 
-    const { images, ...productData } = validation.data;
+    const {
+      productName,
+      slug,
+      price,
+      description,
+      categoryId,
+      features,
+      images,
+      status,
+      featured,
+      stock,
+    } = result.data;
 
-    const newProduct = await prisma.product.create({
-      data: {
-        ...productData,
-        images: images
-          ? {
-              create: images.map(img => ({
-                url: img.url,
-                isPrimary: img.isPrimary || false,
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        category: true,
-        images: true,
-      },
+    // Verificar que el slug sea único
+    const existingProduct = await prisma.product.findUnique({
+      where: { slug },
+    });
+    if (existingProduct) {
+      return NextResponse.json(
+        { error: 'Ya existe un producto con este slug' },
+        { status: 400 },
+      );
+    }
+
+    // Verificar que la categoría exista
+    const categoryExists = await prisma.category.findUnique({
+      where: { id: categoryId },
+    });
+    if (!categoryExists) {
+      return NextResponse.json(
+        { error: 'La categoría especificada no existe' },
+        { status: 400 },
+      );
+    }
+
+    // Crear el producto con transacción para asegurar consistencia
+    const product = await prisma.$transaction(async prisma => {
+      // Crear el producto
+      const newProduct = await prisma.product.create({
+        data: {
+          slug,
+          productName,
+          price,
+          description,
+          categoryId,
+          features: features || [],
+          status,
+          featured: featured ?? false,
+          stock: typeof stock === 'number' ? stock : 0,
+        },
+      });
+
+      // Crear las imágenes si existen
+      if (images && images.length > 0) {
+        await prisma.productImage.createMany({
+          data: (images as ImageInput[]).map((image, index) => ({
+            productId: newProduct.id,
+            url: image.url,
+            alt: image.alt || productName,
+            sortOrder: image.sortOrder ?? index,
+            isPrimary: image.isPrimary ?? index === 0,
+          })),
+        });
+      }
+
+      // Devolver el producto con las relaciones cargadas
+      return prisma.product.findUnique({
+        where: { id: newProduct.id },
+        include: {
+          category: { select: { categoryName: true } },
+          images: { select: { url: true, isPrimary: true } },
+        },
+      });
     });
 
-    return NextResponse.json(
-      { success: true, data: newProduct },
-      { status: 201 },
-    );
+    if (!product) {
+      throw new Error('Error al crear el producto');
+    }
+
+    // Transformar respuesta para el frontend
+    const transformedProduct = {
+      id: product.id,
+      slug: product.slug,
+      productName: product.productName,
+      name: product.productName,
+      price: Number(product.price),
+      description: product.description || '',
+      category: product.category?.categoryName || '',
+      categoryId: product.categoryId,
+      image:
+        product.images?.find(img => img.isPrimary)?.url ||
+        product.images?.[0]?.url ||
+        '/img/placeholder-product.jpg',
+      images: product.images?.map(img => img.url) || [],
+      stock: Number(product.stock) || 0,
+      rating: 4.5,
+      reviews: 0,
+      status: product.status || 'ACTIVE',
+      featured: product.featured,
+      createdAt: product.createdAt.toISOString(),
+      updatedAt: product.updatedAt.toISOString(),
+      features: (product.features as string[]) || [],
+    };
+
+    return NextResponse.json(transformedProduct, { status: 201 });
   } catch (error) {
     console.error('Error creating product:', error);
+
+    // Manejar errores específicos
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Datos inválidos', details: error.flatten() },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json(
-      { success: false, error: 'Error al crear el producto' },
+      { error: 'Error al crear el producto' },
       { status: 500 },
     );
   }

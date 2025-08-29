@@ -1,6 +1,5 @@
-// src/app/account/page.tsx
 'use client';
-import UserAvatar from '@/components/shared/UserAvatar';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -95,6 +94,7 @@ export default function AccountPage() {
           setLoading(false);
         }
       };
+
       fetchOrders();
     }
   }, [isLoaded, user]);
@@ -212,16 +212,20 @@ export default function AccountPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-10"></div>
         <div className="relative container mx-auto px-6 py-16">
           <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-6">
-              <UserAvatar user={user} className="w-16 h-16" />
-              <div>
-                <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-                  Mi Cuenta
-                </h1>
-                <p className="text-xl text-gray-600 dark:text-gray-300">
-                  Bienvenido,{' '}
-                  {user.firstName || user.primaryEmailAddress?.emailAddress}
-                </p>
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <User className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+                    Mi Cuenta
+                  </h1>
+                  <p className="text-xl text-gray-600 dark:text-gray-300">
+                    Bienvenido,{' '}
+                    {user.firstName || user.emailAddresses[0]?.emailAddress}
+                  </p>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -365,7 +369,7 @@ export default function AccountPage() {
                     Email
                   </label>
                   <Input
-                    value={user.primaryEmailAddress?.emailAddress || ''}
+                    value={user.emailAddresses[0]?.emailAddress || ''}
                     disabled
                     className="bg-gray-50 dark:bg-neutral-700 border-0 rounded-xl h-12 text-lg"
                   />
@@ -517,6 +521,7 @@ export default function AccountPage() {
                 <XCircle className="w-5 h-5" />
               </Button>
             </div>
+
             <div className="space-y-6">
               {/* Información del pedido */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

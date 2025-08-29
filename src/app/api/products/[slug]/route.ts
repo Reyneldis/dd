@@ -1,57 +1,40 @@
+import { badRequest, notFound, okRaw, serverError } from '@/lib/api/responses';
 import { requireRole } from '@/lib/auth-guard';
 import { prisma } from '@/lib/prisma';
 import { mapProductToDTO } from '@/lib/product/serializer';
 import { productSchema } from '@/schemas/productSchema';
-import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
-  request: Request, // Mantenemos como Request porque no se usa requireRole
+  request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  try {
-    const { slug } = await params;
-    const product = await prisma.product.findUnique({
-      where: { slug },
-      include: {
-        images: true,
-        category: true,
-      },
-    });
-    if (!product) {
-      return NextResponse.json(
-        { error: 'Producto no encontrado' },
-        { status: 404 },
-      );
-    }
-    return NextResponse.json(mapProductToDTO(product));
-  } catch (error) {
-    console.error('Error obteniendo producto:', error);
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 },
-    );
+  const { slug } = await params;
+  const product = await prisma.product.findUnique({
+    where: { slug },
+    include: {
+      images: true,
+      category: true,
+    },
+  });
+
+  if (!product) {
+    return notFound('Producto no encontrado');
   }
+  return okRaw(mapProductToDTO(product));
 }
 
 export async function PUT(
-  request: NextRequest, // CAMBIO CLAVE: Cambiado de Request a NextRequest
+  request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
-    // Ahora request es de tipo NextRequest, compatible con requireRole
-    await requireRole(request, ['ADMIN']);
+    await requireRole(['ADMIN']);
     const { slug } = await params;
     const body = await request.json();
     // Validar con Zod
     const result = productSchema.safeParse(body);
     if (!result.success) {
-      return NextResponse.json(
-        {
-          error: 'Datos inválidos',
-          details: result.error.flatten(),
-        },
-        { status: 400 },
-      );
+      return badRequest('Datos inválidos', result.error.flatten());
     }
     const {
       productName,
@@ -67,20 +50,14 @@ export async function PUT(
       where: { slug },
     });
     if (!existingProduct) {
-      return NextResponse.json(
-        { error: 'Producto no encontrado' },
-        { status: 404 },
-      );
+      return notFound('Producto no encontrado');
     }
     // Verificar si la categoría existe
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
     });
     if (!category) {
-      return NextResponse.json(
-        { error: 'La categoría especificada no existe' },
-        { status: 400 },
-      );
+      return badRequest('La categoría especificada no existe');
     }
     // Actualizar el producto y sus relaciones
     const updatedProduct = await prisma.product.update({
@@ -102,12 +79,9 @@ export async function PUT(
         images: true,
       },
     });
-    return NextResponse.json(mapProductToDTO(updatedProduct));
+    return okRaw(mapProductToDTO(updatedProduct));
   } catch (error) {
     console.error('Error actualizando producto:', error);
-    return NextResponse.json(
-      { error: 'Error al actualizar el producto' },
-      { status: 500 },
-    );
+    return serverError('Error al actualizar el producto');
   }
 }

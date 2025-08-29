@@ -8,40 +8,45 @@ const isPublicRoute = createRouteMatcher([
   '/contact(.*)',
   '/about(.*)',
   '/search(.*)',
+
   // Autenticación
   '/login(.*)',
   '/register(.*)',
   '/sign-in(.*)',
   '/sign-up(.*)',
+
   // Assets estáticos
   '/favicon.ico',
-  '/_next/static(.*)',
+  '/_next(.*)',
   '/public(.*)',
   '/images(.*)',
+
   // APIs públicas
   '/api/products(.*)',
   '/api/categories(.*)',
   '/api/search(.*)',
   '/api/contact(.*)',
   '/api/whatsapp(.*)',
-  '/api/reviews/testimonials(.*)',
+
+  // Solo estas rutas requieren login
+  '/account(.*)',
+  '/admin(.*)',
+  '/api/reviews(.*)',
+  '/api/user(.*)',
 ]);
 
 export default clerkMiddleware((auth, req) => {
-  // Si la ruta no es pública y el usuario no está autenticado, redirigir a login
-  if (!isPublicRoute(req) && !auth().userId) {
-    // Construir la URL de redirección
-    const signInUrl = new URL('/sign-in', req.url);
-    signInUrl.searchParams.set('redirect_url', req.url);
-    return Response.redirect(signInUrl);
+  // Permitir rutas públicas
+  if (isPublicRoute(req)) {
+    return;
   }
+
+  // Para todas las demás rutas, Clerk maneja la autenticación automáticamente
 });
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Always run for API routes
     '/(api|trpc)(.*)',
   ],
 };

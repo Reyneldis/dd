@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     };
 
     if (category) {
-      console.log('Filtro por categoría (slug):', category);
+      // console.log('Filtro por categoría (slug):', category);
       where.category = {
         slug: category,
       };
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
 
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
+
     if (minPrice || maxPrice) {
       where.price = {};
       if (minPrice) where.price.gte = Number(minPrice);
@@ -81,8 +82,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.product.count({ where }),
     ]);
-
-    console.log('Productos encontrados:', products.length, 'Total:', total);
+    // console.log('Productos encontrados:', products.length, 'Total:', total);
 
     // Convertir precios de Decimal a number
     const productsWithNumberPrice = products.map(product => ({
@@ -113,9 +113,7 @@ export async function GET(request: NextRequest) {
 // POST /api/products - Crear un nuevo producto (solo admin)
 export async function POST(request: NextRequest) {
   try {
-    // CORRECCIÓN: Pasar el objeto request como primer parámetro
-    await requireRole(request, ['ADMIN']);
-
+    await requireRole(['ADMIN']);
     const body = await request.json();
     // Validar con Zod
     const result = productSchema.safeParse(body);
@@ -125,7 +123,6 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-
     const {
       slug,
       productName,
@@ -137,7 +134,6 @@ export async function POST(request: NextRequest) {
       status,
       stock,
     } = result.data;
-
     // Verificar si el slug ya existe
     const existingProduct = await prisma.product.findUnique({
       where: { slug },
@@ -148,7 +144,6 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-
     // Verificar si la categoría existe
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
@@ -159,7 +154,6 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-
     // Crear el producto con sus imágenes
     const product = await prisma.product.create({
       data: {
@@ -180,7 +174,6 @@ export async function POST(request: NextRequest) {
         images: true,
       },
     });
-
     return NextResponse.json(product, { status: 201 });
   } catch (error) {
     console.error('Error creating product:', error);
