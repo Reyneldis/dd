@@ -1,6 +1,6 @@
 // src/components/Navbar.tsx
 'use client';
-import UserAvatar from '@/components/shared/UserAvatar'; // Importar el componente UserAvatar
+// Importar el componente UserAvatar
 import { useAdmin } from '@/hooks/use-admin';
 import { useCart } from '@/hooks/use-cart';
 import { SignOutButton, useAuth, useUser } from '@clerk/nextjs';

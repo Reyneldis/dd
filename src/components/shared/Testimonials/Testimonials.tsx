@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
 import { ArrowRight, Quote, Star, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-
+// hola mundo
 interface Testimonial {
   id: string;
   name: string;
