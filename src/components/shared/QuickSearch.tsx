@@ -236,7 +236,7 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
                     Sugerencias:
                   </p>
                   <div className="flex flex-wrap gap-2 justify-center">
-                    {['pizza', 'hamburguesa', 'bebida', 'postre'].map(
+                    {['pollo', 'cafe', 'arrocera', 'lavadora'].map(
                       suggestion => (
                         <button
                           key={suggestion}
