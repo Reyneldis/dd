@@ -1,0 +1,21 @@
+{
+  "categories": [],
+  "products": [],
+  "users": [
+    {
+      "id": "fa632507-d5a5-4b1b-aeb6-c0aa63b0fd46",
+      "clerkId": "user_2z1iZiTyEa8TDYB0LWa4njHgWsw",
+      "email": "neldis537@gmail.com",
+      "firstName": "neldis",
+      "lastName": "umpierre",
+      "role": "ADMIN",
+      "avatar": "https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvdXBsb2FkZWQvaW1nXzJ6YmVvcG5JbXZldjZ3RXNvem1vWEtLdlN6cSJ9",
+      "createdAt": "2025-08-02T16:41:04.192Z",
+      "updatedAt": "2025-08-02T16:16:31.331Z",
+      "isActive": true
+    }
+  ],
+  "orders": [],
+  "reviews": [],
+  "exportedAt": "2025-08-03T01:58:38.034Z"
+}

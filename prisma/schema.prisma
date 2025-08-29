@@ -1,0 +1,277 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("LOCAL_DATABASE_URL")
+  directUrl = env("DIRECT_URL") 
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  avatar    String?
+  role      Role     @default(USER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  orders    Order[]
+  reviews   Review[]
+  addresses UserAddress[]
+  cartItems CartItem[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  categoryName String  @unique
+  slug        String   @unique
+  description String?
+  mainImage   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  productName String
+  price       Float
+  stock       Int      @default(0)
+  description String?
+  features    String[]
+  status      Status   @default(ACTIVE)
+  featured    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  /// @ts-ignore
+  searchText  Unsupported("tsvector")?
+
+  // Relaciones
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  images     ProductImage[]
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+  reviews    Review[]
+
+  @@index([categoryId])
+  @@index([price])
+  @@index([status, featured])
+  @@index([createdAt])
+  @@index([productName])
+  @@index([searchText], type: Gin)
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relaciones
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+model Order {
+  id             String        @id @default(cuid())
+  orderNumber    String        @unique
+  status         OrderStatus   @default(PENDING)
+  subtotal       Float
+  taxAmount      Float         @default(0)
+  shippingAmount Float         @default(0)
+  total          Float
+  customerEmail  String?       // Agregar este campo
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Información de contacto
+  contactInfo    ContactInfo?
+  shippingAddress ShippingAddress?
+
+  // Relaciones - userId es opcional para usuarios no logueados
+  userId String?
+  user   User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items  OrderItem[]
+  emailMetrics EmailMetrics[]
+
+  @@index([userId, status])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model ContactInfo {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relación con Order
+  order    Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId  String    @unique
+
+  @@map("contact_info")
+}
+
+model ShippingAddress {
+  id        String   @id @default(cuid())
+  street    String
+  city      String
+  state     String
+  zip       String
+  country   String  @default("Cuba")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relación con Order
+  order    Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId  String    @unique
+
+  @@map("shipping_addresses")
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  quantity  Int
+  price     Float
+  productName String?
+  productSku String?
+  total     Float
+  createdAt DateTime @default(now())
+
+  // Relaciones
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  rating     Int
+  comment    String?
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relaciones
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+
+  @@index([productId, rating])
+  @@index([isApproved])
+  @@index([createdAt])
+  @@map("reviews")
+}
+
+model UserAddress {
+  id        String      @id @default(cuid())
+  type      AddressType @default(HOME)
+  street    String
+  city      String
+  state     String
+  zipCode   String
+  country   String      @default("Colombia")
+  isDefault Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relaciones
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isDefault])
+  @@map("user_addresses")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+model EmailMetrics {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  type      String
+  recipient String
+  orderId   String
+  status    String // e.g., 'sent', 'failed', 'retry'
+  attempt   Int
+  error     String?
+
+  // Relaciones
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  PROCESSING
+  REFUNDED
+  FAILED
+}
+
+enum AddressType {
+  HOME
+  WORK
+  OTHER
+}

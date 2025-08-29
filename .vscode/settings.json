@@ -1,0 +1,57 @@
+ {
+   "typescript.preferences.includePackageJsonAutoImports": "on",
+   "typescript.suggest.autoImports": true,
+   "typescript.suggest.includeCompletionsForModuleExports": true,
+   "typescript.suggest.includeCompletionsWithSnippetText": true,
+   "typescript.suggest.includeCompletionsWithInsertText": true,
+   "typescript.suggest.includeCompletionsWithClassMemberSnippets": true,
+   "typescript.suggest.includeCompletionsWithObjectLiteralMethodSnippets": true,
+   "typescript.suggest.includeCompletionsWithFunctionParameterSnippets": true,
+   "typescript.suggest.includeCompletionsWithInsertText": true,
+   "typescript.suggest.includeCompletionsWithSnippetText": true,
+   "typescript.suggest.includeCompletionsForModuleExports": true,
+   "typescript.suggest.includeCompletionsWithClassMemberSnippets": true,
+   "typescript.suggest.includeCompletionsWithObjectLiteralMethodSnippets": true,
+   "typescript.suggest.includeCompletionsWithFunctionParameterSnippets": true,
+   "typescript.suggest.includeCompletionsWithInsertText": true,
+   "typescript.suggest.includeCompletionsWithSnippetText": true,
+   "typescript.suggest.includeCompletionsForModuleExports": true,
+   "typescript.suggest.includeCompletionsWithClassMemberSnippets": true,
+   "typescript.suggest.includeCompletionsWithObjectLiteralMethodSnippets": true,
+   "typescript.suggest.includeCompletionsWithFunctionParameterSnippets": true,
+   "editor.quickSuggestions": {
+     "other": true,
+     "comments": false,
+     "strings": true
+   },
+   "editor.suggestOnTriggerCharacters": true,
+   "editor.acceptSuggestionOnCommitCharacter": true,
+   "editor.acceptSuggestionOnEnter": "on",
+   "editor.tabCompletion": "on",
+   "editor.wordBasedSuggestions": "on",
+   "editor.parameterHints.enabled": true,
+   "editor.hover.enabled": true,
+   "editor.hover.delay": 300,
+  "editor.hover.sticky": true,
+   "editor.codeActionsOnSave": {
+     "source.fixAll.eslint": "explicit",
+     "source.organizeImports": "explicit"
+   },
+   "files.associations": {
+     "*.tsx": "typescriptreact",
+     "*.ts": "typescript"
+   },
+   "emmet.includeLanguages": {
+     "typescript": "html",
+     "typescriptreact": "html"
+   },
+   "tailwindCSS.includeLanguages": {
+     "typescript": "html",
+     "typescriptreact": "html"
+   },
+   "tailwindCSS.experimental.classRegex": [
+     ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+     ["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+   ]
+ }
+ 

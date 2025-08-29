@@ -1,0 +1,394 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@import url('@fontsource/onest/400.css');
+@import url('@fontsource/onest/700.css');
+
+@custom-variant dark (&:is(.dark *));
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+html {
+  scroll-behavior: smooth;
+}
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  overflow-wrap: break-word;
+}
+p {
+  text-wrap: pretty;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  text-wrap: balance;
+}
+body {
+  line-height: 1.5;
+}
+
+body {
+  font-family: var(--font-onest);
+}
+
+html.dark {
+  background-color: #000;
+  color: #fff;
+}
+
+.dark .nav-links a {
+  color: #fff;
+}
+/* globals.css o tu archivo de estilos principal */
+
+/* Optimizaciones para el buscador en móvil */
+@media (max-width: 768px) {
+  /* Asegurar que el buscador ocupe toda la pantalla */
+  .quick-search-container {
+    max-height: 100vh;
+    max-height: 100dvh; /* Para iOS */
+  }
+
+  /* Mejorar el scroll en móvil */
+  .quick-search-container .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Optimizar inputs en móvil */
+  .quick-search-container input {
+    font-size: 16px; /* Previerte zoom en iOS */
+    -webkit-appearance: none;
+    border-radius: 12px;
+  }
+
+  /* Mejorar botones en móvil */
+  .quick-search-container button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Optimizar imágenes en móvil */
+  .quick-search-container img {
+    image-rendering: -webkit-optimize-contrast;
+  }
+}
+
+/* Animaciones suaves para móviles */
+@media (hover: none) {
+  .quick-search-container .group-hover\:scale-105 {
+    transform: none !important;
+  }
+
+  .quick-search-container .group-hover\:text-primary {
+    color: inherit !important;
+  }
+}
+:root {
+  --font-onest: 'Onest', sans-serif;
+  /* Colores base - Minimalista y fresco */
+  --background: oklch(0.99 0.002 110); /* Blanco roto con ligero tinte verde */
+  --foreground: oklch(0.18 0.01 250); /* Gris oscuro suave */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.01 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.01 250);
+
+  /* Colores principales - Verde fresco y naranja cálido */
+  --primary: oklch(0.68 0.15 155); /* Verde menta fresco */
+  --primary-foreground: oklch(0.99 0.002 110); /* Blanco roto */
+  --secondary: oklch(0.82 0.12 45); /* Naranja suave y cálido */
+  --secondary-foreground: oklch(0.18 0.01 250); /* Gris oscuro */
+
+  /* Colores de acento - Modernos y versátiles */
+  --muted: oklch(0.96 0.01 155); /* Verde muy claro */
+  --muted-foreground: oklch(0.5 0.02 250); /* Gris medio */
+  --accent: oklch(0.78 0.14 200); /* Azul suave para electrodomésticos */
+  --accent-foreground: oklch(0.99 0.002 110);
+
+  /* Colores de acción - Claros y amigables */
+  --destructive: oklch(0.58 0.18 15); /* Rojo suave */
+  --destructive-foreground: oklch(0.99 0.002 110);
+
+  /* Bordes e inputs - Minimalistas */
+  --border: oklch(0.92 0.01 155); /* Verde muy claro */
+  --input: oklch(0.92 0.01 155);
+  --ring: oklch(0.68 0.15 155); /* Verde menta para focus */
+
+  /* Colores para gráficos - Armonía visual */
+  --chart-1: oklch(0.68 0.15 155); /* Verde */
+  --chart-2: oklch(0.82 0.12 45); /* Naranja */
+  --chart-3: oklch(0.78 0.14 200); /* Azul */
+  --chart-4: oklch(0.65 0.1 280); /* Lila suave */
+  --chart-5: oklch(0.6 0.16 15); /* Rojo suave */
+
+  /* Sidebar - Limpio y organizado */
+  --sidebar: oklch(0.98 0.003 110); /* Blanco roto */
+  --sidebar-foreground: oklch(0.5 0.02 250);
+  --sidebar-primary: oklch(0.68 0.15 155);
+  --sidebar-primary-foreground: oklch(0.99 0.002 110);
+  --sidebar-accent: oklch(0.96 0.01 155);
+  --sidebar-accent-foreground: oklch(0.18 0.01 250);
+  --sidebar-border: oklch(0.92 0.01 155);
+  --sidebar-ring: oklch(0.68 0.15 155);
+
+  /* Tipografía moderna */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: 'Fira Code', monospace;
+
+  /* Bordes redondeados modernos */
+  --radius: 0.75rem;
+
+  /* Sombras suaves y modernas */
+  --shadow-2xs: 0px 1px 2px 0px oklch(0.18 0.01 250 / 0.05);
+  --shadow-xs: 0px 1px 3px 0px oklch(0.18 0.01 250 / 0.1);
+  --shadow-sm: 0px 2px 8px 0px oklch(0.18 0.01 250 / 0.1);
+  --shadow: 0px 4px 12px 0px oklch(0.18 0.01 250 / 0.15);
+  --shadow-md: 0px 6px 16px 0px oklch(0.18 0.01 250 / 0.2);
+  --shadow-lg: 0px 8px 24px 0px oklch(0.18 0.01 250 / 0.25);
+  --shadow-xl: 0px 12px 32px 0px oklch(0.18 0.01 250 / 0.3);
+  --shadow-2xl: 0px 16px 48px 0px oklch(0.18 0.01 250 / 0.35);
+
+  /* Espaciado y tracking optimizados */
+  --tracking-normal: 0em;
+  --tracking-tight: -0.025em;
+  --tracking-wide: 0.025em;
+  --spacing: 0.25rem;
+}
+
+.dark {
+  /* Colores base modo oscuro - Elegante y moderno */
+  --background: oklch(0.12 0.01 250); /* Gris oscuro profundo */
+  --foreground: oklch(0.95 0.01 110); /* Blanco roto */
+  --card: oklch(0.15 0.015 250);
+  --card-foreground: oklch(0.95 0.01 110);
+  --popover: oklch(0.15 0.015 250);
+  --popover-foreground: oklch(0.95 0.01 110);
+
+  /* Colores principales modo oscuro - Más vibrantes */
+  --primary: oklch(0.72 0.18 155); /* Verde más brillante */
+  --primary-foreground: oklch(0.12 0.01 250);
+  --secondary: oklch(0.85 0.15 45); /* Naranja más intenso */
+  --secondary-foreground: oklch(0.12 0.01 250);
+
+  /* Colores de acento modo oscuro - Profundos y sofisticados */
+  --muted: oklch(0.2 0.02 250);
+  --muted-foreground: oklch(0.7 0.02 110);
+  --accent: oklch(0.75 0.16 200); /* Azul más intenso */
+  --accent-foreground: oklch(0.95 0.01 110);
+
+  /* Colores de acción modo oscuro - Intensos pero equilibrados */
+  --destructive: oklch(0.65 0.2 15);
+  --destructive-foreground: oklch(0.95 0.01 110);
+
+  /* Bordes e inputs modo oscuro - Sutiles */
+  --border: oklch(0.25 0.02 250);
+  --input: oklch(0.25 0.02 250);
+  --ring: oklch(0.72 0.18 155);
+
+  /* Colores para gráficos modo oscuro - Contraste equilibrado */
+  --chart-1: oklch(0.72 0.18 155);
+  --chart-2: oklch(0.85 0.15 45);
+  --chart-3: oklch(0.75 0.16 200);
+  --chart-4: oklch(0.7 0.12 280);
+  --chart-5: oklch(0.65 0.18 15);
+
+  /* Sidebar modo oscuro - Profundo y organizado */
+  --sidebar: oklch(0.13 0.015 250);
+  --sidebar-foreground: oklch(0.7 0.02 110);
+  --sidebar-primary: oklch(0.72 0.18 155);
+  --sidebar-primary-foreground: oklch(0.12 0.01 250);
+  --sidebar-accent: oklch(0.2 0.02 250);
+  --sidebar-accent-foreground: oklch(0.95 0.01 110);
+  --sidebar-border: oklch(0.25 0.02 250);
+  --sidebar-ring: oklch(0.72 0.18 155);
+
+  /* Tipografía consistente */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: 'Fira Code', monospace;
+
+  /* Bordes redondeados consistentes */
+  --radius: 0.75rem;
+
+  /* Sombras modo oscuro - Más profundas */
+  --shadow-2xs: 0px 1px 2px 0px oklch(0 0 0 / 0.3);
+  --shadow-xs: 0px 1px 3px 0px oklch(0 0 0 / 0.4);
+  --shadow-sm: 0px 2px 8px 0px oklch(0 0 0 / 0.5);
+  --shadow: 0px 4px 12px 0px oklch(0 0 0 / 0.6);
+  --shadow-md: 0px 6px 16px 0px oklch(0 0 0 / 0.7);
+  --shadow-lg: 0px 8px 24px 0px oklch(0 0 0 / 0.8);
+  --shadow-xl: 0px 12px 32px 0px oklch(0 0 0 / 0.9);
+  --shadow-2xl: 0px 16px 48px 0px oklch(0 0 0 / 1);
+
+  /* Espaciado y tracking consistentes */
+  --tracking-normal: 0em;
+  --tracking-tight: -0.025em;
+  --tracking-wide: 0.025em;
+  --spacing: 0.25rem;
+}
+
+@theme inline {
+  /* Mapeo de colores para Tailwind */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Tipografía moderna */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  /* Radio de bordes mejorado */
+  --radius-sm: calc(var(--radius) - 0.25rem);
+  --radius-md: calc(var(--radius) - 0.125rem);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+  --radius-2xl: calc(var(--radius) + 0.5rem);
+
+  /* Sombras optimizadas */
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  /* Tracking mejorado */
+  --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+  --tracking-tight: var(--tracking-tight);
+  --tracking-normal: var(--tracking-normal);
+  --tracking-wide: var(--tracking-wide);
+  --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+  --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+}
+body {
+  letter-spacing: var(--tracking-normal);
+}
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* app/globals.css */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fadeIn {
+  animation-name: fadeIn;
+}
+
+.animate-slideUp {
+  animation-name: slideUp;
+}
+
+.animate-slideDown {
+  animation-name: slideDown;
+}
+
+.animate-slideLeft {
+  animation-name: slideLeft;
+}
+
+.animate-slideRight {
+  animation-name: slideRight;
+}
