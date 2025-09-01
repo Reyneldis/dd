@@ -107,39 +107,43 @@ export default async function CategoryPage({
   return (
     <div className="container pt-10 mx-auto px-4 py-8 sm:py-12">
       {/* Botón minimalista y con personalidad para volver */}
-      <div className="flex justify-center mb-6 sm:mb-8">
+      <div className="flex justify-center pt-8 mb-6 sm:mb-8">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-gray-800 to-gray-900 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 hover:from-gray-700 hover:to-gray-800 text-sm sm:text-base"
+          className="group relative inline-flex items-center gap-2 px-4 py-2 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors duration-300"
         >
-          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-          Volver
+          <ArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
+          <span className="font-medium">Volver</span>
+          {/* Línea principal */}
+          <span className="absolute bottom-0 left-0 h-0.5 bg-sky-500 dark:bg-sky-400 w-0 group-hover:w-full transition-all duration-400 ease-in-out"></span>
+          {/* Efecto de brillo solo en modo oscuro */}
+          <span className="absolute bottom-0 left-0 h-0.5 bg-white/30 dark:bg-white/50 w-0 group-hover:w-full transition-all duration-400 ease-in-out blur-sm opacity-0 dark:opacity-100"></span>
         </Link>
       </div>
 
-      {/* Filtro por precios */}
+      {/* Filtro por precios - Estilo mejorado */}
       <div className="flex justify-center mb-8 sm:mb-12">
-        <div
-          className="flex flex-wrap justify-center gap-2 sm:gap-0 sm:inline-flex rounded-md shadow-sm"
-          role="group"
-        >
-          {priceRanges.map(range => (
+        <div className="inline-flex p-1 bg-gray-100 dark:bg-gray-800 rounded-xl shadow-inner">
+          {priceRanges.map((range, index) => (
             <Link
               key={range.value}
               href={`/categories/${slug}?priceRange=${range.value}`}
-              className={`px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border ${
+              className={`relative px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-300 ease-out ${
                 priceRange === range.value
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900'
+                  ? 'bg-gradient-to-r from-sky-500 to-emerald-500 text-white shadow-md transform scale-105'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
               } ${
-                range === priceRanges[0]
-                  ? 'rounded-l-lg sm:rounded-l-lg'
-                  : range === priceRanges[priceRanges.length - 1]
-                  ? 'rounded-r-lg sm:rounded-r-lg'
-                  : 'rounded-lg sm:rounded-none'
+                index === 0
+                  ? 'rounded-l-lg'
+                  : index === priceRanges.length - 1
+                  ? 'rounded-r-lg'
+                  : ''
               }`}
             >
-              {range.label}
+              {priceRange === range.value && (
+                <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-lg opacity-30"></span>
+              )}
+              <span className="relative z-10">{range.label}</span>
             </Link>
           ))}
         </div>
