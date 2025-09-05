@@ -13,7 +13,7 @@ import './globals.css';
 import '@fontsource/onest/400.css'; // Regular
 import '@fontsource/onest/700.css'; // Bold
 
-// Configuración de viewport - esto va aquí, no en metadata
+// Configuración de viewport
 export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-// Configuración de metadata - sin las propiedades que ahora van en viewport
+// Configuración de metadata
 export const metadata: Metadata = {
   // Título y descripción básicos
   title: {
@@ -50,6 +50,8 @@ export const metadata: Metadata = {
   authors: [{ name: 'Delivery Express Team' }],
   creator: 'Delivery Express',
   publisher: 'Delivery Express',
+
+  // Configuración de robots
   robots: {
     index: true,
     follow: true,
@@ -80,12 +82,6 @@ export const metadata: Metadata = {
         height: 630,
         alt: 'Delivery Express - Tienda Online',
       },
-      {
-        url: '/og-image-alt.jpg',
-        width: 800,
-        height: 600,
-        alt: 'Delivery Express - Entrega a domicilio',
-      },
     ],
   },
 
@@ -102,24 +98,8 @@ export const metadata: Metadata = {
 
   // Iconos y manifest
   icons: {
-    icon: [
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon.ico', sizes: 'any' },
-    ],
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-      {
-        url: '/apple-touch-icon-120x120.png',
-        sizes: '120x120',
-        type: 'image/png',
-      },
-      {
-        url: '/apple-touch-icon-152x152.png',
-        sizes: '152x152',
-        type: 'image/png',
-      },
-    ],
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
     other: [
       { rel: 'mask-icon', url: '/safari-pinned-tab.svg', color: '#0066ff' },
     ],
@@ -151,18 +131,6 @@ export const metadata: Metadata = {
     capable: true,
     title: 'Delivery Express',
     statusBarStyle: 'black-translucent',
-    startupImage: [
-      {
-        url: '/apple-startup-image-750x1334.png',
-        media:
-          '(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)',
-      },
-      {
-        url: '/apple-startup-image-1242x2208.png',
-        media:
-          '(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)',
-      },
-    ],
   },
 
   // Metadatos adicionales
@@ -182,10 +150,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    >
       <html lang="es" suppressHydrationWarning>
         <head>
-          {/* DNS Prefetch para recursos externos (si los necesitas) */}
+          {/* DNS Prefetch para recursos externos */}
           <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
 
           {/* Structured Data para SEO */}

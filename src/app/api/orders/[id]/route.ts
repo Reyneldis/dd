@@ -81,8 +81,14 @@ export async function PATCH(
     }
 
     // Solo enviar email si el estado realmente cambió y tenemos los datos necesarios
-    if (order.status !== status && order.customerEmail && order.user?.firstName) {
-      const customerName = `${order.user.firstName} ${order.user.lastName || ''}`.trim();
+    if (
+      order.status !== status &&
+      order.customerEmail &&
+      order.user?.firstName
+    ) {
+      const customerName = `${order.user.firstName} ${
+        order.user.lastName || ''
+      }`.trim();
       await sendStatusEmail(
         order.customerEmail,
         customerName, // Usar el nombre completo construido

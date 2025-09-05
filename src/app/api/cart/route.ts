@@ -1,5 +1,6 @@
+// // src/app/api/cart/route.ts
 import { prisma } from '@/lib/prisma';
-import { cartItemSchema } from '@/schemas/cartSchema';
+import { cartItemSchema, updateCartItemSchema } from '@/schemas/cartSchema';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET /api/cart - Obtener items del carrito de un usuario
@@ -7,7 +8,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
-
     if (!userId) {
       return NextResponse.json(
         { error: 'ID de usuario requerido' },
@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       );
     }
     const { userId, productId, quantity } = result.data;
+
     // Verificar que el producto existe
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
         { status: 404 },
       );
     }
+
     // Verificar si el item ya existe en el carrito
     const existingItem = await prisma.cartItem.findUnique({
       where: {
@@ -84,6 +86,7 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
     let cartItem;
     if (existingItem) {
       // Actualizar cantidad
@@ -121,6 +124,7 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
     return NextResponse.json(cartItem, { status: 201 });
   } catch (error) {
     console.error('Error adding to cart:', error);
@@ -135,21 +139,22 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { itemId, quantity } = body;
+    const result = updateCartItemSchema.safeParse(body);
 
-    if (!itemId || quantity === undefined) {
+    if (!result.success) {
       return NextResponse.json(
-        { error: 'ID del item y cantidad son requeridos' },
+        { error: 'Datos inválidos', details: result.error.flatten() },
         { status: 400 },
       );
     }
+
+    const { itemId, quantity } = result.data;
 
     if (quantity <= 0) {
       // Si la cantidad es 0 o menor, eliminar el item
       await prisma.cartItem.delete({
         where: { id: itemId },
       });
-
       return NextResponse.json({ message: 'Item eliminado del carrito' });
     }
 
@@ -183,7 +188,6 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get('itemId');
-
     if (!itemId) {
       return NextResponse.json(
         { error: 'ID del item requerido' },

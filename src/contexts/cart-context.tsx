@@ -1,24 +1,50 @@
+// src/contexts/cart-context.tsx
 'use client';
-import { useCart as useCartStore } from '@/store/cart-store';
-import { useUser } from '@clerk/nextjs';
-import { useEffect, useRef } from 'react';
 
-export function useCart() {
+import { useCart as useCartStore, type CartItem } from '@/store/cart-store';
+import { useUser } from '@clerk/nextjs';
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+
+interface CartContextType {
+  items: CartItem[];
+  addItem: (item: Omit<CartItem, 'quantity'>) => void;
+  removeItem: (slug: string) => void;
+  updateQuantity: (slug: string, quantity: number) => void;
+  clearCart: () => void;
+  setCart: (items: CartItem[]) => void;
+  isLoading: boolean;
+}
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+// Variables globales para evitar sincronizaciones múltiples
+let isGlobalSyncing = false;
+let lastGlobalSyncTime = 0;
+const MIN_SYNC_INTERVAL = 10000; // 10 segundos entre sincronizaciones
+
+export function CartProvider({ children }: { children: ReactNode }) {
   const cart = useCartStore();
   const { user, isSignedIn } = useUser();
-  const isSyncing = useRef(false);
-  const lastSyncTime = useRef(0);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Sincronizar carrito solo una vez por sesión
   useEffect(() => {
-    if (!isSignedIn || !user || isSyncing.current) return;
+    if (!isSignedIn || !user || isGlobalSyncing) return;
 
-    // Evitar sincronizaciones demasiado frecuentes (mínimo 5 segundos)
     const now = Date.now();
-    if (now - lastSyncTime.current < 5000) return;
+    if (now - lastGlobalSyncTime < MIN_SYNC_INTERVAL) return;
 
     const syncCart = async () => {
-      isSyncing.current = true;
-      lastSyncTime.current = now;
+      isGlobalSyncing = true;
+      lastGlobalSyncTime = now;
+      setIsLoading(true);
 
       try {
         const response = await fetch(`/api/cart?userId=${user.id}`);
@@ -51,18 +77,32 @@ export function useCart() {
       } catch (error) {
         console.error('Error sincronizando carrito:', error);
       } finally {
-        isSyncing.current = false;
+        setIsLoading(false);
+        isGlobalSyncing = false;
       }
     };
 
     syncCart();
   }, [isSignedIn, user, cart]);
 
-  return cart;
+  return (
+    <CartContext.Provider value={{ ...cart, isLoading }}>
+      {children}
+    </CartContext.Provider>
+  );
 }
 
+export function useCartContext() {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error('useCartContext debe ser usado dentro de un CartProvider');
+  }
+  return context;
+}
+
+// Hook personalizado para sincronizar con el backend
 export function useSyncCartWithBackend() {
-  const { items } = useCart();
+  const { items } = useCartContext();
   const { user, isSignedIn } = useUser();
   const syncTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -74,7 +114,7 @@ export function useSyncCartWithBackend() {
       clearTimeout(syncTimeout.current);
     }
 
-    // Establecer nuevo timeout con debounce más largo (2 segundos)
+    // Establecer nuevo timeout con debounce
     syncTimeout.current = setTimeout(async () => {
       try {
         await fetch('/api/cart/sync', {
@@ -92,7 +132,7 @@ export function useSyncCartWithBackend() {
       } catch (error) {
         console.error('Error sincronizando carrito con backend:', error);
       }
-    }, 2000); // Aumentado a 2 segundos
+    }, 2000); // 2 segundos de debounce
 
     // Cleanup
     return () => {
@@ -111,6 +151,3 @@ export function useSyncCartWithBackend() {
     };
   }, []);
 }
-
-// Reexportar el tipo CartItem para que esté disponible
-export type { CartItem } from '@/store/cart-store';

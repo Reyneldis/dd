@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-
+// scripts/optimize-images.js
+import sharp from 'sharp';
+// ... resto del código
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');

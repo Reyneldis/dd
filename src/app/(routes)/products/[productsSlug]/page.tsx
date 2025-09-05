@@ -22,6 +22,7 @@ interface Review {
   user?: ReviewUser;
 }
 
+// Importar el tipo CartItem desde el hook
 import type { CartItem } from '@/hooks/use-cart';
 import type { Product } from '@/types';
 import { toast } from 'sonner';
@@ -37,7 +38,7 @@ async function fetchProduct(slug: string): Promise<Product | null> {
 
 import CheckoutModal from '@/components/shared/checkout/CheckoutModal';
 
-// Componente ThreeDCard para el efecto 3D
+// Componente ThreeDCard optimizado
 const ThreeDCard = ({ children }: { children: React.ReactNode }) => {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -46,7 +47,6 @@ const ThreeDCard = ({ children }: { children: React.ReactNode }) => {
   });
   const rotateX = useTransform(scrollYProgress, [0, 1], [20, -20]);
   const rotateY = useTransform(scrollYProgress, [0, 1], [-20, 20]);
-
   return (
     <motion.div
       ref={ref}
@@ -64,7 +64,7 @@ const ThreeDCard = ({ children }: { children: React.ReactNode }) => {
 
 export default function ProductPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const { addItem } = useCart();
+  const { addItem, items } = useCart();
   const { isSignedIn, userId } = useAuth();
   const params = useParams<{ productsSlug: string }>();
   const [product, setProduct] = useState<Product | null>(null);
@@ -152,37 +152,31 @@ export default function ProductPage() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    const currentCart =
-      JSON.parse(
-        localStorage.getItem('cart-storage') || '{"state":{"items":[]}}',
-      ).state.items || [];
-    const existing = currentCart.find(
-      (item: CartItem) => item.slug === product.slug,
-    );
-    const currentQty = existing ? existing.quantity : 0;
-    const maxQty = typeof product.stock === 'number' ? product.stock : 99;
-    if (currentQty + quantity > maxQty) {
-      if (typeof window !== 'undefined') {
-        toast.error(
-          'No puedes agregar más de ' + maxQty + ' unidades de este producto.',
-        );
-      } else {
-        alert(
-          'No puedes agregar más de ' + maxQty + ' unidades de este producto.',
-        );
-      }
+
+    // Verificar si el producto ya está en el carrito
+    const existingItem = items.find(item => item.slug === product.slug);
+    const currentQty = existingItem ? existingItem.quantity : 0;
+
+    // Verificar stock
+    if (currentQty + quantity > stock) {
+      toast.error(
+        `No puedes agregar más de ${stock} unidades de este producto.`,
+      );
       return;
     }
-    const cartItem = {
-      id: product.id,
+
+    // Crear el item para el carrito - CORREGIDO
+    const cartItem: Omit<CartItem, 'id'> = {
       productName: product.productName,
       price: product.price,
       image: product.images?.[0]?.url || '/img/placeholder-category.jpg',
       slug: product.slug,
-      quantity,
-      // color: selectedColor, // ya no hay color
+      quantity: quantity, // Ahora incluimos la cantidad aquí
     };
+
+    // Agregar al carrito
     addItem(cartItem);
+    toast.success('Producto agregado al carrito');
   };
 
   if (loading) {
@@ -220,12 +214,6 @@ export default function ProductPage() {
     product.image ||
     product.images?.[0]?.url ||
     '/img/placeholder-category.jpg';
-
-  // Debug: ver datos reales
-  if (typeof window !== 'undefined') {
-    console.log('product:', product);
-    console.log('mainImage:', mainImage);
-  }
 
   // El return principal debe ser el único fuera de condicionales
   return (
@@ -426,7 +414,6 @@ export default function ProductPage() {
                       </button>
                     ))}
                   </div>
-
                   <textarea
                     className="w-full p-3 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     rows={3}
@@ -436,7 +423,6 @@ export default function ProductPage() {
                     required
                     maxLength={500}
                   />
-
                   <button
                     type="submit"
                     className="py-3 px-6 rounded-xl bg-gradient-to-r from-pink-500 to-yellow-400 text-white font-bold text-lg shadow hover:from-pink-600 hover:to-yellow-500 transition-all"
@@ -448,13 +434,11 @@ export default function ProductPage() {
                   >
                     {reviewLoading ? 'Enviando...' : 'Enviar reseña'}
                   </button>
-
                   {reviewSuccess && (
                     <div className="text-green-600 font-semibold text-center">
                       {reviewSuccess}
                     </div>
                   )}
-
                   {reviewError && (
                     <div className="text-red-600 font-semibold text-center">
                       {reviewError}
@@ -472,7 +456,6 @@ export default function ProductPage() {
                 <h4 className="text-lg font-semibold mb-2">
                   Reseñas recientes
                 </h4>
-
                 {reviewsLoading ? (
                   <div>Cargando reseñas...</div>
                 ) : reviews.length === 0 ? (
@@ -508,7 +491,6 @@ export default function ProductPage() {
           </div>
         </div>
       </div>
-
       <CheckoutModal
         isOpen={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}

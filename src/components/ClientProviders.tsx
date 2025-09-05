@@ -1,9 +1,9 @@
+// src/components/ClientProviders.tsx
 'use client';
-import { useSyncCartWithBackend } from '@/hooks/use-cart';
+import { CartProvider } from '@/contexts/cart-context';
 import { useSyncUser } from '@/hooks/use-sync-user';
 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
   useSyncUser();
-  useSyncCartWithBackend();
-  return <>{children}</>;
+  return <CartProvider>{children}</CartProvider>;
 }

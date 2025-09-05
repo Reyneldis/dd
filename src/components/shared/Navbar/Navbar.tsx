@@ -17,7 +17,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import CartModal from '../CartModal';
-import ClerkImage from '../ClerkImage'; // <-- Importar ClerkImage
+import ClerkImage from '../ClerkImage';
 import Icon from '../Icon';
 import Logo from '../Logo/Logo';
 import { ModeToggle } from '../model-dark';
@@ -124,7 +124,7 @@ export default function Navbar() {
             </button>
             <Logo />
           </div>
-          {/* hola  */}
+
           {/* Desktop Nav - oculto en móvil */}
           <div className="hidden lg:flex items-center gap-3">
             {navLinks.map(link => (
@@ -142,6 +142,7 @@ export default function Navbar() {
             >
               <Icon paths={ICONS.search.paths} />
             </button>
+
             <button
               aria-label="Carrito"
               onClick={() => setIsCartOpen(true)}
@@ -154,13 +155,18 @@ export default function Navbar() {
                 </span>
               )}
             </button>
-            <Link
-              href="/orders"
-              className="p-2 rounded-xl bg-white/10 dark:bg-neutral-800/20 border border-white/20 dark:border-neutral-700/30 hover:bg-primary/10 dark:hover:bg-primary/20 transition-all"
-              aria-label="Pedidos"
-            >
-              <Package className="w-5 h-5 text-orange-500" />
-            </Link>
+
+            {/* Enlace a pedidos solo para usuarios autenticados */}
+            {isLoaded && isSignedIn && (
+              <Link
+                href="/orders"
+                className="p-2 rounded-xl bg-white/10 dark:bg-neutral-800/20 border border-white/20 dark:border-neutral-700/30 hover:bg-primary/10 dark:hover:bg-primary/20 transition-all"
+                aria-label="Pedidos"
+              >
+                <Package className="w-5 h-5 text-orange-500" />
+              </Link>
+            )}
+
             {isLoaded && isSignedIn && isAdmin && (
               <Link
                 href="/admin"
@@ -170,6 +176,7 @@ export default function Navbar() {
                 <Icon paths={ICONS.shield.paths} />
               </Link>
             )}
+
             {isLoaded && isSignedIn && user ? (
               <>
                 <Link
@@ -203,6 +210,7 @@ export default function Navbar() {
                 Iniciar sesión
               </Link>
             )}
+
             <ModeToggle />
           </div>
 
@@ -243,6 +251,7 @@ export default function Navbar() {
               className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
               onClick={() => setIsMenuOpen(false)}
             />
+
             {/* Sidebar */}
             <motion.div
               initial={{ x: '-100%' }}
@@ -314,14 +323,18 @@ export default function Navbar() {
                       </span>
                     )}
                   </button>
-                  <Link
-                    href="/orders"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <Package size={18} className="mr-3 text-orange-500" />
-                    Pedidos
-                  </Link>
+
+                  {/* Enlace a pedidos solo para usuarios autenticados */}
+                  {isLoaded && isSignedIn && (
+                    <Link
+                      href="/orders"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <Package size={18} className="mr-3 text-orange-500" />
+                      Pedidos
+                    </Link>
+                  )}
                 </div>
 
                 {/* Cuenta de usuario */}

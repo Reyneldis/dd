@@ -199,7 +199,9 @@ export async function POST(request: NextRequest) {
         });
         if (updated.count === 0) {
           throw new Error(
-            `Stock insuficiente o producto no disponible para ${item.productName ?? item.name ?? item.slug}: ${item.quantity} solicitados`,
+            `Stock insuficiente o producto no disponible para ${
+              item.productName ?? item.name ?? item.slug
+            }: ${item.quantity} solicitados`,
           );
         }
       }

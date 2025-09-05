@@ -1,3 +1,4 @@
+// // src/app/api/sync-user/route.ts
 import { prisma } from '@/lib/prisma';
 import { syncUserSchema } from '@/schemas/syncUserSchema';
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,9 +15,9 @@ export async function POST(request: NextRequest) {
       );
     }
     const { clerkId, email, firstName, lastName, avatar } = result.data;
+
     // Buscar usuario por clerkId o por email
     let user = await prisma.user.findUnique({ where: { clerkId } });
-
     if (!user) {
       user = await prisma.user.findUnique({ where: { email } });
     }
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
         },
       });
     } else {
-      // Si ya existe, actualizar datos (opcional)
+      // Si ya existe, actualizar datos
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -45,8 +46,7 @@ export async function POST(request: NextRequest) {
         },
       });
     }
-    // (Opcional) Actualizar datos si han cambiado
-    // Puedes agregar lógica aquí si quieres mantener los datos sincronizados
+
     return NextResponse.json(user);
   } catch (error) {
     console.error('Error en sync-user:', error);
