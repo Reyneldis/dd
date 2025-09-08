@@ -45,10 +45,18 @@ export const sendOrderConfirmationEmail = async (
           .map(
             item => `
               <tr>
-                <td style="padding:12px; border-bottom:1px solid #e2e8f0; font-size:14px; color:#0f172a;">${item.productName}</td>
-                <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:center; font-size:14px; color:#0f172a;">${item.quantity}</td>
-                <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:right; font-size:14px; color:#0f172a;">$${item.price.toFixed(2)}</td>
-                <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:right; font-weight:600; font-size:14px; color:#0f172a;">$${(item.price * item.quantity).toFixed(2)}</td>
+                <td style="padding:12px; border-bottom:1px solid #e2e8f0; font-size:14px; color:#0f172a;">${
+                  item.productName
+                }</td>
+                <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:center; font-size:14px; color:#0f172a;">${
+                  item.quantity
+                }</td>
+                <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:right; font-size:14px; color:#0f172a;">$${item.price.toFixed(
+                  2,
+                )}</td>
+                <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:right; font-weight:600; font-size:14px; color:#0f172a;">$${(
+                  item.price * item.quantity
+                ).toFixed(2)}</td>
               </tr>
             `,
           )
@@ -62,9 +70,9 @@ export const sendOrderConfirmationEmail = async (
       ${orderDetails.items
         .map(
           item =>
-            `<li style="margin:6px 0; font-size:14px;">${item.productName} - ${item.quantity} x $${item.price.toFixed(
-              2,
-            )}</li>`,
+            `<li style="margin:6px 0; font-size:14px;">${item.productName} - ${
+              item.quantity
+            } x $${item.price.toFixed(2)}</li>`,
         )
         .join('')}
     </ul>
@@ -78,7 +86,7 @@ export const sendOrderConfirmationEmail = async (
       <div style="max-width:640px; margin:0 auto; padding:24px;">
         <div style="background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; padding:20px 24px; border-radius:12px 12px 0 0;">
           <h1 style="margin:0; font-size:20px;">🎉 ¡Pedido confirmado!</h1>
-          <p style="margin:6px 0 0 0; opacity:0.95; font-size:13px;">Gracias por comprar en Deliveryy</p>
+          <p style="margin:6px 0 0 0; opacity:0.95; font-size:13px;">Gracias por comprar en Delivery</p>
         </div>
 
         <div style="background:#ffffff; padding:24px; border:1px solid #e2e8f0; border-top:0; border-radius:0 0 12px 12px;">
@@ -107,7 +115,7 @@ export const sendOrderConfirmationEmail = async (
           <p style="margin:20px 0 0 0; font-size:13px; color:#64748b;">Si tienes dudas, responde a este correo. ¡Gracias por elegirnos!</p>
         </div>
 
-        <p style="text-align:center; margin:16px 0 0 0; font-size:12px; color:#94a3b8;">© ${new Date().getFullYear()} Deliveryy</p>
+        <p style="text-align:center; margin:16px 0 0 0; font-size:12px; color:#94a3b8;">© ${new Date().getFullYear()} Delivery</p>
       </div>
     </body>
     </html>
@@ -116,7 +124,7 @@ export const sendOrderConfirmationEmail = async (
   const mailOptions = {
     ...senderConfig,
     to,
-    subject: 'Confirmación de Pedido - Deliveryy',
+    subject: 'Confirmación de Pedido - Delivery',
     html,
     text: `Gracias por tu pedido. Total: $${orderDetails.total}. Envío a: ${orderDetails.shippingAddress}.`,
     replyTo: process.env.GMAIL_USER,
@@ -180,7 +188,9 @@ export const sendOrderConfirmationEmail = async (
       if (currentRetry < maxRetries) {
         const waitTime = Math.pow(2, currentRetry) * 1000; // Exponential backoff
         console.log(
-          `❌ [email] Intento ${currentRetry + 1} fallido. Esperando ${waitTime}ms antes de reintentar...`,
+          `❌ [email] Intento ${
+            currentRetry + 1
+          } fallido. Esperando ${waitTime}ms antes de reintentar...`,
         );
         await sleep(waitTime);
       }

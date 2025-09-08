@@ -8,9 +8,9 @@ const isPublicRoute = createRouteMatcher([
   '/contact(.*)',
   '/about(.*)',
   '/search(.*)',
-  // Autenticación
+  // Autenticación - Asegúrate de incluir (.*) para que sean catch-all
   '/sign-in(.*)',
-  '/sign-up(.*)',
+  '/sign-up(.*)', // Esto permitirá todas las rutas bajo /sign-up
   '/login(.*)',
   '/register(.*)',
   // Callbacks de OAuth
@@ -47,11 +47,9 @@ export default clerkMiddleware(async (auth, req) => {
     if (req.nextUrl.pathname === '/api/orders' && req.method === 'POST') {
       return;
     }
-
     // Verificar autenticación para otras rutas API
     const { userId } = await auth();
     if (!userId) {
-      // No modificar encabezados, solo devolver una respuesta simple
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: {
@@ -66,7 +64,6 @@ export default clerkMiddleware(async (auth, req) => {
     if (!userId) {
       const signInUrl = new URL('/sign-in', req.url);
       signInUrl.searchParams.set('redirect_url', req.url);
-      // Usar redirect en lugar de modificar encabezados
       return Response.redirect(signInUrl);
     }
   }

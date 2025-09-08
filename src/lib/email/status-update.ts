@@ -48,7 +48,7 @@ export const sendStatusUpdateEmail = async (
       <div style="max-width:640px; margin:0 auto; padding:24px;">
         <div style="background:linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; padding:20px 24px; border-radius:12px 12px 0 0;">
           <h1 style="margin:0; font-size:20px;">📢 Actualización de tu pedido</h1>
-          <p style="margin:6px 0 0 0; opacity:0.95; font-size:13px;">Deliveryy</p>
+          <p style="margin:6px 0 0 0; opacity:0.95; font-size:13px;">Delivery</p>
         </div>
 
         <div style="background:#ffffff; padding:24px; border:1px solid #e2e8f0; border-top:0; border-radius:0 0 12px 12px;">
@@ -72,7 +72,7 @@ export const sendStatusUpdateEmail = async (
           <p style="margin:20px 0 0 0; font-size:13px; color:#64748b;">Si tienes dudas, responde a este correo. ¡Gracias por elegirnos!</p>
         </div>
 
-        <p style="text-align:center; margin:16px 0 0 0; font-size:12px; color:#94a3b8;">© ${new Date().getFullYear()} Deliveryy</p>
+        <p style="text-align:center; margin:16px 0 0 0; font-size:12px; color:#94a3b8;">© ${new Date().getFullYear()} Delivery</p>
       </div>
     </body>
     </html>
@@ -81,7 +81,7 @@ export const sendStatusUpdateEmail = async (
   const mailOptions = {
     ...senderConfig,
     to,
-    subject: `Actualización de tu pedido #${orderId.slice(-6)} - Deliveryy`,
+    subject: `Actualización de tu pedido #${orderId.slice(-6)} - Delivery`,
     html,
     text: `Hola ${customerName}, tu pedido #${orderId.slice(
       -6,

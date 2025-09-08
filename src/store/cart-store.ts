@@ -1,3 +1,4 @@
+// store/cart-store.ts
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -17,9 +18,12 @@ interface CartStore {
   updateQuantity: (slug: string, quantity: number) => void;
   clearCart: () => void;
   setCart: (items: CartItem[]) => void;
+  getTotalItems: () => number;
+  getTotalPrice: () => number;
+  isInCart: (slug: string) => boolean;
 }
 
-export const useCart = create<CartStore>()(
+export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
@@ -27,7 +31,6 @@ export const useCart = create<CartStore>()(
         const currentItems = get().items;
         const existingItem = currentItems.find(i => i.slug === data.slug);
         if (existingItem) {
-          // Si ya existe, aumentamos la cantidad en lugar de no hacer nada
           set({
             items: currentItems.map(item =>
               item.slug === data.slug
@@ -36,7 +39,6 @@ export const useCart = create<CartStore>()(
             ),
           });
         } else {
-          // Si no existe, lo añadimos con un id generado
           const newItem = { ...data, id: Date.now().toString() };
           set({ items: [...currentItems, newItem] });
         }
@@ -59,6 +61,18 @@ export const useCart = create<CartStore>()(
       },
       clearCart: () => set({ items: [] }),
       setCart: items => set({ items }),
+      getTotalItems: () => {
+        return get().items.reduce((total, item) => total + item.quantity, 0);
+      },
+      getTotalPrice: () => {
+        return get().items.reduce(
+          (total, item) => total + item.price * item.quantity,
+          0,
+        );
+      },
+      isInCart: slug => {
+        return get().items.some(item => item.slug === slug);
+      },
     }),
     {
       name: 'cart-storage',

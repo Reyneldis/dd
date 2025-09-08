@@ -32,6 +32,7 @@ export interface Product {
   description: string | null;
   categoryId: string;
   features: string[] | null;
+
   createdAt: Date;
   updatedAt: Date;
   category: Category;

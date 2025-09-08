@@ -1,6 +1,8 @@
+// components/shared/ProductCard/ProductCardCompact.tsx
 'use client';
-import { useCart } from '@/hooks/use-cart';
-import { Product } from '@/types';
+
+import { useCart } from '@/hooks/use-cart'; // Esta importación es correcta
+import { ProductFull } from '@/types/product';
 import { SignInButton, useAuth } from '@clerk/nextjs';
 import { Eye, Heart, ShoppingCart, Star } from 'lucide-react';
 import Image from 'next/image';
@@ -9,50 +11,61 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 interface ProductCardCompactProps {
-  product: Product;
+  product: ProductFull;
 }
 
 export default function ProductCardCompact({
   product,
 }: ProductCardCompactProps) {
-  const { addItem, items } = useCart();
+  // Desestructurar solo las funciones que necesitas
+  const { addItem, isInCart } = useCart();
   const { isSignedIn } = useAuth();
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
 
-  // Verificar si el producto ya está en el carrito
-  const isInCart = items.some(item => item.slug === product.slug);
+  const handleAddToCart = async () => {
+    if (!isSignedIn) {
+      toast.error('Debes iniciar sesión para agregar productos al carrito');
+      return;
+    }
 
-  const handleAddToCart = () => {
-    if (!isSignedIn) return;
     if (!product.slug) {
       console.error('El producto no tiene slug válido:', product);
       toast.error('Producto no válido');
       return;
     }
 
-    const mainImage =
-      product.images && product.images.length > 0
-        ? product.images.find(img => img.isPrimary) || product.images[0]
-        : null;
-    const imageUrl = mainImage?.url || '/img/placeholder-category.jpg';
+    setIsAdding(true);
 
-    // Crear el item para el carrito según la estructura esperada por el hook
-    const cartItem = {
-      productName: product.productName,
-      price: product.price,
-      slug: product.slug,
-      image: imageUrl,
-      quantity: 1,
-    };
+    try {
+      const mainImage =
+        product.images.find(img => img.isPrimary) || product.images[0];
+      const imageUrl = mainImage?.url || '/img/placeholder-category.jpg';
 
-    addItem(cartItem);
-    toast.success('Producto agregado al carrito');
+      const cartItem = {
+        productName: product.productName,
+        price: product.price,
+        slug: product.slug,
+        image: imageUrl,
+        quantity: 1,
+      };
+
+      if (isInCart(product.slug)) {
+        toast.warning(`${product.productName} ya está en el carrito`);
+      } else {
+        addItem(cartItem);
+        toast.success(`${product.productName} agregado al carrito`);
+      }
+    } catch (error) {
+      console.error('Error al agregar al carrito:', error);
+      toast.error('Error al agregar el producto al carrito');
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   const mainImage =
-    product.images && product.images.length > 0
-      ? product.images.find(img => img.isPrimary) || product.images[0]
-      : null;
+    product.images.find(img => img.isPrimary) || product.images[0];
   const imageUrl = mainImage?.url || '/img/placeholder-category.jpg';
 
   // Mock rating
@@ -148,13 +161,16 @@ export default function ProductCardCompact({
             {isSignedIn ? (
               <button
                 onClick={handleAddToCart}
+                disabled={isAdding}
                 className={`p-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg ${
-                  isInCart
+                  isInCart(product.slug)
                     ? 'bg-green-500 hover:bg-green-600 text-white'
                     : 'bg-blue-500 hover:bg-blue-600 text-white'
-                }`}
+                } ${isAdding ? 'opacity-50 cursor-not-allowed' : ''}`}
                 aria-label={
-                  isInCart ? 'Producto en el carrito' : 'Añadir al carrito'
+                  isInCart(product.slug)
+                    ? 'Producto en el carrito'
+                    : 'Añadir al carrito'
                 }
               >
                 <ShoppingCart className="h-4 w-4" />

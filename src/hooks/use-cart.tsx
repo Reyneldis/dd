@@ -1,83 +1,113 @@
+// hooks/use-cart.ts
 'use client';
-import { useCart as useCartStore } from '@/store/cart-store';
+
+import { useCartStore } from '@/store/cart-store'; // Importar el store directamente
 import { useUser } from '@clerk/nextjs';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 
 export function useCart() {
-  const cart = useCartStore();
+  // Importar TODAS las funciones del store directamente
+  const {
+    items,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    setCart,
+    getTotalItems,
+    getTotalPrice,
+    isInCart,
+  } = useCartStore(); // Usar el store de Zustand directamente
+
   const { user, isSignedIn } = useUser();
   const isSyncing = useRef(false);
   const lastSyncTime = useRef(0);
 
-  useEffect(() => {
+  // Sincronizar carrito del backend con el estado local
+  const syncFromBackend = useCallback(async () => {
     if (!isSignedIn || !user || isSyncing.current) return;
 
-    // Evitar sincronizaciones demasiado frecuentes (mínimo 5 segundos)
     const now = Date.now();
     if (now - lastSyncTime.current < 5000) return;
 
-    const syncCart = async () => {
-      isSyncing.current = true;
-      lastSyncTime.current = now;
+    isSyncing.current = true;
+    lastSyncTime.current = now;
 
-      try {
-        const response = await fetch(`/api/cart?userId=${user.id}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data.items)) {
-            const mappedItems = data.items.map(
-              (item: {
+    try {
+      const response = await fetch(`/api/cart?userId=${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data.items)) {
+          const mappedItems = data.items.map(
+            (item: {
+              id: string;
+              product: {
                 id: string;
-                product: {
-                  id: string;
-                  productName: string;
-                  price: number;
-                  images: { url: string }[];
-                  slug: string;
-                };
-                quantity: number;
-              }) => ({
-                id: item.product.id,
-                productName: item.product.productName,
-                price: item.product.price,
-                image: item.product.images[0]?.url || '',
-                slug: item.product.slug,
-                quantity: item.quantity,
-              }),
-            );
-            cart.setCart(mappedItems);
-          }
+                productName: string;
+                price: number;
+                images: { url: string }[];
+                slug: string;
+              };
+              quantity: number;
+            }) => ({
+              id: item.product.id,
+              productName: item.product.productName,
+              price: item.product.price,
+              image: item.product.images[0]?.url || '',
+              slug: item.product.slug,
+              quantity: item.quantity,
+            }),
+          );
+          setCart(mappedItems);
         }
-      } catch (error) {
-        console.error('Error sincronizando carrito:', error);
-      } finally {
-        isSyncing.current = false;
+      } else {
+        toast.error('Error al sincronizar el carrito');
       }
-    };
+    } catch (error) {
+      console.error('Error sincronizando carrito:', error);
+      toast.error('Error de conexión al sincronizar el carrito');
+    } finally {
+      isSyncing.current = false;
+    }
+  }, [isSignedIn, user, setCart]);
 
-    syncCart();
-  }, [isSignedIn, user, cart]);
+  useEffect(() => {
+    syncFromBackend();
+  }, [syncFromBackend]);
 
-  return cart;
+  // Devolver TODAS las funciones del store más la función de sincronización
+  return {
+    items,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    setCart,
+    getTotalItems,
+    getTotalPrice,
+    isInCart,
+    syncFromBackend,
+  };
 }
 
 export function useSyncCartWithBackend() {
-  const { items } = useCart();
+  // Usar el store directamente en lugar del hook para evitar la circularidad
+  const { items } = useCartStore(); // Cambiado aquí para evitar la circularidad
+
   const { user, isSignedIn } = useUser();
   const syncTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isSignedIn || !user || items.length === 0) return;
 
-    // Limpiar timeout anterior
     if (syncTimeout.current) {
       clearTimeout(syncTimeout.current);
     }
 
-    // Establecer nuevo timeout con debounce más largo (2 segundos)
     syncTimeout.current = setTimeout(async () => {
       try {
-        await fetch('/api/cart/sync', {
+        const response = await fetch('/api/cart/sync', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -89,12 +119,18 @@ export function useSyncCartWithBackend() {
             })),
           }),
         });
+
+        if (!response.ok) {
+          throw new Error('Error al sincronizar');
+        }
+
+        toast.success('Carrito sincronizado');
       } catch (error) {
         console.error('Error sincronizando carrito con backend:', error);
+        toast.error('Error al guardar los cambios del carrito');
       }
-    }, 2000); // Aumentado a 2 segundos
+    }, 2000);
 
-    // Cleanup
     return () => {
       if (syncTimeout.current) {
         clearTimeout(syncTimeout.current);
@@ -102,7 +138,6 @@ export function useSyncCartWithBackend() {
     };
   }, [items, isSignedIn, user]);
 
-  // Cleanup al desmontar
   useEffect(() => {
     return () => {
       if (syncTimeout.current) {
@@ -112,5 +147,4 @@ export function useSyncCartWithBackend() {
   }, []);
 }
 
-// Reexportar el tipo CartItem para que esté disponible
 export type { CartItem } from '@/store/cart-store';

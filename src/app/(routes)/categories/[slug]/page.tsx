@@ -1,6 +1,7 @@
 import ProductCardCompact from '@/components/shared/ProductCard/ProductCardCompact';
 import { prisma } from '@/lib/prisma';
 import { ProductFull } from '@/types/product';
+import { Category, Product, ProductImage, Review } from '@prisma/client';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Metadata } from 'next';
 import Link from 'next/link';
@@ -16,6 +17,59 @@ interface PageProps {
   }>;
 }
 
+// Tipo intermedio para el producto de Prisma con relaciones
+type ProductWithRelations = Product & {
+  category: Category;
+  images: ProductImage[];
+  reviews: Review[];
+};
+
+// Función para transformar un producto de Prisma a ProductFull
+function transformToProductFull(product: ProductWithRelations): ProductFull {
+  return {
+    id: product.id,
+    slug: product.slug,
+    productName: product.productName,
+    price: product.price,
+    stock: product.stock,
+    description: product.description,
+    features: product.features || [],
+    status: product.status,
+    featured: product.featured,
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
+    categoryId: product.categoryId,
+    category: {
+      id: product.category.id,
+      categoryName: product.category.categoryName,
+      slug: product.category.slug,
+      description: product.category.description,
+      mainImage: product.category.mainImage,
+      createdAt: product.category.createdAt,
+      updatedAt: product.category.updatedAt,
+    },
+    images: product.images.map(image => ({
+      id: image.id,
+      url: image.url,
+      alt: image.alt,
+      sortOrder: image.sortOrder,
+      isPrimary: image.isPrimary,
+      createdAt: image.createdAt,
+    })),
+    reviews: product.reviews.map(review => ({
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment,
+      isApproved: review.isApproved,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      userId: review.userId,
+      productId: review.productId,
+    })),
+    reviewCount: product.reviews.length,
+  };
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -23,13 +77,11 @@ export async function generateMetadata({
   const category = await prisma.category.findUnique({
     where: { slug },
   });
-
   if (!category) {
     return {
       title: 'Categoría no encontrada',
     };
   }
-
   return {
     title: `${category.categoryName} | Delivery Express`,
     description:
@@ -44,20 +96,16 @@ export default async function CategoryPage({
 }: PageProps) {
   const { slug } = await params;
   const { page = '1', priceRange } = await searchParams;
-
   const category = await prisma.category.findUnique({
     where: { slug },
   });
-
   if (!category) {
     notFound();
   }
-
   // Parsear filtros
   const currentPage = parseInt(page, 10);
   const pageSize = 3; // Solo 3 productos por página
   const skip = (currentPage - 1) * pageSize;
-
   const where: {
     categoryId: string;
     status: 'ACTIVE';
@@ -69,14 +117,12 @@ export default async function CategoryPage({
     categoryId: category.id,
     status: 'ACTIVE',
   };
-
   if (priceRange && priceRange !== 'all') {
     const [min, max] = priceRange.split('-').map(Number);
     where.price = {};
     if (min) where.price.gte = min;
     if (max) where.price.lte = max;
   }
-
   const [products, totalProducts] = await Promise.all([
     prisma.product.findMany({
       where,
@@ -90,12 +136,14 @@ export default async function CategoryPage({
       },
       skip,
       take: pageSize,
-    }),
+    }) as Promise<ProductWithRelations[]>,
     prisma.product.count({ where }),
   ]);
-
+  // Transformar los productos para incluir reviewCount
+  const productsWithReviewCount: ProductFull[] = products.map(
+    transformToProductFull,
+  );
   const totalPages = Math.ceil(totalProducts / pageSize);
-
   const priceRanges = [
     { label: 'Todos', value: 'all' },
     { label: '0 - 50', value: '0-50' },
@@ -103,7 +151,6 @@ export default async function CategoryPage({
     { label: '100 - 150', value: '100-150' },
     { label: '150+', value: '150-' },
   ];
-
   return (
     <div className="container pt-10 mx-auto px-4 py-8 sm:py-12">
       {/* Botón minimalista y con personalidad para volver */}
@@ -120,10 +167,9 @@ export default async function CategoryPage({
           <span className="absolute bottom-0 left-0 h-0.5 bg-white/30 dark:bg-white/50 w-0 group-hover:w-full transition-all duration-400 ease-in-out blur-sm opacity-0 dark:opacity-100"></span>
         </Link>
       </div>
-
       {/* Filtro por precios - Estilo mejorado */}
       <div className="flex justify-center mb-8 sm:mb-12">
-        <div className="inline-flex p-1 bg-gray-100 dark:bg-gray-800 rounded-xl shadow-inner">
+        <div className="inline-flex p-2 bg-gray-100 dark:bg-gray-800 rounded-xl shadow-inner">
           {priceRanges.map((range, index) => (
             <Link
               key={range.value}
@@ -148,19 +194,17 @@ export default async function CategoryPage({
           ))}
         </div>
       </div>
-
-      {products.length === 0 ? (
+      {productsWithReviewCount.length === 0 ? (
         <p className="text-center text-muted-foreground">
           No hay productos disponibles en esta categoría.
         </p>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {products.map((product: ProductFull) => (
+            {productsWithReviewCount.map(product => (
               <ProductCardCompact key={product.id} product={product} />
             ))}
           </div>
-
           {/* Paginación minimalista y fresca */}
           {totalPages > 1 && (
             <div className="mt-8 sm:mt-12 flex justify-center items-center gap-4">
@@ -175,11 +219,9 @@ export default async function CategoryPage({
                   <ChevronLeft className="w-5 h-5" />
                 </Link>
               )}
-
               <span className="text-gray-700 font-medium text-sm sm:text-base">
                 Página {currentPage} de {totalPages}
               </span>
-
               {currentPage < totalPages && (
                 <Link
                   href={`/categories/${slug}?page=${currentPage + 1}${
