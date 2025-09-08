@@ -22,8 +22,16 @@ interface Review {
   user?: ReviewUser;
 }
 
-// Importar el tipo CartItem desde el hook
-import type { CartItem } from '@/hooks/use-cart';
+// Definir el tipo CartItem localmente
+interface CartItem {
+  id: string;
+  productName: string;
+  price: number;
+  image: string;
+  slug: string;
+  quantity: number;
+}
+
 import type { Product } from '@/types';
 import { toast } from 'sonner';
 
@@ -47,6 +55,7 @@ const ThreeDCard = ({ children }: { children: React.ReactNode }) => {
   });
   const rotateX = useTransform(scrollYProgress, [0, 1], [20, -20]);
   const rotateY = useTransform(scrollYProgress, [0, 1], [-20, 20]);
+
   return (
     <motion.div
       ref={ref}
@@ -64,7 +73,7 @@ const ThreeDCard = ({ children }: { children: React.ReactNode }) => {
 
 export default function ProductPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const { addItem, items } = useCart();
+  const { addItem, items, updateQuantity } = useCart();
   const { isSignedIn, userId } = useAuth();
   const params = useParams<{ productsSlug: string }>();
   const [product, setProduct] = useState<Product | null>(null);
@@ -73,6 +82,7 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   // Stock seguro
   const stock = typeof product?.stock === 'number' ? product.stock : 99;
+
   // Formulario de reseña
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
@@ -152,11 +162,9 @@ export default function ProductPage() {
 
   const handleAddToCart = () => {
     if (!product) return;
-
     // Verificar si el producto ya está en el carrito
     const existingItem = items.find(item => item.slug === product.slug);
     const currentQty = existingItem ? existingItem.quantity : 0;
-
     // Verificar stock
     if (currentQty + quantity > stock) {
       toast.error(
@@ -164,18 +172,19 @@ export default function ProductPage() {
       );
       return;
     }
-
     // Crear el item para el carrito - CORREGIDO
-    const cartItem: Omit<CartItem, 'id'> = {
+    const cartItem: Omit<CartItem, 'quantity'> = {
+      id: product.id, // Agregar el ID del producto
       productName: product.productName,
       price: product.price,
       image: product.images?.[0]?.url || '/img/placeholder-category.jpg',
       slug: product.slug,
-      quantity: quantity, // Ahora incluimos la cantidad aquí
+      // No incluir 'quantity' aquí ya que el tipo lo omite
     };
-
     // Agregar al carrito
     addItem(cartItem);
+    // Actualizar la cantidad por separado si es necesario
+    updateQuantity(product.id, quantity);
     toast.success('Producto agregado al carrito');
   };
 
@@ -414,6 +423,7 @@ export default function ProductPage() {
                       </button>
                     ))}
                   </div>
+
                   <textarea
                     className="w-full p-3 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     rows={3}
@@ -423,6 +433,7 @@ export default function ProductPage() {
                     required
                     maxLength={500}
                   />
+
                   <button
                     type="submit"
                     className="py-3 px-6 rounded-xl bg-gradient-to-r from-pink-500 to-yellow-400 text-white font-bold text-lg shadow hover:from-pink-600 hover:to-yellow-500 transition-all"
@@ -434,6 +445,7 @@ export default function ProductPage() {
                   >
                     {reviewLoading ? 'Enviando...' : 'Enviar reseña'}
                   </button>
+
                   {reviewSuccess && (
                     <div className="text-green-600 font-semibold text-center">
                       {reviewSuccess}
@@ -491,6 +503,7 @@ export default function ProductPage() {
           </div>
         </div>
       </div>
+
       <CheckoutModal
         isOpen={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}

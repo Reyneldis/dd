@@ -256,8 +256,8 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   // Título y descripción basados en tu proyecto "mi-tienda"
   title: {
-    default: 'Mi Tienda - Tu E-commerce de Confianza',
-    template: '%s | Mi Tienda',
+    default: 'Delivery Express - Tu E-commerce de Confianza',
+    template: '%s |Delivery Express',
   },
   description:
     'Descubre los mejores productos en Mi Tienda. Calidad garantizada, envíos rápidos y atención personalizada. Tu experiencia de compra online comienza aquí.',
@@ -273,9 +273,9 @@ export const metadata: Metadata = {
     'ofertas',
     'promociones',
   ],
-  authors: [{ name: 'Mi Tienda Team' }],
-  creator: 'Mi Tienda',
-  publisher: 'Mi Tienda',
+  authors: [{ name: 'Delivery Express Team' }],
+  creator: 'Delivery Express',
+  publisher: 'Delivery Express',
 
   // Configuración de robots
   robots: {
@@ -297,8 +297,8 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'es_ES',
     url: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
-    siteName: 'Mi Tienda',
-    title: 'Mi Tienda - Tu E-commerce de Confianza',
+    siteName: 'Delivery Express',
+    title: 'Delivery Express- Tu E-commerce de Confianza',
     description:
       'Descubre los mejores productos en Mi Tienda. Calidad garantizada y envíos rápidos.',
     images: [
@@ -306,7 +306,7 @@ export const metadata: Metadata = {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Mi Tienda - Tienda Online',
+        alt: 'Delivery Express - Tienda Online',
       },
     ],
   },
@@ -314,11 +314,11 @@ export const metadata: Metadata = {
   // Twitter Card
   twitter: {
     card: 'summary_large_image',
-    site: '@mitienda',
-    creator: '@mitienda',
-    title: 'Mi Tienda - Tu E-commerce de Confianza',
+    site: '@delivery',
+    creator: '@delivery',
+    title: 'Delivery Express- Tu E-commerce de Confianza',
     description:
-      'Descubre los mejores productos en Mi Tienda. Calidad garantizada y envíos rápidos.',
+      'Descubre los mejores productos en Delivery Express. Calidad garantizada y envíos rápidos.',
     images: ['/twitter-image.jpg'],
   },
 
@@ -358,7 +358,7 @@ export const metadata: Metadata = {
   // Metadatos para aplicaciones móviles
   appleWebApp: {
     capable: true,
-    title: 'Mi Tienda',
+    title: 'Delivery Express',
     statusBarStyle: 'black-translucent',
   },
 

@@ -392,3 +392,64 @@ body {
 .animate-slideRight {
   animation-name: slideRight;
 }
+/* Estilos personalizados para el FilterPanel en modo oscuro */
+.dark .custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.5); /* slate-800/50 */
+  border-radius: 3px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    to bottom,
+    #a855f7,
+    #3b82f6
+  ); /* purple-500 to blue-500 */
+  border-radius: 3px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    to bottom,
+    #c084fc,
+    #60a5fa
+  ); /* purple-400 to blue-400 */
+}
+
+/* Efectos de brillo para el FilterPanel en modo oscuro */
+.dark .filter-panel-glow {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.15),
+    0 0 40px rgba(59, 130, 246, 0.1), inset 0 0 20px rgba(139, 92, 246, 0.05);
+}
+
+/* Animación de pulso para elementos seleccionados en modo oscuro */
+@keyframes pulse-dark {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.dark .pulse-dark {
+  animation: pulse-dark 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Efecto de brillo para los checkboxes en modo oscuro */
+.dark .checkbox-glow:checked {
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+/* Efecto de resplandor para los botones en modo oscuro */
+.dark .button-glow {
+  transition: all 0.3s ease;
+}
+
+.dark .button-glow:hover {
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+}
