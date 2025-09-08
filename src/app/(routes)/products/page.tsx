@@ -99,7 +99,7 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
-
+  // asdsadfsadf
   // Refrescar productos
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
