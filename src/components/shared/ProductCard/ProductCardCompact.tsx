@@ -1,9 +1,7 @@
 // components/shared/ProductCard/ProductCardCompact.tsx
 'use client';
-
-import { useCart } from '@/hooks/use-cart'; // Esta importación es correcta
+import { useCart } from '@/hooks/use-cart';
 import { ProductFull } from '@/types/product';
-import { SignInButton, useAuth } from '@clerk/nextjs';
 import { Eye, Heart, ShoppingCart, Star } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -19,16 +17,18 @@ export default function ProductCardCompact({
 }: ProductCardCompactProps) {
   // Desestructurar solo las funciones que necesitas
   const { addItem, isInCart } = useCart();
-  const { isSignedIn } = useAuth();
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAddToCart = async () => {
-    if (!isSignedIn) {
-      toast.error('Debes iniciar sesión para agregar productos al carrito');
+    // Verificar que el producto exista
+    if (!product) {
+      console.error('Producto no válido');
+      toast.error('Producto no válido');
       return;
     }
 
+    // Verificar que el producto tenga un slug válido
     if (!product.slug) {
       console.error('El producto no tiene slug válido:', product);
       toast.error('Producto no válido');
@@ -36,23 +36,27 @@ export default function ProductCardCompact({
     }
 
     setIsAdding(true);
-
     try {
       const mainImage =
         product.images.find(img => img.isPrimary) || product.images[0];
       const imageUrl = mainImage?.url || '/img/placeholder-category.jpg';
 
+      // Crear el objeto cartItem con la estructura correcta
       const cartItem = {
-        productName: product.productName,
-        price: product.price,
+        id: product.id, // ID del producto
+        productName: product.productName || '',
+        price: typeof product.price === 'number' ? product.price : 0,
         slug: product.slug,
         image: imageUrl,
         quantity: 1,
       };
 
-      if (isInCart(product.slug)) {
+      // Verificar si el producto ya está en el carrito
+      const productInCart = isInCart(product.slug);
+      if (productInCart) {
         toast.warning(`${product.productName} ya está en el carrito`);
       } else {
+        // Agregar al carrito
         addItem(cartItem);
         toast.success(`${product.productName} agregado al carrito`);
       }
@@ -63,6 +67,15 @@ export default function ProductCardCompact({
       setIsAdding(false);
     }
   };
+
+  // Verificar que el producto exista antes de renderizar
+  if (!product) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col h-[320px] items-center justify-center">
+        <p className="text-red-500">Producto no disponible</p>
+      </div>
+    );
+  }
 
   const mainImage =
     product.images.find(img => img.isPrimary) || product.images[0];
@@ -78,12 +91,12 @@ export default function ProductCardCompact({
       {/* Imagen */}
       <div className="relative w-full h-[180px] overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800">
         <Link
-          href={`/products/${product.slug}`}
+          href={product.slug ? `/products/${product.slug}` : '#'}
           className="block w-full h-full"
         >
           <Image
             src={imageUrl}
-            alt={product.productName}
+            alt={product.productName || 'Producto'}
             width={300}
             height={180}
             className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-110"
@@ -112,13 +125,17 @@ export default function ProductCardCompact({
           </div>
         )}
       </div>
+
       {/* Contenido */}
       <div className="flex-1 flex flex-col p-4 space-y-3">
         {/* Nombre y rating */}
         <div className="space-y-2">
-          <Link href={`/products/${product.slug}`} className="block">
+          <Link
+            href={product.slug ? `/products/${product.slug}` : '#'}
+            className="block"
+          >
             <h3 className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {product.productName}
+              {product.productName || 'Producto sin nombre'}
             </h3>
           </Link>
           {/* Rating compacto */}
@@ -139,55 +156,50 @@ export default function ProductCardCompact({
             </span>
           </div>
         </div>
+
         {/* Categoría */}
         <div className="flex items-center justify-between">
           <span className="text-xs text-slate-500 dark:text-slate-400">
             {product.category?.categoryName || 'Sin categoría'}
           </span>
         </div>
+
         {/* Precio y botones */}
         <div className="flex items-center justify-between pt-2">
           <p className="text-lg font-bold text-yellow-500 dark:text-white">
-            ${product.price.toFixed(2)}
+            $
+            {typeof product.price === 'number'
+              ? product.price.toFixed(2)
+              : '0.00'}
           </p>
           <div className="flex items-center gap-1.5">
             <Link
-              href={`/products/${product.slug}`}
+              href={product.slug ? `/products/${product.slug}` : '#'}
               className="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200"
               aria-label="Ver detalles"
             >
               <Eye className="h-4 w-4" />
             </Link>
-            {isSignedIn ? (
-              <button
-                onClick={handleAddToCart}
-                disabled={isAdding}
-                className={`p-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg ${
-                  isInCart(product.slug)
-                    ? 'bg-green-500 hover:bg-green-600 text-white'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                } ${isAdding ? 'opacity-50 cursor-not-allowed' : ''}`}
-                aria-label={
-                  isInCart(product.slug)
-                    ? 'Producto en el carrito'
-                    : 'Añadir al carrito'
-                }
-              >
-                <ShoppingCart className="h-4 w-4" />
-              </button>
-            ) : (
-              <SignInButton mode="modal">
-                <button
-                  className="p-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg"
-                  aria-label="Inicia sesión para comprar"
-                >
-                  <ShoppingCart className="h-4 w-4" />
-                </button>
-              </SignInButton>
-            )}
+            <button
+              onClick={handleAddToCart}
+              disabled={isAdding || !product.slug}
+              className={`p-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg ${
+                product.slug && isInCart(product.slug)
+                  ? 'bg-green-500 hover:bg-green-600 text-white'
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+              } ${isAdding ? 'opacity-50 cursor-not-allowed' : ''}`}
+              aria-label={
+                product.slug && isInCart(product.slug)
+                  ? 'Producto en el carrito'
+                  : 'Añadir al carrito'
+              }
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
+
       {/* Efecto de brillo sutil */}
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none"></div>
     </div>

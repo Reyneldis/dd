@@ -1,20 +1,31 @@
-// // src/schemas/cartSchema.ts
+// src/schemas/cartSchema.ts
 import { z } from 'zod';
 
 export const cartItemSchema = z.object({
-  userId: z.string().min(1, 'El userId es requerido'),
-  productId: z.string().min(1, 'El productId es requerido'),
+  userId: z.string().min(1, 'ID de usuario requerido'),
+  productId: z.string().min(1, 'ID de producto requerido'),
   quantity: z
     .number()
     .int()
-    .positive('La cantidad debe ser un entero positivo'),
+    .positive('La cantidad debe ser un número entero positivo'),
 });
-
-export type CartItemSchema = z.infer<typeof cartItemSchema>;
 
 export const updateCartItemSchema = z.object({
-  itemId: z.string().min(1, 'El itemId es requerido'),
-  quantity: z.number().int('La cantidad debe ser un entero'),
+  itemId: z.string().min(1, 'ID del item requerido'),
+  quantity: z
+    .number()
+    .int()
+    .min(0, 'La cantidad debe ser un número entero no negativo'),
 });
 
-export type UpdateCartItemSchema = z.infer<typeof updateCartItemSchema>;
+export const syncCartSchema = z.object({
+  items: z.array(
+    z.object({
+      slug: z.string().min(1, 'Slug del producto requerido'),
+      quantity: z
+        .number()
+        .int()
+        .positive('La cantidad debe ser un número entero positivo'),
+    }),
+  ),
+});

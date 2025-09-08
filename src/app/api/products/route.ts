@@ -1,3 +1,4 @@
+// src/app/api/products/route.ts
 import { requireRole } from '@/lib/auth-guard';
 import { prisma } from '@/lib/prisma';
 import { productSchema } from '@/schemas/productSchema';
@@ -20,7 +21,6 @@ export async function GET(request: NextRequest) {
     };
 
     if (category) {
-      // console.log('Filtro por categoría (slug):', category);
       where.category = {
         slug: category,
       };
@@ -54,8 +54,11 @@ export async function GET(request: NextRequest) {
           description: true,
           stock: true,
           features: true,
+          status: true,
+          featured: true,
           createdAt: true,
           updatedAt: true,
+          categoryId: true,
           category: {
             select: {
               id: true,
@@ -71,6 +74,17 @@ export async function GET(request: NextRequest) {
               url: true,
               alt: true,
               isPrimary: true,
+              sortOrder: true,
+              createdAt: true,
+            },
+          },
+          _count: {
+            select: {
+              reviews: {
+                where: {
+                  isApproved: true,
+                },
+              },
             },
           },
         },
@@ -82,16 +96,16 @@ export async function GET(request: NextRequest) {
       }),
       prisma.product.count({ where }),
     ]);
-    // console.log('Productos encontrados:', products.length, 'Total:', total);
 
-    // Convertir precios de Decimal a number
+    // Convertir precios de Decimal a number y agregar reviewCount
     const productsWithNumberPrice = products.map(product => ({
       ...product,
       price: Number(product.price),
+      reviewCount: product._count.reviews,
     }));
 
     const response = NextResponse.json({
-      data: productsWithNumberPrice, // Cambiar a 'data' para consistencia con la página de categorías
+      data: productsWithNumberPrice,
       pagination: {
         page,
         limit,
@@ -99,7 +113,6 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit),
       },
     });
-
     return response;
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -115,6 +128,7 @@ export async function POST(request: NextRequest) {
   try {
     await requireRole(['ADMIN']);
     const body = await request.json();
+
     // Validar con Zod
     const result = productSchema.safeParse(body);
     if (!result.success) {
@@ -123,6 +137,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
     const {
       slug,
       productName,
@@ -134,26 +149,31 @@ export async function POST(request: NextRequest) {
       status,
       stock,
     } = result.data;
+
     // Verificar si el slug ya existe
     const existingProduct = await prisma.product.findUnique({
       where: { slug },
     });
+
     if (existingProduct) {
       return NextResponse.json(
         { error: 'Ya existe un producto con este slug' },
         { status: 400 },
       );
     }
+
     // Verificar si la categoría existe
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
     });
+
     if (!category) {
       return NextResponse.json(
         { error: 'La categoría especificada no existe' },
         { status: 400 },
       );
     }
+
     // Crear el producto con sus imágenes
     const product = await prisma.product.create({
       data: {
@@ -174,6 +194,7 @@ export async function POST(request: NextRequest) {
         images: true,
       },
     });
+
     return NextResponse.json(product, { status: 201 });
   } catch (error) {
     console.error('Error creating product:', error);

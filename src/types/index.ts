@@ -48,6 +48,7 @@ export interface Product {
   status?: 'ACTIVE' | 'INACTIVE';
 }
 
+// src/types/index.ts
 export interface User {
   id: string;
   clerkId: string;

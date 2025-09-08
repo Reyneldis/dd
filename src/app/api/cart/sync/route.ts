@@ -10,34 +10,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
+    const body = await request.json();
+    const { items } = body;
+
+    // Obtener el carrito actual del usuario
+    const currentCartItems = await prisma.cartItem.findMany({
+      where: { userId },
     });
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Usuario no encontrado' },
-        { status: 404 },
-      );
-    }
+    // Crear un mapa para un acceso rápido
+    const currentCartMap = new Map(
+      currentCartItems.map(item => [item.productId, item]),
+    );
 
-    const { items } = await request.json();
-
-    // Eliminar items existentes del carrito
-    await prisma.cartItem.deleteMany({
-      where: { userId: user.id },
-    });
-
-    // Crear nuevos items del carrito
+    // Procesar cada item del carrito enviado
     for (const item of items) {
+      // Obtener el ID del producto a partir del slug
       const product = await prisma.product.findUnique({
         where: { slug: item.slug },
+        select: { id: true },
       });
 
-      if (product) {
+      if (!product) continue;
+
+      const existingItem = currentCartMap.get(product.id);
+
+      if (existingItem) {
+        // Actualizar cantidad
+        await prisma.cartItem.update({
+          where: { id: existingItem.id },
+          data: { quantity: item.quantity },
+        });
+      } else {
+        // Crear nuevo item
         await prisma.cartItem.create({
           data: {
-            userId: user.id,
+            userId,
             productId: product.id,
             quantity: item.quantity,
           },
@@ -47,9 +55,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error sincronizando carrito:', error);
+    console.error('Error syncing cart:', error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: 'Error al sincronizar el carrito' },
       { status: 500 },
     );
   }

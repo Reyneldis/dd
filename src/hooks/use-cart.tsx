@@ -1,13 +1,11 @@
 // hooks/use-cart.ts
 'use client';
-
-import { useCartStore } from '@/store/cart-store'; // Importar el store directamente
+import { useCartStore } from '@/store/cart-store';
 import { useUser } from '@clerk/nextjs';
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 export function useCart() {
-  // Importar TODAS las funciones del store directamente
   const {
     items,
     addItem,
@@ -18,8 +16,7 @@ export function useCart() {
     getTotalItems,
     getTotalPrice,
     isInCart,
-  } = useCartStore(); // Usar el store de Zustand directamente
-
+  } = useCartStore();
   const { user, isSignedIn } = useUser();
   const isSyncing = useRef(false);
   const lastSyncTime = useRef(0);
@@ -27,7 +24,6 @@ export function useCart() {
   // Sincronizar carrito del backend con el estado local
   const syncFromBackend = useCallback(async () => {
     if (!isSignedIn || !user || isSyncing.current) return;
-
     const now = Date.now();
     if (now - lastSyncTime.current < 5000) return;
 
@@ -72,11 +68,13 @@ export function useCart() {
     }
   }, [isSignedIn, user, setCart]);
 
+  // Sincronizar cuando el usuario inicia sesión
   useEffect(() => {
-    syncFromBackend();
-  }, [syncFromBackend]);
+    if (isSignedIn) {
+      syncFromBackend();
+    }
+  }, [isSignedIn, syncFromBackend]);
 
-  // Devolver TODAS las funciones del store más la función de sincronización
   return {
     items,
     addItem,
@@ -92,9 +90,7 @@ export function useCart() {
 }
 
 export function useSyncCartWithBackend() {
-  // Usar el store directamente en lugar del hook para evitar la circularidad
-  const { items } = useCartStore(); // Cambiado aquí para evitar la circularidad
-
+  const { items } = useCartStore();
   const { user, isSignedIn } = useUser();
   const syncTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -146,5 +142,3 @@ export function useSyncCartWithBackend() {
     };
   }, []);
 }
-
-export type { CartItem } from '@/store/cart-store';

@@ -1,4 +1,4 @@
-// // src/app/api/cart/route.ts
+// src/app/api/cart/route.ts
 import { prisma } from '@/lib/prisma';
 import { cartItemSchema, updateCartItemSchema } from '@/schemas/cartSchema';
 import { NextRequest, NextResponse } from 'next/server';
@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
+
     if (!userId) {
       return NextResponse.json(
         { error: 'ID de usuario requerido' },
@@ -64,12 +65,14 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
     const { userId, productId, quantity } = result.data;
 
     // Verificar que el producto existe
     const product = await prisma.product.findUnique({
       where: { id: productId },
     });
+
     if (!product) {
       return NextResponse.json(
         { error: 'Producto no encontrado' },
@@ -140,7 +143,6 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const result = updateCartItemSchema.safeParse(body);
-
     if (!result.success) {
       return NextResponse.json(
         { error: 'Datos inválidos', details: result.error.flatten() },
@@ -188,18 +190,30 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get('itemId');
-    if (!itemId) {
+    const userId = searchParams.get('userId');
+
+    if (!itemId && !userId) {
       return NextResponse.json(
-        { error: 'ID del item requerido' },
+        { error: 'ID del item o usuario requerido' },
         { status: 400 },
       );
     }
 
-    await prisma.cartItem.delete({
-      where: { id: itemId },
-    });
+    if (itemId) {
+      // Eliminar un item específico
+      await prisma.cartItem.delete({
+        where: { id: itemId },
+      });
+      return NextResponse.json({ message: 'Item eliminado del carrito' });
+    } else if (userId) {
+      // Limpiar todo el carrito del usuario
+      await prisma.cartItem.deleteMany({
+        where: { userId },
+      });
+      return NextResponse.json({ message: 'Carrito vaciado' });
+    }
 
-    return NextResponse.json({ message: 'Item eliminado del carrito' });
+    return NextResponse.json({ error: 'Operación no válida' }, { status: 400 });
   } catch (error) {
     console.error('Error removing from cart:', error);
     return NextResponse.json(

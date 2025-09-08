@@ -51,7 +51,7 @@ model Product {
   id          String   @id @default(cuid())
   slug        String   @unique
   productName String
-  price       Float
+  price       Float    
   stock       Int      @default(0)
   description String?
   features    String[]
@@ -275,3 +275,91 @@ enum AddressType {
   WORK
   OTHER
 }
+// {
+//   // schema.prisma mejorado
+// generator client {
+//   provider = "prisma-client-js"
+// }
+
+// datasource db {
+//   provider = "postgresql"
+//   url      = env("DATABASE_URL")
+//   directUrl = env("DIRECT_URL") 
+// }
+
+// model User {
+//   id        String   @id @default(cuid())
+//   clerkId   String   @unique
+//   email     String   @unique
+//   firstName String?  @db.VarChar(100)
+//   lastName  String?  @db.VarChar(100)
+//   avatar    String?
+//   role      Role     @default(USER)
+//   isActive  Boolean  @default(true)
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+  
+//   // Relaciones
+//   orders    Order[]
+//   reviews   Review[]
+//   addresses UserAddress[]
+//   cartItems CartItem[]
+  
+//   @@map("users")
+// }
+
+// model Product {
+//   id          String   @id @default(cuid())
+//   slug        String   @unique
+//   productName String   @db.VarChar(200) // Límite de longitud
+//   price       Float    @db.Decimal(10, 2) // Precisión para moneda
+//   stock       Int      @default(0) @db.SmallInt // SmallInt para stock
+//   description String?  @db.Text
+//   features    String[] // Considera cambiar a tabla separada si crece mucho
+//   status      Status   @default(ACTIVE)
+//   featured    Boolean  @default(false)
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+  
+//   // Búsqueda de texto completo mejorada
+//   searchText  Unsupported("tsvector")?
+  
+//   // Relaciones
+//   categoryId String
+//   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+//   images     ProductImage[]
+//   orderItems OrderItem[]
+//   cartItems  CartItem[]
+//   reviews    Review[]
+  
+//   // Índices mejorados
+//   @@index([categoryId, status]) // Índice compuesto
+//   @@index([price])
+//   @@index([status, featured])
+//   @@index([createdAt])
+//   @@index([productName])
+//   @@index([searchText], type: Gin)
+//   @@map("products")
+// }
+
+// // Unificar modelos de dirección para evitar redundancia
+// model Address {
+//   id        String      @id @default(cuid())
+//   street    String      @db.VarChar(255)
+//   city      String      @db.VarChar(100)
+//   state     String      @db.VarChar(100)
+//   zip       String      @db.VarChar(20)
+//   country   String      @default("Cuba") @db.VarChar(50)
+//   type      AddressType @default(HOME)
+//   createdAt DateTime    @default(now())
+//   updatedAt DateTime    @updatedAt
+  
+//   // Relaciones polimórficas
+//   userAddresses UserAddress[]
+//   shippingAddress ShippingAddress?
+  
+//   @@map("addresses")
+// }
+
+// // ... otros modelos mejorados ...
+// }
