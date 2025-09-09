@@ -1,12 +1,11 @@
-// app/products/page.tsx
+// src/app/(routes)/products/page.tsx
 'use client';
-import { FilterPanel } from '@/components/shared/FilterPanel';
+
+import FilterPanel from '@/components/shared/FilterPanel';
 import ProductCardCompact from '@/components/shared/ProductCard/ProductCardCompact';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Button } from '@/components/ui/button';
 import { useFilterStore } from '@/store/filters';
-import { ProductFull } from '@/types/product';
-import { Category, Product } from '@prisma/client';
 import {
   AlertCircle,
   CheckCircle,
@@ -20,24 +19,60 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-// Interfaz para los productos con categoría e imágenes
-interface ProductWithCategory extends Product {
-  category: Category;
-  images: {
-    sortOrder: number;
+// Importar el tipo ProductFull
+import { ProductFull } from '@/types/product';
+
+interface ProductWithCategory {
+  id: string;
+  slug: string;
+  productName: string;
+  price: number;
+  stock: number;
+  description?: string | null;
+  features: string[];
+  status: 'ACTIVE' | 'INACTIVE';
+  featured: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  categoryId: string;
+  category: {
+    id: string;
+    categoryName: string;
+    slug: string;
+    description?: string | null;
+    mainImage?: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  images: Array<{
+    id: string;
     url: string;
     alt: string | null;
+    sortOrder: number;
     isPrimary?: boolean;
-  }[];
+  }>;
 }
 
 export default function ProductsPage() {
-  const { searchQuery, category, minPrice, maxPrice, sortBy, inStock, onSale } =
-    useFilterStore();
+  const searchParams = useSearchParams();
+  const {
+    searchQuery,
+    category,
+    minPrice,
+    maxPrice,
+    sortBy,
+    inStock,
+    onSale,
+    setSearchQuery,
+    setCategory,
+    setMinPrice,
+    setMaxPrice,
+    resetFilters,
+  } = useFilterStore();
   const [products, setProducts] = useState<ProductWithCategory[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -47,22 +82,18 @@ export default function ProductsPage() {
   const [isFiltering, setIsFiltering] = useState(false);
   const filterPanelRef = useRef<HTMLDivElement>(null);
 
-  // Obtener categorías
+  // Sincronizar los filtros con los parámetros de la URL
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('/api/categories');
-        if (!response.ok) throw new Error('Error al cargar categorías');
-        const data = await response.json();
-        setCategories(data || []);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        setError('Error al cargar categorías');
-        setCategories([]);
-      }
-    };
-    fetchCategories();
-  }, []);
+    const categoryParam = searchParams.get('category');
+    const searchParam = searchParams.get('q');
+    const minPriceParam = searchParams.get('minPrice');
+    const maxPriceParam = searchParams.get('maxPrice');
+
+    if (categoryParam) setCategory(categoryParam);
+    if (searchParam) setSearchQuery(searchParam);
+    if (minPriceParam) setMinPrice(Number(minPriceParam));
+    if (maxPriceParam) setMaxPrice(Number(maxPriceParam));
+  }, [searchParams, setCategory, setSearchQuery, setMinPrice, setMaxPrice]);
 
   // Construir URL de búsqueda con parámetros
   const searchUrl = useMemo(() => {
@@ -99,7 +130,7 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
-  // asdsadfsadf
+
   // Refrescar productos
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -123,99 +154,66 @@ export default function ProductsPage() {
       setIsFirstRender(false);
       return;
     }
-
-    // Aplicar animación solo cuando se muestra el panel en móvil
     if (showFilters && window.innerWidth < 768 && filterPanelRef.current) {
       filterPanelRef.current.classList.add('animate-slideLeft');
-
-      // Remover la clase de animación después de que se complete
       const timeoutId = setTimeout(() => {
         if (filterPanelRef.current) {
           filterPanelRef.current.classList.remove('animate-slideLeft');
         }
-      }, 500); // Duración de la animación
-
+      }, 500);
       return () => clearTimeout(timeoutId);
     }
   }, [showFilters, isFirstRender]);
+
+  // Resetear filtros
+  const handleResetFilters = useCallback(() => {
+    resetFilters();
+    setError(null);
+    setIsFiltering(true);
+    setTimeout(() => setIsFiltering(false), 500);
+  }, [resetFilters]);
+
+  // Transformar el producto a ProductFull (ahora con todas las propiedades necesarias)
   const transformToProductFull = useCallback(
     (product: ProductWithCategory): ProductFull => {
-      // Crear el objeto de imágenes con la estructura exacta que espera ProductFull
-      const images =
-        product.images && product.images.length > 0
-          ? product.images.map((img, index) => ({
-              id: `img-${product.id}-${index}`,
-              url: img.url || '/img/placeholder-category.jpg',
-              alt: img.alt || null,
-              sortOrder: img.sortOrder || index,
-              isPrimary:
-                img.isPrimary !== undefined ? img.isPrimary : index === 0,
-              createdAt: new Date(), // Añadido createdAt que faltaba
-            }))
-          : [
-              {
-                id: `img-${product.id}-placeholder`,
-                url: '/img/placeholder-category.jpg',
-                alt: null,
-                sortOrder: 0,
-                isPrimary: true,
-                createdAt: new Date(),
-              },
-            ];
-
-      // Crear el objeto de categoría con la estructura exacta
-      const category = product.category
-        ? {
-            id: product.category.id || '',
-            categoryName: product.category.categoryName || 'Sin categoría',
-            slug: product.category.slug || '',
-            description: product.category.description || null,
-            mainImage: product.category.mainImage || null,
-            createdAt: new Date(product.category.createdAt),
-            updatedAt: new Date(product.category.updatedAt),
-          }
-        : {
-            id: '',
-            categoryName: 'Sin categoría',
-            slug: '',
-            description: null,
-            mainImage: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-
-      // Retornar el producto transformado con la estructura completa
       return {
-        id: product.id || '',
-        slug: product.slug || '',
-        reviewCount: 0, // Propiedad requerida que faltaba
-        productName: product.productName || 'Producto sin nombre',
-        price: product.price || 0,
-        stock: product.stock || 0,
-        description: product.description || null,
-        features: [], // Propiedad requerida que faltaba
-        status: product.status || 'ACTIVE',
-        featured: product.featured || false,
-        createdAt: new Date(product.createdAt),
-        updatedAt: new Date(product.updatedAt),
-        categoryId: product.categoryId || '',
-        images,
-        category,
-        // reviews es opcional, no lo incluimos
+        id: product.id,
+        slug: product.slug,
+        productName: product.productName,
+        price: product.price,
+        stock: product.stock,
+        description: product.description,
+        features: product.features || [],
+        status: product.status,
+        featured: product.featured,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+        categoryId: product.categoryId,
+        category: {
+          id: product.category.id,
+          categoryName: product.category.categoryName,
+          slug: product.category.slug,
+          description: product.category.description,
+          mainImage: product.category.mainImage,
+          createdAt: product.category.createdAt,
+          updatedAt: product.category.updatedAt,
+        },
+        images: product.images.map((img, index) => ({
+          id: img.id || `img-${product.id}-${index}`,
+          url: img.url || '/img/placeholder-category.jpg',
+          alt: img.alt || null,
+          sortOrder: img.sortOrder || index,
+          isPrimary: img.isPrimary || index === 0,
+          createdAt: new Date(), // Añadir createdAt para las imágenes
+        })),
+        reviews: [], // Array vacío por ahora
+        reviewCount: 0,
       };
     },
     [],
   );
-  // Resetear filtros
-  const handleResetFilters = useCallback(() => {
-    useFilterStore.getState().resetFilters();
-    setError(null);
-    // Mostrar animación de filtrado
-    setIsFiltering(true);
-    setTimeout(() => setIsFiltering(false), 500);
-  }, []);
 
-  // Contador de productos filtrados con useMemo para optimizar rendimiento
+  // Contador de productos filtrados
   const productCount = useMemo(() => {
     return products.length;
   }, [products]);
@@ -223,7 +221,7 @@ export default function ProductsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white/65 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="container mx-auto px-4 py-8">
-        {/* Encabezado animado con más colores */}
+        {/* Encabezado */}
         <div className="mb-10 text-center pt-10 animate-fadeIn">
           <div className="inline-flex items-center justify-center mb-4">
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1 rounded-full">
@@ -241,7 +239,7 @@ export default function ProductsPage() {
           </p>
         </div>
 
-        {/* Mensaje de error con colores mejorados */}
+        {/* Mensaje de error */}
         {error && (
           <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 p-4 rounded-lg animate-slideDown shadow-sm">
             <div className="flex items-center justify-between">
@@ -265,7 +263,7 @@ export default function ProductsPage() {
 
         {/* Indicador de filtros activos */}
         {(searchQuery ||
-          category !== null ||
+          category ||
           minPrice !== null ||
           maxPrice !== null ||
           inStock ||
@@ -294,16 +292,12 @@ export default function ProductsPage() {
             ref={filterPanelRef}
             className={`${showFilters ? 'block' : 'hidden'} lg:block lg:w-1/4`}
           >
-            <FilterPanel
-              categories={categories}
-              isOpen={showFilters}
-              onClose={() => setShowFilters(false)}
-            />
+            <FilterPanel />
           </div>
 
           {/* Contenido principal */}
           <div className="lg:w-3/4">
-            {/* Barra de búsqueda y controles con colores mejorados */}
+            {/* Barra de búsqueda y controles */}
             <div className="mb-6 flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <SearchBar />
@@ -363,7 +357,7 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* Contador de resultados con colores mejorados */}
+            {/* Contador de resultados */}
             <div className="mb-4 text-sm text-muted-foreground flex justify-between items-center">
               {loading ? (
                 <span className="flex items-center">
@@ -442,16 +436,25 @@ export default function ProductsPage() {
                 }
               >
                 {products.map((product, index) => {
-                  const productFull = transformToProductFull(product);
-                  // Añadir animación escalonada para mejor efecto visual
                   const animationDelay = `${index * 0.05}s`;
+                  const transformedProduct = transformToProductFull(product);
+
+                  // Verificación de seguridad para asegurar que el producto transformado sea válido
+                  if (!transformedProduct || !transformedProduct.id) {
+                    console.warn(
+                      'Producto transformado inválido:',
+                      transformedProduct,
+                    );
+                    return null;
+                  }
+
                   return (
                     <div
                       key={product.id}
                       className="h-full animate-fadeIn"
                       style={{ animationDelay }}
                     >
-                      <ProductCardCompact product={productFull} />
+                      <ProductCardCompact product={transformedProduct} />
                     </div>
                   );
                 })}
@@ -460,14 +463,14 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        {/* Pie de página con colores */}
+        {/* Pie de página */}
         <div className="mt-16 text-center text-sm text-muted-foreground">
           <div className="inline-flex items-center justify-center mb-2">
             <ShoppingCart className="h-4 w-4 mr-2 text-blue-500" />
             <span>Encuentra los mejores productos al mejor precio</span>
           </div>
           <p className="text-xs">
-            © {new Date().getFullYear()} Mi Tienda. Todos los derechos
+            © {new Date().getFullYear()} Delivery Express. Todos los derechos
             reservados.
           </p>
         </div>

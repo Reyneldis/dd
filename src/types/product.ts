@@ -6,7 +6,7 @@ export type ProductFull = {
   productName: string;
   price: number;
   stock: number;
-  description?: string | null;
+  description?: string | null | undefined;
   features: string[];
   status: 'ACTIVE' | 'INACTIVE';
   featured: boolean;

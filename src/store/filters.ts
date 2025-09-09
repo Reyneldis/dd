@@ -1,59 +1,47 @@
-// store/filters.ts
+// src/store/filters.ts
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
-
-// Definir tipos explícitos
-type SortByOption =
-  | 'price-asc'
-  | 'price-desc'
-  | 'name-asc'
-  | 'name-desc'
-  | 'newest';
 
 interface FilterState {
   searchQuery: string;
-  category: string | null;
+  category: string;
   minPrice: number | null;
   maxPrice: number | null;
-  sortBy: SortByOption;
+  sortBy: string;
   inStock: boolean;
   onSale: boolean;
   setSearchQuery: (query: string) => void;
-  setCategory: (category: string | null) => void;
-  setPriceRange: (min: number | null, max: number | null) => void;
-  setSortBy: (sort: SortByOption) => void;
-  toggleInStock: () => void;
-  toggleOnSale: () => void;
+  setCategory: (category: string) => void;
+  setMinPrice: (price: number | null) => void;
+  setMaxPrice: (price: number | null) => void;
+  setSortBy: (sort: string) => void;
+  setInStock: (inStock: boolean) => void;
+  setOnSale: (onSale: boolean) => void;
+  setFilters: (filters: Partial<FilterState>) => void;
   resetFilters: () => void;
 }
 
 const initialState = {
   searchQuery: '',
-  category: null,
+  category: '',
   minPrice: null,
   maxPrice: null,
-  sortBy: 'newest' as SortByOption,
+  sortBy: 'relevance',
   inStock: false,
   onSale: false,
 };
 
-export const useFilterStore = create<FilterState>()(
-  devtools(
-    persist(
-      set => ({
-        ...initialState,
-        setSearchQuery: query => set({ searchQuery: query }),
-        setCategory: category => set({ category }),
-        setPriceRange: (min, max) => set({ minPrice: min, maxPrice: max }),
-        setSortBy: sortBy => set({ sortBy }),
-        toggleInStock: () => set(state => ({ inStock: !state.inStock })),
-        toggleOnSale: () => set(state => ({ onSale: !state.onSale })),
-        resetFilters: () => set(initialState),
-      }),
-      {
-        name: 'product-filters',
-      },
-    ),
-    { name: 'product-filters' },
-  ),
-);
+export const useFilterStore = create<FilterState>(set => ({
+  ...initialState,
+
+  setSearchQuery: searchQuery => set({ searchQuery }),
+  setCategory: category => set({ category }),
+  setMinPrice: minPrice => set({ minPrice }),
+  setMaxPrice: maxPrice => set({ maxPrice }),
+  setSortBy: sortBy => set({ sortBy }),
+  setInStock: inStock => set({ inStock }),
+  setOnSale: onSale => set({ onSale }),
+
+  setFilters: filters => set(state => ({ ...state, ...filters })),
+
+  resetFilters: () => set(initialState),
+}));

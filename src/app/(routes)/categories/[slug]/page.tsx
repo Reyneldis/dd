@@ -152,7 +152,7 @@ export default async function CategoryPage({
     { label: '150+', value: '150-' },
   ];
   return (
-    <div className="container pt-10 mx-auto px-4 py-8 sm:py-12">
+    <div className="container pt-4 mx-auto px-4 py-8 sm:py-12">
       {/* Botón minimalista y con personalidad para volver */}
       <div className="flex justify-center pt-8 mb-6 sm:mb-8">
         <Link
