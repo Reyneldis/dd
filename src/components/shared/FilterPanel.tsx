@@ -181,48 +181,56 @@ export default function FilterPanel() {
           </div>
         </div>
 
-        {/* Categorías */}
+        {/* Categorías - CORREGIDO */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Categorías
           </label>
           <div className="relative">
             <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <select
-              value={category}
-              onChange={e => {
-                console.log('📂 Categoría seleccionada:', e.target.value);
-                setCategory(e.target.value);
-              }}
-              className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
-            >
-              <option value="">Todas las categorías</option>
-              {loading ? (
-                <option value="" disabled>
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent border-r-transparent border-b-transparent border-l-transparent animate-spin mr-2" />
-                    Cargando...
-                  </div>
-                </option>
-              ) : categories.length > 0 ? (
-                categories.map((cat: Category, index: number) => (
-                  <option
-                    key={`${cat.id}-${index}`}
-                    value={cat.slug}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                  >
-                    {cat.categoryName}
-                  </option>
-                ))
-              ) : (
-                <>
-                  <option value="aseos">Aseo</option>
-                  <option value="comida">Comida</option>
-                  <option value="electrodomesticos">Electrodomésticos</option>
-                </>
-              )}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+
+            {loading ? (
+              // Mostrar un indicador de carga en lugar del select
+              <div className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+                <div className="flex items-center">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent border-r-transparent border-b-transparent border-l-transparent animate-spin mr-2" />
+                  Cargando categorías...
+                </div>
+              </div>
+            ) : (
+              <>
+                <select
+                  value={category}
+                  onChange={e => {
+                    console.log('📂 Categoría seleccionada:', e.target.value);
+                    setCategory(e.target.value);
+                  }}
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+                >
+                  <option value="">Todas las categorías</option>
+                  {categories.length > 0 ? (
+                    categories.map((cat: Category, index: number) => (
+                      <option
+                        key={`${cat.id}-${index}`}
+                        value={cat.slug}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                      >
+                        {cat.categoryName}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="aseos">Aseo</option>
+                      <option value="comida">Comida</option>
+                      <option value="electrodomesticos">
+                        Electrodomésticos
+                      </option>
+                    </>
+                  )}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              </>
+            )}
           </div>
         </div>
 
@@ -321,6 +329,7 @@ export default function FilterPanel() {
               </div>
             )}
           </div>
+
           <div className="flex items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 cursor-pointer group">
             <input
               type="checkbox"
