@@ -6,14 +6,13 @@ import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from 'next-themes';
 import NextTopLoader from 'nextjs-toploader';
+import { Suspense } from 'react';
 import { Toaster } from 'sonner';
 import ClientLayout from './ClientLayout';
 import './globals.css';
-
 // Importar CSS de Fontsource para Onest
 import '@fontsource/onest/400.css'; // Regular
 import '@fontsource/onest/700.css'; // Bold
-
 // Configuración de viewport optimizada
 export const viewport: Viewport = {
   themeColor: [
@@ -26,7 +25,6 @@ export const viewport: Viewport = {
   userScalable: true,
   colorScheme: 'dark light',
 };
-
 // Configuración de metadata mejorada
 export const metadata: Metadata = {
   // Título y descripción basados en tu proyecto "mi-tienda"
@@ -36,7 +34,6 @@ export const metadata: Metadata = {
   },
   description:
     'Descubre los mejores productos en Delivery Express. Calidad garantizada, envíos rápidos y atención personalizada. Tu experiencia de compra online comienza aquí.',
-
   // Metadatos básicos
   keywords: [
     'delivery express',
@@ -51,7 +48,6 @@ export const metadata: Metadata = {
   authors: [{ name: 'Delivery Express Team' }],
   creator: 'Delivery Express',
   publisher: 'Delivery Express',
-
   // Configuración de robots
   robots: {
     index: true,
@@ -66,7 +62,6 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-
   // OpenGraph
   openGraph: {
     type: 'website',
@@ -85,7 +80,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-
   // Twitter Card
   twitter: {
     card: 'summary_large_image',
@@ -96,7 +90,6 @@ export const metadata: Metadata = {
       'Descubre los mejores productos en Delivery Express. Calidad garantizada y envíos rápidos.',
     images: ['/twitter-image.jpg'],
   },
-
   // Iconos y manifest
   icons: {
     icon: [
@@ -111,7 +104,6 @@ export const metadata: Metadata = {
     ],
   },
   manifest: '/manifest.json',
-
   // Metadatos adicionales para SEO
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
@@ -122,21 +114,18 @@ export const metadata: Metadata = {
       'es-ES': process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
     },
   },
-
   // Metadatos para verificación de sitios
   verification: {
     google: 'google-site-verification-code',
     yandex: 'yandex-verification-code',
     yahoo: 'yahoo-site-verification-code',
   },
-
   // Metadatos para aplicaciones móviles
   appleWebApp: {
     capable: true,
     title: 'Delivery Express',
     statusBarStyle: 'black-translucent',
   },
-
   // Metadatos adicionales
   category: 'shopping',
   classification: 'ecommerce',
@@ -147,7 +136,6 @@ export const metadata: Metadata = {
     telephone: false,
   },
 };
-
 export default function RootLayout({
   children,
 }: {
@@ -168,7 +156,6 @@ export default function RootLayout({
           {/* DNS Prefetch para recursos externos */}
           <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
           <link rel="dns-prefetch" href="//images.unsplash.com" />
-
           {/* Preconnect para recursos críticos */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link
@@ -176,7 +163,6 @@ export default function RootLayout({
             href="https://fonts.gstatic.com"
             crossOrigin="anonymous"
           />
-
           {/* Structured Data para SEO */}
           <script
             type="application/ld+json"
@@ -217,7 +203,6 @@ export default function RootLayout({
             }}
           />
         </head>
-
         <body className="min-h-screen relative bg-background antialiased font-sans">
           <ClientProviders>
             <ThemeProvider
@@ -227,36 +212,42 @@ export default function RootLayout({
               disableTransitionOnChange
               storageKey="delivery-theme"
             >
-              <div className="relative min-h-screen">
-                <AnimatedBackground />
-                <NextTopLoader
-                  color="#2563eb"
-                  initialPosition={0.08}
-                  crawlSpeed={200}
-                  height={3}
-                  crawl={true}
-                  showSpinner={false}
-                  easing="ease"
-                  speed={200}
-                  shadow="0 0 10px #2563eb,0 0 5px #2563eb"
-                  zIndex={1600}
-                />
-
-                <div className="relative z-10">
-                  <ClientLayout>{children}</ClientLayout>
-                  <FooterConditional />
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center min-h-screen">
+                    Cargando...
+                  </div>
+                }
+              >
+                <div className="relative min-h-screen">
+                  <AnimatedBackground />
+                  <NextTopLoader
+                    color="#2563eb"
+                    initialPosition={0.08}
+                    crawlSpeed={200}
+                    height={3}
+                    crawl={true}
+                    showSpinner={false}
+                    easing="ease"
+                    speed={200}
+                    shadow="0 0 10px #2563eb,0 0 5px #2563eb"
+                    zIndex={1600}
+                  />
+                  <div className="relative z-10">
+                    <ClientLayout>{children}</ClientLayout>
+                    <FooterConditional />
+                  </div>
+                  <Toaster
+                    position="bottom-right"
+                    richColors
+                    closeButton
+                    duration={4000}
+                    visibleToasts={5}
+                    expand
+                    gap={12}
+                  />
                 </div>
-
-                <Toaster
-                  position="bottom-right"
-                  richColors
-                  closeButton
-                  duration={4000}
-                  visibleToasts={5}
-                  expand
-                  gap={12}
-                />
-              </div>
+              </Suspense>
             </ThemeProvider>
           </ClientProviders>
         </body>

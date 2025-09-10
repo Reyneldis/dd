@@ -1,14 +1,17 @@
+// src/app/api/orders/route.ts
 import {
   createTransporter,
   sendOrderConfirmationEmail,
-} from '@/lib/email/service';
+} from '@/lib/email/order-confirmation';
 import { validateOrder } from '@/lib/order/validator';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+
 // Asegura que este endpoint se ejecute en runtime Node.js (no Edge), necesario para Nodemailer
 export const runtime = 'nodejs';
+
 // Tipo de payload que llega desde el frontend para el checkout
 interface CheckoutItem {
   quantity: number;
@@ -65,22 +68,18 @@ const checkoutBodySchema = z.object({
 export async function GET() {
   try {
     const { userId } = await auth();
-
     if (!userId) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
-
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
     });
-
     if (!user) {
       return NextResponse.json({
         error: 'Usuario no encontrado',
         status: 404,
       });
     }
-
     const orders = await prisma.order.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
@@ -116,7 +115,6 @@ export async function GET() {
         },
       },
     });
-
     // Mapear los datos para exponer customerAddress y customerPhone
     const mappedOrders = orders.map(order => ({
       ...order,
@@ -125,7 +123,6 @@ export async function GET() {
         ? `${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zip}, ${order.shippingAddress.country}`
         : '',
     }));
-
     return NextResponse.json(mappedOrders);
   } catch (error) {
     console.error('Error al obtener pedidos:', error);
@@ -140,7 +137,6 @@ export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.json();
     const parsed = checkoutBodySchema.safeParse(rawBody);
-
     if (!parsed.success) {
       return NextResponse.json(
         {
@@ -150,20 +146,17 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-
     const { items, shippingAddress, contactInfo } = parsed.data as {
       items: CheckoutItem[];
       shippingAddress: ShippingAddressInput;
       contactInfo: ContactInfoInput;
     };
-
     if (!items || !shippingAddress || !contactInfo) {
       return NextResponse.json({
         error: 'Datos requeridos faltantes',
         status: 400,
       });
     }
-
     // Validar stock y precios
     try {
       await validateOrder(
@@ -185,7 +178,6 @@ export async function POST(request: NextRequest) {
     const user = clerkUserId
       ? await prisma.user.findUnique({ where: { clerkId: clerkUserId } })
       : null;
-
     const order = await prisma.$transaction(async tx => {
       // Decrementar stock de forma atómica para cada item
       for (const item of items) {
@@ -205,7 +197,6 @@ export async function POST(request: NextRequest) {
           );
         }
       }
-
       // Crear la orden y los items
       const created = await tx.order.create({
         data: {
@@ -262,10 +253,8 @@ export async function POST(request: NextRequest) {
           },
         },
       });
-
       return created;
     });
-
     console.log('📦 [orders] Creando pedido exitosamente:', {
       orderId: order.id,
       customerEmail: contactInfo.email,
@@ -273,23 +262,55 @@ export async function POST(request: NextRequest) {
       itemsCount: order.items.length,
     });
 
-    // Enviar correo de confirmación al cliente (bloqueante para depurar fallos)
-    const transporter = createTransporter();
-    await sendOrderConfirmationEmail(transporter, contactInfo.email, {
-      orderId: order.id,
-      items: order.items.map(item => ({
-        productName: item.productName ?? 'Producto sin nombre',
-        quantity: item.quantity,
-        price: item.price,
-      })),
-      total: order.total,
-      shippingAddress: `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip}`,
+    // CAMBIO PRINCIPAL: Enviar correo de confirmación de forma no bloqueante
+    let emailSent = false;
+    let emailError = null;
+
+    try {
+      const transporter = createTransporter();
+      const emailResult = await sendOrderConfirmationEmail(
+        transporter,
+        contactInfo.email,
+        {
+          orderId: order.id,
+          items: order.items.map(item => ({
+            productName: item.productName ?? 'Producto sin nombre',
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          total: order.total,
+          shippingAddress: `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip}`,
+        },
+      );
+
+      emailSent = emailResult.success;
+      if (!emailResult.success) {
+        emailError = emailResult.error;
+        console.error('Error al enviar correo de confirmación:', emailError);
+      }
+    } catch (error) {
+      console.error('Excepción al enviar correo de confirmación:', error);
+      emailError = error instanceof Error ? error.message : 'Error desconocido';
+    }
+
+    console.log('📧 [orders] Estado del correo de confirmación:', {
+      emailSent,
+      emailError,
     });
-    console.log('✅ [orders] Correo de confirmación enviado exitosamente');
 
     // WhatsApp Cloud API deshabilitado: la notificación por WhatsApp se realiza en el cliente con wa.me
-
-    return NextResponse.json(order, { status: 201 });
+    // Devolver respuesta con información sobre el estado del correo
+    return NextResponse.json(
+      {
+        ...order,
+        emailSent,
+        emailError: emailError ? emailError : undefined,
+        message: emailSent
+          ? 'Pedido creado y correo de confirmación enviado'
+          : 'Pedido creado pero hubo un problema al enviar el correo de confirmación',
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error('Error creando orden:', error);
     const message =

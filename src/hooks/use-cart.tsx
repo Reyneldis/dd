@@ -1,6 +1,7 @@
 // hooks/use-cart.ts
 'use client';
 import { useCartStore } from '@/store/cart-store';
+import { CartItem } from '@/types'; // Importar el tipo CartItem
 import { useUser } from '@clerk/nextjs';
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -26,16 +27,14 @@ export function useCart() {
     if (!isSignedIn || !user || isSyncing.current) return;
     const now = Date.now();
     if (now - lastSyncTime.current < 5000) return;
-
     isSyncing.current = true;
     lastSyncTime.current = now;
-
     try {
       const response = await fetch(`/api/cart?userId=${user.id}`);
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data.items)) {
-          const mappedItems = data.items.map(
+          const mappedItems: CartItem[] = data.items.map(
             (item: {
               id: string;
               product: {
@@ -76,7 +75,7 @@ export function useCart() {
   }, [isSignedIn, syncFromBackend]);
 
   return {
-    items,
+    items: items as CartItem[], // Asegurar que los items sean del tipo CartItem
     addItem,
     removeItem,
     updateQuantity,
@@ -96,11 +95,9 @@ export function useSyncCartWithBackend() {
 
   useEffect(() => {
     if (!isSignedIn || !user || items.length === 0) return;
-
     if (syncTimeout.current) {
       clearTimeout(syncTimeout.current);
     }
-
     syncTimeout.current = setTimeout(async () => {
       try {
         const response = await fetch('/api/cart/sync', {
@@ -115,18 +112,15 @@ export function useSyncCartWithBackend() {
             })),
           }),
         });
-
         if (!response.ok) {
           throw new Error('Error al sincronizar');
         }
-
         toast.success('Carrito sincronizado');
       } catch (error) {
         console.error('Error sincronizando carrito con backend:', error);
         toast.error('Error al guardar los cambios del carrito');
       }
     }, 2000);
-
     return () => {
       if (syncTimeout.current) {
         clearTimeout(syncTimeout.current);

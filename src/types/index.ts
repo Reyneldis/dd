@@ -113,12 +113,52 @@ export interface OrderItem {
 
 export interface CartItem {
   id: string;
-  userId: string;
-  productId: string;
+  slug: string;
+  productName: string;
+  price: number;
+  image: string;
   quantity: number;
-  createdAt: Date;
-  updatedAt: Date;
-  product: Product;
+}
+
+// Interfaz para la respuesta de la API de órdenes
+export interface OrderResponse {
+  success?: boolean;
+  order: {
+    id: string;
+    orderNumber: string;
+    status: string;
+    subtotal: number;
+    taxAmount: number;
+    shippingAmount: number;
+    total: number;
+    createdAt: string;
+    contactInfo: {
+      name: string;
+      email: string;
+      phone: string;
+    };
+    shippingAddress: {
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+      country: string;
+    };
+    items: Array<{
+      id: string;
+      quantity: number;
+      price: number;
+      total: number;
+      product: {
+        id: string;
+        productName: string;
+        slug: string;
+      };
+    }>;
+  };
+  emailSent: boolean;
+  emailError?: string;
+  error?: string;
 }
 
 export interface Review {

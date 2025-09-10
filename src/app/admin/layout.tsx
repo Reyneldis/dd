@@ -1,7 +1,7 @@
+// src/components/admin/AdminLayout.tsx
 'use client';
-
-import Sidebar from '@/components/shared/admin/Sidebar';
 import AdminHeader from '@/components/shared/admin/AdminHeader';
+import Sidebar from '@/components/shared/admin/Sidebar';
 import React, { useState } from 'react';
 
 export default function AdminLayout({
@@ -10,7 +10,6 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-
   const toggleSidebar = () => {
     setSidebarOpen(!isSidebarOpen);
   };

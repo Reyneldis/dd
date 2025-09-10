@@ -35,6 +35,7 @@ export const sendOrderConfirmationEmail = async (
   });
 
   const hasMultipleItems = orderDetails.items.length > 1;
+
   const itemsTable = `
     <table style="width:100%; border-collapse: collapse; margin-top: 12px;">
       <thead>
@@ -93,22 +94,18 @@ export const sendOrderConfirmationEmail = async (
           <h1 style="margin:0; font-size:20px;">🎉 ¡Pedido confirmado!</h1>
           <p style="margin:6px 0 0 0; opacity:0.95; font-size:13px;">Gracias por comprar en Delivery</p>
         </div>
-
         <div style="background:#ffffff; padding:24px; border:1px solid #e2e8f0; border-top:0; border-radius:0 0 12px 12px;">
           <h2 style="margin:0 0 8px 0; font-size:18px; color:#0f172a;">Resumen del pedido</h2>
           <p style="margin:0 0 16px 0; font-size:14px; color:#334155;">ID del pedido: <strong>${orderDetails.orderId.slice(
             -6,
           )}</strong></p>
-
           ${hasMultipleItems ? itemsTable : itemsList}
-
           <div style="margin-top:20px; background:#f0fdf4; border:1px solid #86efac; color:#166534; padding:16px; border-radius:10px;">
             <div style="display:flex; justify-content:space-between; font-size:16px;">
               <span>Total</span>
               <strong>$${orderDetails.total.toFixed(2)}</strong>
             </div>
           </div>
-
           <div style="margin-top:20px; padding:16px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:10px; color:#0f172a;">
             <p style="margin:0 0 6px 0; font-size:14px;">
               <strong>Dirección de envío:</strong><br/>
@@ -116,10 +113,8 @@ export const sendOrderConfirmationEmail = async (
             </p>
             <p style="margin:10px 0 0 0; font-size:13px; color:#475569;">Estado del pedido: <strong>Pendiente</strong></p>
           </div>
-
           <p style="margin:20px 0 0 0; font-size:13px; color:#64748b;">Si tienes dudas, responde a este correo. ¡Gracias por elegirnos!</p>
         </div>
-
         <p style="text-align:center; margin:16px 0 0 0; font-size:12px; color:#94a3b8;">© ${new Date().getFullYear()} Delivery</p>
       </div>
     </body>
@@ -141,8 +136,10 @@ export const sendOrderConfirmationEmail = async (
   while (currentRetry <= maxRetries) {
     try {
       const info = await transporter.sendMail(mailOptions);
-      // Log detallado del resultado SMTP
-      const rawInfo = info as unknown as Record<string, unknown>;
+
+      // Log detallado del resultado SMTP sin depender de tipos específicos
+      type MaybeRecord = Record<string, unknown>;
+      const rawInfo = info as unknown as MaybeRecord;
       const accepted = Array.isArray(rawInfo.accepted)
         ? (rawInfo.accepted as string[])
         : [];
@@ -153,6 +150,7 @@ export const sendOrderConfirmationEmail = async (
         typeof rawInfo.response === 'string'
           ? (rawInfo.response as string)
           : undefined;
+
       console.log(
         '[email] accepted:',
         accepted,
@@ -161,9 +159,11 @@ export const sendOrderConfirmationEmail = async (
         'response:',
         response,
       );
+
       if (rejected.length > 0) {
         throw new Error(`SMTP rechazó: ${rejected.join(', ')}`);
       }
+
       await logEmailMetrics({
         type: 'ORDER_CONFIRMATION',
         recipient: to,
@@ -177,9 +177,11 @@ export const sendOrderConfirmationEmail = async (
         currentRetry + 1,
         ')',
       );
-      return info;
+
+      return { success: true, info };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+
       await logEmailMetrics({
         type: 'ORDER_CONFIRMATION',
         recipient: to,
@@ -198,6 +200,7 @@ export const sendOrderConfirmationEmail = async (
         );
         await sleep(waitTime);
       }
+
       currentRetry++;
     }
   }
@@ -212,7 +215,12 @@ export const sendOrderConfirmationEmail = async (
     error: lastError?.message || 'Todos los reintentos fallaron',
   });
 
-  throw new Error(
-    `No se pudo enviar el correo después de ${maxRetries} intentos`,
-  );
+  // CAMBIO PRINCIPAL: En lugar de lanzar un error, devolver un objeto con información del fallo
+  return {
+    success: false,
+    error:
+      lastError?.message ||
+      `No se pudo enviar el correo después de ${maxRetries} intentos`,
+    attempts: maxRetries,
+  };
 };

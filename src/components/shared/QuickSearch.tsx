@@ -1,12 +1,10 @@
 // components/QuickSearch.tsx
 'use client';
-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCart } from '@/hooks/use-cart';
 import { useSearch } from '@/hooks/use-search';
 import { Product } from '@/types';
-import { SignInButton, useAuth } from '@clerk/nextjs';
 import { Eye, Loader2, Search, ShoppingCart, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -19,10 +17,8 @@ interface QuickSearchProps {
 
 export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { isSignedIn } = useAuth();
   const { addItem } = useCart();
   const [isMobile, setIsMobile] = useState(false);
-
   const {
     searchTerm,
     setSearchTerm,
@@ -40,10 +36,8 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-
     checkIsMobile();
     window.addEventListener('resize', checkIsMobile);
-
     return () => {
       window.removeEventListener('resize', checkIsMobile);
     };
@@ -52,11 +46,9 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
   // Manejar el foco cuando se abre
   useEffect(() => {
     if (!isOpen) return;
-
     const timer = setTimeout(() => {
       inputRef.current?.focus();
     }, 50);
-
     return () => clearTimeout(timer);
   }, [isOpen]);
 
@@ -68,7 +60,6 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
       const isBottom = scrollHeight - scrollTop <= clientHeight + 100;
-
       if (isBottom) {
         loadMore();
       }
@@ -97,13 +88,13 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
 
     document.addEventListener('keydown', handleEscape);
     document.addEventListener('mousedown', handleClickOutside);
-
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen, onClose]);
 
+  // Función para agregar al carrito - MODIFICADA
   const handleAddToCart = useCallback(
     (product: Product) => {
       if (!product || !product.productName || !product.slug) return;
@@ -112,7 +103,6 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
         product.images?.length > 0
           ? product.images.find(img => img.isPrimary) || product.images[0]
           : null;
-
       const imageUrl = mainImage?.url ?? '/img/placeholder-category.jpg';
 
       const cartItem = {
@@ -126,7 +116,7 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
       addItem(cartItem);
       onClose();
     },
-    [addItem, onClose, isSignedIn],
+    [addItem, onClose], // Eliminado isSignedIn de las dependencias
   );
 
   if (!isOpen) return null;
@@ -162,7 +152,6 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
               <X className="h-5 w-5" />
             </button>
           )}
-
           <div className="relative flex-1">
             <Search
               className={`
@@ -366,7 +355,7 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
                       </div>
                     </div>
 
-                    {/* Acciones */}
+                    {/* Acciones - MODIFICADO */}
                     <div
                       className={`
                       flex items-center gap-2 flex-shrink-0
@@ -390,49 +379,26 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
                         />
                       </Link>
 
-                      {isSignedIn ? (
-                        <Button
-                          onClick={() => handleAddToCart(product)}
-                          size={isMobile ? 'lg' : 'sm'}
+                      {/* Botón de agregar al carrito - SIMPLIFICADO */}
+                      <Button
+                        onClick={() => handleAddToCart(product)}
+                        size={isMobile ? 'lg' : 'sm'}
+                        className={`
+                          ${
+                            isMobile
+                              ? 'h-12 px-4 text-base'
+                              : 'h-8 px-3 text-xs'
+                          }
+                        `}
+                      >
+                        <ShoppingCart
                           className={`
-                            ${
-                              isMobile
-                                ? 'h-12 px-4 text-base'
-                                : 'h-8 px-3 text-xs'
-                            }
+                          mr-1
+                          ${isMobile ? 'h-5 w-5' : 'h-3 w-3'}
                           `}
-                        >
-                          <ShoppingCart
-                            className={`
-                            mr-1
-                            ${isMobile ? 'h-5 w-5' : 'h-3 w-3'}
-                          `}
-                          />
-                          {isMobile && 'Agregar'}
-                        </Button>
-                      ) : (
-                        <SignInButton mode="modal">
-                          <Button
-                            size={isMobile ? 'lg' : 'sm'}
-                            variant="outline"
-                            className={`
-                              ${
-                                isMobile
-                                  ? 'h-12 px-4 text-base'
-                                  : 'h-7 px-2 text-xs'
-                              }
-                            `}
-                          >
-                            <ShoppingCart
-                              className={`
-                              mr-1
-                              ${isMobile ? 'h-5 w-5' : 'h-3 w-3'}
-                            `}
-                            />
-                            {isMobile && 'Login'}
-                          </Button>
-                        </SignInButton>
-                      )}
+                        />
+                        {isMobile && 'Agregar'}
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -452,7 +418,6 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
                     {isLoadingMore ? 'Cargando...' : 'Cargar más resultados'}
                   </button>
                 )}
-
                 {filteredProducts.length > 0 && (
                   <Link
                     href={`/products?search=${encodeURIComponent(searchTerm)}`}

@@ -246,6 +246,7 @@ model EmailMetrics {
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+   @@map("email_metrics")
 }
 
 enum Role {

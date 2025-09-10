@@ -1,11 +1,11 @@
-// src/components/shared/not-found/NotFoundContent.tsx
+// src/components/shared/not-found/NotFoundClient.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
-export function NotFoundContent() {
+export function NotFoundClient() {
   const searchParams = useSearchParams();
   const from = searchParams.get('from');
 

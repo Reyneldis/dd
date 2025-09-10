@@ -2,7 +2,6 @@
 import Logo from '@/components/shared/Logo/Logo';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 export default function MinimalNavbar() {
   const [mounted, setMounted] = useState(false);
@@ -20,9 +19,7 @@ export default function MinimalNavbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center">
-              <Logo />
-            </Link>
+            <Logo />
           </div>
 
           {/* Toggle de modo oscuro/claro */}

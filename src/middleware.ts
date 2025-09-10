@@ -76,10 +76,19 @@ export default clerkMiddleware(async (auth, req) => {
 
   // 3. Manejar rutas de administrador
   if (isAdminRoute(req)) {
+    // Verificar si estamos en modo de desarrollo
+    const adminDevMode = process.env.NEXT_PUBLIC_ADMIN_DEV_MODE === 'true';
+
+    if (adminDevMode) {
+      // En modo de desarrollo, permitir acceso sin autenticación
+      return NextResponse.next();
+    }
+
+    // En producción, verificar autenticación y rol
     if (!userId) {
       return redirectToSignIn(req);
     }
-    // Verificar rol de administrador
+
     const userRole = (sessionClaims?.metadata as UserMetadata)?.role || 'USER';
     if (!['ADMIN', 'SUPER_ADMIN'].includes(userRole)) {
       return forbiddenResponse();
@@ -93,10 +102,12 @@ export default clerkMiddleware(async (auth, req) => {
     if (req.nextUrl.pathname === '/api/orders' && req.method === 'POST') {
       return;
     }
+
     // Verificar autenticación para otras rutas API
     if (!userId) {
       return unauthorizedResponse();
     }
+
     // Verificar permisos específicos según la ruta
     if (req.nextUrl.pathname.startsWith('/api/user')) {
       // Solo permitir acceso a datos del propio usuario
