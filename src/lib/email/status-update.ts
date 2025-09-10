@@ -50,7 +50,6 @@ export const sendStatusUpdateEmail = async (
           <h1 style="margin:0; font-size:20px;">📢 Actualización de tu pedido</h1>
           <p style="margin:6px 0 0 0; opacity:0.95; font-size:13px;">Delivery</p>
         </div>
-
         <div style="background:#ffffff; padding:24px; border:1px solid #e2e8f0; border-top:0; border-radius:0 0 12px 12px;">
           <h2 style="margin:0 0 8px 0; font-size:18px; color:#0f172a;">Hola ${customerName},</h2>
           <p style="margin:0 0 16px 0; font-size:14px; color:#334155;">Tu pedido <strong>#${orderId.slice(
@@ -62,16 +61,13 @@ export const sendStatusUpdateEmail = async (
               Estado actual: <span style="text-transform:uppercase;">${newStatus}</span>
             </div>
           </div>
-
           <div style="margin-top:20px; padding:16px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:10px; color:#0f172a;">
             <p style="margin:0; font-size:14px;">
               ${STATUS_MESSAGES[newStatus]}
             </p>
           </div>
-
           <p style="margin:20px 0 0 0; font-size:13px; color:#64748b;">Si tienes dudas, responde a este correo. ¡Gracias por elegirnos!</p>
         </div>
-
         <p style="text-align:center; margin:16px 0 0 0; font-size:12px; color:#94a3b8;">© ${new Date().getFullYear()} Delivery</p>
       </div>
     </body>
@@ -95,6 +91,7 @@ export const sendStatusUpdateEmail = async (
   while (currentRetry <= maxRetries) {
     try {
       const info = await transporter.sendMail(mailOptions);
+
       // Log detallado del resultado SMTP
       const rawInfo = info as unknown as Record<string, unknown>;
       const accepted = Array.isArray(rawInfo.accepted)
@@ -107,6 +104,7 @@ export const sendStatusUpdateEmail = async (
         typeof rawInfo.response === 'string'
           ? (rawInfo.response as string)
           : undefined;
+
       console.log(
         '[email] accepted:',
         accepted,
@@ -115,9 +113,11 @@ export const sendStatusUpdateEmail = async (
         'response:',
         response,
       );
+
       if (rejected.length > 0) {
         throw new Error(`SMTP rechazó: ${rejected.join(', ')}`);
       }
+
       await logEmailMetrics({
         type: 'STATUS_UPDATE',
         recipient: to,
@@ -131,9 +131,11 @@ export const sendStatusUpdateEmail = async (
         currentRetry + 1,
         ')',
       );
+
       return info;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+
       await logEmailMetrics({
         type: 'STATUS_UPDATE',
         recipient: to,
@@ -152,6 +154,7 @@ export const sendStatusUpdateEmail = async (
         );
         await sleep(waitTime);
       }
+
       currentRetry++;
     }
   }

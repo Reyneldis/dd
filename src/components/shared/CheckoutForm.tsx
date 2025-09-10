@@ -761,12 +761,12 @@ export default function CheckoutForm() {
             rel="noopener noreferrer"
             className="inline-block w-full"
           >
-            <Button
+            {/* <Button
               type="button"
               className="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4"
             >
               O Enviar por WhatsApp
-            </Button>
+            </Button> */}
           </a>
         </form>
       </div>

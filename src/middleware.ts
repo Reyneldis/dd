@@ -12,6 +12,10 @@ const isPublicRoute = createRouteMatcher([
   '/contact(.*)',
   '/about(.*)',
   '/search(.*)',
+  // Páginas de error
+  '/404',
+  '/_not-found',
+  '/500',
   // Autenticación
   '/sign-in(.*)',
   '/sign-up(.*)',
@@ -75,7 +79,6 @@ export default clerkMiddleware(async (auth, req) => {
     if (!userId) {
       return redirectToSignIn(req);
     }
-
     // Verificar rol de administrador
     const userRole = (sessionClaims?.metadata as UserMetadata)?.role || 'USER';
     if (!['ADMIN', 'SUPER_ADMIN'].includes(userRole)) {
@@ -90,12 +93,10 @@ export default clerkMiddleware(async (auth, req) => {
     if (req.nextUrl.pathname === '/api/orders' && req.method === 'POST') {
       return;
     }
-
     // Verificar autenticación para otras rutas API
     if (!userId) {
       return unauthorizedResponse();
     }
-
     // Verificar permisos específicos según la ruta
     if (req.nextUrl.pathname.startsWith('/api/user')) {
       // Solo permitir acceso a datos del propio usuario
@@ -138,7 +139,7 @@ export default clerkMiddleware(async (auth, req) => {
 function redirectToSignIn(req: Request) {
   const signInUrl = new URL('/sign-in', req.url);
   signInUrl.searchParams.set('redirect_url', req.url);
-  return Response.redirect(signInUrl);
+  return NextResponse.redirect(signInUrl);
 }
 
 function unauthorizedResponse() {
