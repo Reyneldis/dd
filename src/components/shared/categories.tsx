@@ -189,46 +189,76 @@ export default function Categories() {
                 <Link
                   key={category.id}
                   href={`/categories/${category.slug}`}
-                  className="group relative bg-background/20 backdrop-blur-xl rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl border border-border/20 transition-all duration-500 hover:scale-[1.025] flex flex-col w-full h-auto animate-fade-in"
-                  style={{ animationDelay: `${index * 100}ms` }}
+                  className="group relative overflow-hidden rounded-3xl h-80 transition-all duration-700 hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-2"
                 >
-                  {/* Badge de categoría */}
-                  <div className="absolute top-4 left-4 z-20">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-primary/80 to-secondary/80 text-primary-foreground text-xs font-bold shadow-lg">
-                      <Sparkles className="h-3 w-3" />
-                      {category.productCount || 0} productos
-                    </span>
-                  </div>
-                  {/* Imagen protagonista */}
-                  <div className="relative w-full h-[240px] rounded-t-3xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
+                  {/* Fondo futurista con gradiente animado */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"></div>
+
+                  {/* Imagen con efecto holográfico */}
+                  <div className="absolute inset-0 overflow-hidden">
                     <CategoryImage
                       src={imageUrl}
                       alt={category.categoryName}
                       fill
-                      className="transition-transform duration-700 group-hover:scale-110"
-                      style={{ objectFit: 'cover' }}
+                      className="object-cover transition-all duration-1000 group-hover:scale-110 group-hover:opacity-70"
                       loading="lazy"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-background/30 via-transparent to-transparent"></div>
-                  </div>
-                  {/* Info inferior glassmorphism */}
-                  <div className="flex-1 p-6 flex flex-col justify-center bg-gradient-to-b from-background/80 to-background/95 backdrop-blur-sm">
-                    <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors duration-300 break-words text-center lg:text-left">
-                      {category.categoryName}
-                    </h3>
-                    {category.description && (
-                      <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
-                        {category.description}
-                      </p>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        {category.productCount || 0} productos disponibles
-                      </span>
-                      <ArrowRight className="h-5 w-5 text-primary group-hover:translate-x-1 transition-transform duration-300" />
+
+                    {/* Efecto holográfico animado */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.3)_0%,rgba(59,130,246,0.2)_40%,transparent_70%)] animate-pulse-slow"></div>
+                      <div className="absolute inset-0 bg-[conic-gradient(from_180deg_at_50%_50%,_rgba(139,92,246,0.1)_0deg,_rgba(59,130,246,0.1)_180deg,_transparent_360deg)] animate-spin-slow"></div>
                     </div>
                   </div>
+
+                  {/* Líneas de grid futuristas */}
+                  <div className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-700">
+                    <div className="absolute inset-0 bg-grid-white/[0.05] bg-[length:20px_20px]"></div>
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80"></div>
+                  </div>
+
+                  {/* Badge de productos con diseño futurista */}
+                  <div className="absolute top-4 right-4 z-20">
+                    <div className="flex items-center justify-center w-14 h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/10 shadow-lg">
+                      <span className="text-white font-bold text-lg">
+                        {category.productCount || 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Contenido de la card con efecto glassmorphism */}
+                  <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm">
+                    <div className="mb-4">
+                      <div className="h-1 w-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full mb-3 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
+                      <h3 className="text-2xl font-bold text-white tracking-tight mb-1 group-hover:text-purple-300 transition-colors duration-300">
+                        {category.categoryName}
+                      </h3>
+                      {category.description && (
+                        <p className="text-sm text-gray-300 line-clamp-2 opacity-80 group-hover:opacity-100 transition-opacity duration-300">
+                          {category.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400 group-hover:text-gray-200 transition-colors duration-300">
+                        {category.productCount || 0} productos
+                      </span>
+                      <div className="flex items-center gap-1 group-hover:translate-x-2 transition-transform duration-300">
+                        <span className="text-sm font-medium text-purple-300">
+                          Explorar
+                        </span>
+                        <div className="relative">
+                          <ArrowRight className="h-4 w-4 text-purple-300" />
+                          <div className="absolute inset-0 bg-purple-300 rounded-full blur-sm opacity-0 group-hover:opacity-70 transition-opacity duration-300"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Efecto de borde futurista */}
+                  <div className="absolute inset-0 rounded-3xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
                 </Link>
               );
             })}

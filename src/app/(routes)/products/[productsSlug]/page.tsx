@@ -1,5 +1,7 @@
 'use client';
+import CheckoutModal from '@/components/shared/checkout/CheckoutModal';
 import { useCart } from '@/hooks/use-cart';
+import type { Product } from '@/types';
 import { useAuth } from '@clerk/nextjs';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ShoppingCart } from 'lucide-react';
@@ -7,6 +9,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import React, { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 interface ReviewUser {
   firstName?: string;
@@ -22,7 +25,6 @@ interface Review {
   user?: ReviewUser;
 }
 
-// Definir el tipo CartItem localmente
 interface CartItem {
   id: string;
   productName: string;
@@ -31,9 +33,6 @@ interface CartItem {
   slug: string;
   quantity: number;
 }
-
-import type { Product } from '@/types';
-import { toast } from 'sonner';
 
 async function fetchProduct(slug: string): Promise<Product | null> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -44,9 +43,6 @@ async function fetchProduct(slug: string): Promise<Product | null> {
   return await res.json();
 }
 
-import CheckoutModal from '@/components/shared/checkout/CheckoutModal';
-
-// Componente ThreeDCard optimizado
 const ThreeDCard = ({ children }: { children: React.ReactNode }) => {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -55,7 +51,6 @@ const ThreeDCard = ({ children }: { children: React.ReactNode }) => {
   });
   const rotateX = useTransform(scrollYProgress, [0, 1], [20, -20]);
   const rotateY = useTransform(scrollYProgress, [0, 1], [-20, 20]);
-
   return (
     <motion.div
       ref={ref}
@@ -78,9 +73,7 @@ export default function ProductPage() {
   const params = useParams<{ productsSlug: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
-  // NUEVO: cantidad
   const [quantity, setQuantity] = useState(1);
-  // Stock seguro
   const stock = typeof product?.stock === 'number' ? product.stock : 99;
 
   // Formulario de reseña
@@ -89,6 +82,88 @@ export default function ProductPage() {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState('');
   const [reviewError, setReviewError] = useState('');
+
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+
+  // Función para verificar si el producto ya está en el carrito
+  const isProductInCart = (productSlug: string) => {
+    return items.some(item => item.slug === productSlug);
+  };
+
+  // Función para verificar si hay stock suficiente
+  const hasEnoughStock = (requestedQuantity: number) => {
+    return requestedQuantity <= stock;
+  };
+
+  // Función para agregar al carrito (sin retornar valor)
+  const handleAddToCart = () => {
+    if (!product) return;
+
+    // Verificar si el producto ya está en el carrito
+    if (isProductInCart(product.slug)) {
+      toast.info('Este producto ya está en tu carrito');
+      return;
+    }
+
+    // Verificar stock
+    if (!hasEnoughStock(quantity)) {
+      toast.error(
+        `No puedes agregar más de ${stock} unidades de este producto.`,
+      );
+      return;
+    }
+
+    // Crear el item para el carrito
+    const cartItem: Omit<CartItem, 'quantity'> = {
+      id: product.id,
+      productName: product.productName,
+      price: product.price,
+      image: product.images?.[0]?.url || '/img/placeholder-category.jpg',
+      slug: product.slug,
+    };
+
+    // Agregar al carrito
+    addItem(cartItem);
+    // Actualizar la cantidad
+    updateQuantity(product.id, quantity);
+    toast.success('Producto agregado al carrito');
+  };
+
+  // Función para "Comprar ahora" que maneja su propia lógica
+  const handleBuyNow = () => {
+    if (!product) return;
+
+    // Verificar si el producto ya está en el carrito
+    if (isProductInCart(product.slug)) {
+      toast.info('Este producto ya está en tu carrito');
+      // Abrimos el modal de todas formas para que pueda proceder al pago
+      setCheckoutOpen(true);
+      return;
+    }
+
+    // Verificar stock
+    if (!hasEnoughStock(quantity)) {
+      toast.error(
+        `No puedes agregar más de ${stock} unidades de este producto.`,
+      );
+      return;
+    }
+
+    // Si todo está bien, agregar al carrito y abrir el modal
+    const cartItem: Omit<CartItem, 'quantity'> = {
+      id: product.id,
+      productName: product.productName,
+      price: product.price,
+      image: product.images?.[0]?.url || '/img/placeholder-category.jpg',
+      slug: product.slug,
+    };
+
+    addItem(cartItem);
+    updateQuantity(product.id, quantity);
+    toast.success('Producto agregado al carrito');
+    setCheckoutOpen(true);
+  };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,9 +198,6 @@ export default function ProductPage() {
     }
   };
 
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
-
   useEffect(() => {
     async function loadProduct() {
       setLoading(true);
@@ -159,34 +231,6 @@ export default function ProductPage() {
       })();
     }
   }, [product?.id]);
-
-  const handleAddToCart = () => {
-    if (!product) return;
-    // Verificar si el producto ya está en el carrito
-    const existingItem = items.find(item => item.slug === product.slug);
-    const currentQty = existingItem ? existingItem.quantity : 0;
-    // Verificar stock
-    if (currentQty + quantity > stock) {
-      toast.error(
-        `No puedes agregar más de ${stock} unidades de este producto.`,
-      );
-      return;
-    }
-    // Crear el item para el carrito - CORREGIDO
-    const cartItem: Omit<CartItem, 'quantity'> = {
-      id: product.id, // Agregar el ID del producto
-      productName: product.productName,
-      price: product.price,
-      image: product.images?.[0]?.url || '/img/placeholder-category.jpg',
-      slug: product.slug,
-      // No incluir 'quantity' aquí ya que el tipo lo omite
-    };
-    // Agregar al carrito
-    addItem(cartItem);
-    // Actualizar la cantidad por separado si es necesario
-    updateQuantity(product.id, quantity);
-    toast.success('Producto agregado al carrito');
-  };
 
   if (loading) {
     return (
@@ -224,7 +268,6 @@ export default function ProductPage() {
     product.images?.[0]?.url ||
     '/img/placeholder-category.jpg';
 
-  // El return principal debe ser el único fuera de condicionales
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <div className="container mx-auto px-2 py-8 pt-20">
@@ -359,10 +402,7 @@ export default function ProductPage() {
                       className="flex-1 py-4 px-4 cursor-pointer rounded-xl bg-gradient-to-r from-yellow-400 to-orange-400 text-yellow-900 font-bold text-lg shadow-xl hover:from-yellow-500 hover:to-orange-500 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60"
                       type="button"
                       disabled={stock === 0}
-                      onClick={() => {
-                        handleAddToCart();
-                        setCheckoutOpen(true);
-                      }}
+                      onClick={handleBuyNow}
                     >
                       Pedir ahora
                     </button>
@@ -399,7 +439,6 @@ export default function ProductPage() {
               <h3 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 via-amber-500 to-emerald-700 text-center mb-4">
                 Opiniones de clientes
               </h3>
-
               {isSignedIn ? (
                 <form
                   onSubmit={handleReviewSubmit}
@@ -423,7 +462,6 @@ export default function ProductPage() {
                       </button>
                     ))}
                   </div>
-
                   <textarea
                     className="w-full p-3 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     rows={3}
@@ -433,7 +471,6 @@ export default function ProductPage() {
                     required
                     maxLength={500}
                   />
-
                   <button
                     type="submit"
                     className="py-3 px-6 rounded-xl bg-gradient-to-r from-pink-500 to-yellow-400 text-white font-bold text-lg shadow hover:from-pink-600 hover:to-yellow-500 transition-all"
@@ -445,7 +482,6 @@ export default function ProductPage() {
                   >
                     {reviewLoading ? 'Enviando...' : 'Enviar reseña'}
                   </button>
-
                   {reviewSuccess && (
                     <div className="text-green-600 font-semibold text-center">
                       {reviewSuccess}
@@ -503,7 +539,6 @@ export default function ProductPage() {
           </div>
         </div>
       </div>
-
       <CheckoutModal
         isOpen={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
