@@ -1,7 +1,10 @@
-// src/components/Categories.tsx
+// src/components/shared/categories.tsx
+'use client';
+
 import CategoryImage from '@/components/shared/CategoryImage';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 interface Category {
   id: string;
@@ -21,64 +24,125 @@ interface ApiCategory {
   productCount?: number;
 }
 
-async function fetchCategories(): Promise<Category[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-  const res = await fetch(`${baseUrl}/api/categories`, {
-    cache: 'no-store',
-    headers: {
-      'Cache-Control': 'no-cache',
-    },
+export default function Categories() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+        const res = await fetch(`${baseUrl}/api/categories`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error(`Error ${res.status}: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        console.log('Datos crudos de la API:', data);
+
+        const processedCategories = Array.isArray(data)
+          ? data.map((category: ApiCategory) => transformCategory(category))
+          : data.categories?.map((category: ApiCategory) =>
+              transformCategory(category),
+            ) || [];
+
+        setCategories(processedCategories);
+      } catch (err) {
+        console.error('Error al obtener categorías:', err);
+        setError(err instanceof Error ? err.message : 'Error desconocido');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Función de transformación de datos (reutilizable)
+  const transformCategory = (category: ApiCategory): Category => ({
+    id: category.id,
+    categoryName: category.name,
+    slug:
+      category.slug && category.slug.trim() !== ''
+        ? category.slug
+        : category.name
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/ /g, '-')
+            .replace(/[^\w-]+/g, ''),
+    mainImage: category.mainImage || null,
+    description: category.description || null,
+    productCount: category.productCount || 0,
   });
 
-  if (!res.ok) {
-    console.error('Error al obtener categorías:', res.status, res.statusText);
-    return [];
+  // Función para construir URL de imagen (reutilizable)
+  const getImageUrl = (mainImage: string | null): string => {
+    if (!mainImage) return '/img/placeholder-category.jpg';
+
+    if (
+      mainImage.startsWith('/uploads/') ||
+      mainImage.startsWith('/img/') ||
+      mainImage.startsWith('http://') ||
+      mainImage.startsWith('https://')
+    ) {
+      return mainImage;
+    }
+
+    return `/uploads/${mainImage.replace(/^\//, '')}`;
+  };
+
+  // Estados de carga y error
+  if (loading) {
+    return (
+      <section className="relative py-20 overflow-hidden">
+        <div className="mx-auto max-w-7xl px-4 relative z-10">
+          <div className="text-center">
+            <div
+              className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+              role="status"
+            >
+              <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+                Cargando...
+              </span>
+            </div>
+            <p className="mt-4 text-xl">Cargando categorías...</p>
+          </div>
+        </div>
+      </section>
+    );
   }
 
-  const data = await res.json();
-  console.log('Datos crudos de la API:', data);
-
-  return Array.isArray(data)
-    ? data.map((category: ApiCategory) => ({
-        id: category.id,
-        categoryName: category.name,
-        slug:
-          category.slug && category.slug.trim() !== ''
-            ? category.slug
-            : category.name
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/ /g, '-')
-                .replace(/[^\w-]+/g, ''),
-        mainImage: category.mainImage || null,
-        description: category.description || null,
-        productCount: category.productCount || 0,
-      }))
-    : data.categories?.map((category: ApiCategory) => ({
-        id: category.id,
-        categoryName: category.name,
-        slug:
-          category.slug && category.slug.trim() !== ''
-            ? category.slug
-            : category.name
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/ /g, '-')
-                .replace(/[^\w-]+/g, ''),
-        mainImage: category.mainImage || null,
-        description: category.description || null,
-        productCount: category.productCount || 0,
-      })) || [];
-}
-
-export default async function Categories() {
-  const categories = await fetchCategories();
-  console.log('Datos obtenidos de la API:', categories);
+  if (error) {
+    return (
+      <section className="relative py-20 overflow-hidden">
+        <div className="mx-auto max-w-7xl px-4 relative z-10">
+          <div className="text-center">
+            <p className="text-red-500 text-2xl mb-4">
+              Error al cargar categorías
+            </p>
+            <p className="text-gray-600">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (!categories || categories.length === 0) {
-    console.error('⚠️ No se encontraron categorías para mostrar.');
     return (
       <section className="relative py-20 overflow-hidden">
         <div className="mx-auto max-w-7xl px-4 relative z-10">
@@ -100,7 +164,6 @@ export default async function Categories() {
         <div className="absolute bottom-20 right-1/4 w-24 h-24 bg-secondary/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
         <div className="absolute top-1/2 left-10 w-16 h-16 bg-primary/3 rounded-full blur-xl animate-pulse delay-2000"></div>
       </div>
-
       <div className="mx-auto max-w-7xl px-4 relative z-10">
         {/* Header */}
         <div className="text-center mb-14">
@@ -115,37 +178,12 @@ export default async function Categories() {
             Encuentra productos exclusivos y de alta calidad en cada categoría
           </p>
         </div>
-
         {/* Grid de categorías */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-8">
-          {(categories || [])
-            .filter(category => category.slug) // Filtrar categorías sin slug
+          {categories
+            .filter(category => category.slug)
             .map((category, index) => {
-              // Construir la URL de la imagen
-              let imageUrl;
-              if (!category.mainImage) {
-                // Si no hay imagen, usar el placeholder
-                imageUrl = '/img/placeholder-category.jpg';
-              } else if (category.mainImage.startsWith('/uploads/')) {
-                // Si la imagen ya comienza con /uploads/, usarla directamente
-                imageUrl = category.mainImage;
-              } else if (category.mainImage.startsWith('/img/')) {
-                // Si la imagen comienza con /img/, usarla directamente
-                imageUrl = category.mainImage;
-              } else if (
-                category.mainImage.startsWith('http://') ||
-                category.mainImage.startsWith('https://')
-              ) {
-                // Si es una URL completa, usarla tal cual
-                imageUrl = category.mainImage;
-              } else {
-                // Si no, asumir que es una ruta relativa a uploads
-                imageUrl = `/uploads/${category.mainImage.replace(/^\//, '')}`;
-              }
-
-              console.log(
-                `Categoría: ${category.categoryName}, URL de imagen: ${imageUrl}`,
-              );
+              const imageUrl = getImageUrl(category.mainImage);
 
               return (
                 <Link
@@ -161,7 +199,6 @@ export default async function Categories() {
                       {category.productCount || 0} productos
                     </span>
                   </div>
-
                   {/* Imagen protagonista */}
                   <div className="relative w-full h-[240px] rounded-t-3xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
                     <CategoryImage
@@ -175,7 +212,6 @@ export default async function Categories() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-background/30 via-transparent to-transparent"></div>
                   </div>
-
                   {/* Info inferior glassmorphism */}
                   <div className="flex-1 p-6 flex flex-col justify-center bg-gradient-to-b from-background/80 to-background/95 backdrop-blur-sm">
                     <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors duration-300 break-words text-center lg:text-left">

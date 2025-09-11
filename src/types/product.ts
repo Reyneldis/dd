@@ -1,4 +1,5 @@
 // src/types/product.ts
+
 export type ProductFull = {
   id: string;
   slug: string;

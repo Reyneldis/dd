@@ -1,4 +1,3 @@
-"use client"
 import CarouselTextBanner from '@/components/shared/carousel-text-banner';
 import Categories from '@/components/shared/categories';
 import FeaturedProducts from '@/components/shared/FeaturedProducts/FeaturedProducts';
