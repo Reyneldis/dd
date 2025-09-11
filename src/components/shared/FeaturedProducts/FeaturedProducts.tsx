@@ -4,52 +4,29 @@ import type { ProductFull } from '@/types/product';
 import { useEffect, useState } from 'react';
 import FeaturedProductsGrid from './FeaturedProductsGrid';
 
-// Interfaz para la respuesta de la API
+// Interfaz para la respuesta de la API basada en tu endpoint
 interface ApiResponseProduct {
   id: string;
   slug: string;
-  name?: string;
-  productName?: string;
-  price: number | string;
-  stock: number | string;
+  productName: string;
+  price: number;
+  stock: number;
   description?: string | null;
-  mainImage?: string;
-  images?: Array<
-    | string
-    | {
-        id?: string;
-        url?: string;
-        alt?: string | null;
-        sortOrder?: number;
-        isPrimary?: boolean;
-        createdAt?: string;
-      }
-  >;
-  features?: string[];
-  status?: string;
-  featured?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-  reviewCount?: number | string;
-  categoryId?: string;
-  category?: {
+  features: string[];
+  status: 'ACTIVE' | 'INACTIVE';
+  featured: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  categoryId: string;
+  category: {
     id: string;
     categoryName: string;
     slug: string;
-    description?: string | null;
-    mainImage?: string | null;
-    createdAt?: string;
-    updatedAt?: string;
   };
-  reviews?: Array<{
+  images: Array<{
     id: string;
-    rating: number;
-    comment?: string | null;
-    isApproved: boolean;
-    createdAt?: string;
-    updatedAt?: string;
-    userId: string;
-    productId: string;
+    url: string;
+    alt?: string | null;
   }>;
 }
 
@@ -80,95 +57,42 @@ export default function FeaturedProducts() {
         // Transforma los datos para que coincidan con ProductFull
         const transformedProducts: ProductFull[] = (data.products || []).map(
           (product: ApiResponseProduct) => {
-            // Procesamiento de imágenes
-            const processedImages =
-              product.images?.map((img, index) => {
-                if (typeof img === 'string') {
-                  return {
-                    id: `generated-${index}`, // Generar ID si no viene
-                    url: img,
-                    alt: null,
-                    sortOrder: index,
-                    isPrimary: index === 0, // Primera imagen como primaria
-                    createdAt: new Date(),
-                  };
-                } else {
-                  return {
-                    id: img.id || `generated-${index}`,
-                    url: img.url || '',
-                    alt: img.alt || null,
-                    sortOrder: img.sortOrder ?? index,
-                    isPrimary: img.isPrimary ?? index === 0,
-                    createdAt: img.createdAt
-                      ? new Date(img.createdAt)
-                      : new Date(),
-                  };
-                }
-              }) || [];
+            // Procesamiento de imágenes - como solo viene una imagen, la convertimos al formato completo
+            const processedImages = product.images.map(img => ({
+              id: img.id,
+              url: img.url,
+              alt: img.alt || null,
+              sortOrder: 0, // Solo hay una imagen, así que sortOrder es 0
+              isPrimary: true, // La única imagen es primaria
+              createdAt: new Date(), // No viene en la respuesta, usamos fecha actual
+            }));
 
-            // Procesamiento de categoría
-            const category = product.category
-              ? {
-                  id: product.category.id,
-                  categoryName: product.category.categoryName,
-                  slug: product.category.slug,
-                  description: product.category.description || null,
-                  mainImage: product.category.mainImage || null,
-                  createdAt: product.category.createdAt
-                    ? new Date(product.category.createdAt)
-                    : new Date(),
-                  updatedAt: product.category.updatedAt
-                    ? new Date(product.category.updatedAt)
-                    : new Date(),
-                }
-              : {
-                  id: '',
-                  categoryName: '',
-                  slug: '',
-                  description: null,
-                  mainImage: null,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                };
-
-            // Procesamiento de reseñas
-            const processedReviews =
-              product.reviews?.map(review => ({
-                id: review.id,
-                rating: review.rating,
-                comment: review.comment || null,
-                isApproved: review.isApproved,
-                createdAt: review.createdAt
-                  ? new Date(review.createdAt)
-                  : new Date(),
-                updatedAt: review.updatedAt
-                  ? new Date(review.updatedAt)
-                  : new Date(),
-                userId: review.userId,
-                productId: review.productId,
-              })) || [];
+            // Completamos la categoría con los campos que faltan
+            const category = {
+              ...product.category,
+              description: null, // No viene en la respuesta
+              mainImage: null, // No viene en la respuesta
+              createdAt: new Date(), // No viene en la respuesta
+              updatedAt: new Date(), // No viene en la respuesta
+            };
 
             return {
               id: product.id,
               slug: product.slug,
-              productName: product.name || product.productName || '',
-              price: Number(product.price || 0),
-              stock: Number(product.stock || 0),
+              productName: product.productName,
+              price: product.price,
+              stock: product.stock,
               description: product.description || null,
-              features: product.features || [],
-              status: (product.status as 'ACTIVE' | 'INACTIVE') || 'ACTIVE',
-              featured: product.featured ?? true,
-              createdAt: product.createdAt
-                ? new Date(product.createdAt)
-                : new Date(),
-              updatedAt: product.updatedAt
-                ? new Date(product.updatedAt)
-                : new Date(),
-              categoryId: product.categoryId || '',
+              features: product.features,
+              status: product.status,
+              featured: product.featured,
+              createdAt: product.createdAt,
+              updatedAt: product.updatedAt,
+              categoryId: product.categoryId,
               category,
               images: processedImages,
-              reviewCount: Number(product.reviewCount || 0),
-              reviews: processedReviews,
+              reviewCount: 0, // No viene en la respuesta, lo ponemos en 0
+              reviews: [], // No vienen reseñas en la respuesta
             };
           },
         );

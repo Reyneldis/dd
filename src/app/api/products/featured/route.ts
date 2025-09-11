@@ -1,7 +1,7 @@
+// pages/api/products/featured.ts
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-// GET /api/products/featured - Obtener productos destacados
 export async function GET() {
   try {
     const featuredProducts = await prisma.product.findMany({
@@ -15,6 +15,10 @@ export async function GET() {
             id: true,
             categoryName: true,
             slug: true,
+            description: true,
+            mainImage: true,
+            createdAt: true,
+            updatedAt: true,
           },
         },
         images: {
@@ -24,24 +28,43 @@ export async function GET() {
             id: true,
             url: true,
             alt: true,
+            sortOrder: true,
+            isPrimary: true,
+            createdAt: true,
+          },
+        },
+        reviews: {
+          where: { isApproved: true },
+          take: 3,
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            isApproved: true,
+            createdAt: true,
+            updatedAt: true,
+            userId: true,
+            productId: true,
           },
         },
       },
       orderBy: {
         createdAt: 'desc',
       },
-      take: 8, // Limitar a 8 productos destacados
+      take: 8,
     });
 
+    // Contar reseñas para cada producto
+    const productsWithReviewCount = featuredProducts.map(product => ({
+      ...product,
+      reviewCount: product.reviews.length,
+    }));
+
     return NextResponse.json({
-      products: featuredProducts,
+      products: productsWithReviewCount,
     });
   } catch (error) {
     console.error('❌ Error fetching featured products:', error);
-    console.error('🔍 Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-    });
     return NextResponse.json(
       { error: 'Error al obtener los productos destacados' },
       { status: 500 },
