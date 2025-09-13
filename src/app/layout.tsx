@@ -1,19 +1,22 @@
-// app/layout.tsx
 import { ClientProviders } from '@/components/ClientProviders';
 import AnimatedBackground from '@/components/shared/AnimatedBackground';
 import FooterConditional from '@/components/shared/footer/FooterConditional';
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from 'next-themes';
+import { Onest } from 'next/font/google';
 import NextTopLoader from 'nextjs-toploader';
-import { Suspense } from 'react';
+import React from 'react';
 import { Toaster } from 'sonner';
 import ClientLayout from './ClientLayout';
 import './globals.css';
-// Importar CSS de Fontsource para Onest
-import '@fontsource/onest/400.css'; // Regular
-import '@fontsource/onest/700.css'; // Bold
-// Configuración de viewport optimizada
+
+const onest = Onest({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-onest',
+});
+
 export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
@@ -21,161 +24,79 @@ export const viewport: Viewport = {
   ],
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,
-  userScalable: true,
-  colorScheme: 'dark light',
+  maximumScale: 1,
+  userScalable: false,
 };
-// Configuración de metadata mejorada
+
 export const metadata: Metadata = {
-  // Título y descripción basados en tu proyecto "mi-tienda"
   title: {
-    default: 'Delivery Express - Tu E-commerce de Confianza',
+    default: 'Delivery Express',
     template: '%s | Delivery Express',
   },
-  description:
-    'Descubre los mejores productos en Delivery Express. Calidad garantizada, envíos rápidos y atención personalizada. Tu experiencia de compra online comienza aquí.',
-  // Metadatos básicos
-  keywords: [
-    'delivery express',
-    'ecommerce',
-    'compras online',
-    'productos de calidad',
-    'envíos rápidos',
-    'tienda online',
-    'ofertas',
-    'promociones',
-  ],
-  authors: [{ name: 'Delivery Express Team' }],
-  creator: 'Delivery Express',
-  publisher: 'Delivery Express',
-  // Configuración de robots
+  description: 'Delivery Express - Compra rápida y segura online.',
+  metadataBase: new URL('https://delivery-express.com'),
   robots: {
     index: true,
     follow: true,
-    nocache: false,
-    googleBot: {
-      index: true,
-      follow: true,
-      noimageindex: false,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-    },
   },
-  // OpenGraph
   openGraph: {
     type: 'website',
     locale: 'es_ES',
-    url: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+    url: 'https://delivery-express.com',
     siteName: 'Delivery Express',
-    title: 'Delivery Express - Tu E-commerce de Confianza',
-    description:
-      'Descubre los mejores productos en Delivery Express. Calidad garantizada y envíos rápidos.',
+    title: 'Delivery Express',
+    description: 'Compra rápida y segura en Delivery Express',
     images: [
       {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Delivery Express - Tienda Online',
+        alt: 'Delivery Express',
       },
     ],
   },
-  // Twitter Card
   twitter: {
     card: 'summary_large_image',
-    site: '@delivery',
-    creator: '@delivery',
-    title: 'Delivery Express - Tu E-commerce de Confianza',
-    description:
-      'Descubre los mejores productos en Delivery Express. Calidad garantizada y envíos rápidos.',
-    images: ['/twitter-image.jpg'],
+    title: 'Delivery Express',
+    description: 'Compra rápida y segura en Delivery Express',
+    images: ['/og-image.jpg'],
   },
-  // Iconos y manifest
   icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/icon.svg', sizes: '32x32', type: 'image/svg+xml' },
-    ],
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
-    other: [
-      { rel: 'mask-icon', url: '/safari-pinned-tab.svg', color: '#2563eb' },
-    ],
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
   manifest: '/manifest.json',
-  // Metadatos adicionales para SEO
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
-  ),
-  alternates: {
-    canonical: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
-    languages: {
-      'es-ES': process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
-    },
-  },
-  // Metadatos para verificación de sitios
-  verification: {
-    google: 'google-site-verification-code',
-    yandex: 'yandex-verification-code',
-    yahoo: 'yahoo-site-verification-code',
-  },
-  // Metadatos para aplicaciones móviles
-  appleWebApp: {
-    capable: true,
-    title: 'Delivery Express',
-    statusBarStyle: 'black-translucent',
-  },
-  // Metadatos adicionales
-  category: 'shopping',
-  classification: 'ecommerce',
-  referrer: 'origin-when-cross-origin',
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
 };
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      appearance={{
-        elements: {
-          formButtonPrimary: 'bg-primary hover:bg-primary/90',
-          card: 'shadow-lg',
-        },
-      }}
-    >
-      <html lang="es" suppressHydrationWarning className="scroll-smooth">
+    <ClerkProvider>
+      <html lang="es" suppressHydrationWarning className={onest.variable}>
         <head>
-          {/* DNS Prefetch para recursos externos */}
-          <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
-          <link rel="dns-prefetch" href="//images.unsplash.com" />
-          {/* Preconnect para recursos críticos */}
+          {/* Preconnect para mejorar performance */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link
             rel="preconnect"
             href="https://fonts.gstatic.com"
             crossOrigin="anonymous"
           />
+          {/* DNS Prefetch para recursos externos */}
+          <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
+          <link rel="dns-prefetch" href="//fonts.googleapis.com" />
           {/* Structured Data para SEO */}
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
               __html: JSON.stringify({
                 '@context': 'https://schema.org',
-                '@type': 'OnlineStore',
+                '@type': 'Organization',
                 name: 'Delivery Express',
-                url:
-                  process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
-                logo: `${
-                  process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-                }/logo.png`,
+                url: 'https://delivery-express.com',
+                logo: 'https://delivery-express.com/logo.png',
                 description:
                   'Tienda online premium con productos exclusivos y de alta calidad',
                 address: {
@@ -188,66 +109,44 @@ export default function RootLayout({
                   availableLanguage: 'Spanish',
                 },
                 sameAs: [
-                  'https://facebook.com/delivery',
-                  'https://twitter.com/delivery',
-                  'https://instagram.com/delivery',
+                  'https://facebook.com/deliveryexpress',
+                  'https://twitter.com/deliveryexpress',
+                  'https://instagram.com/deliveryexpress',
                 ],
-                potentialAction: {
-                  '@type': 'SearchAction',
-                  target: `${
-                    process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-                  }/search?q={search_term_string}`,
-                  'query-input': 'required name=search_term_string',
-                },
               }),
             }}
           />
         </head>
-        <body className="min-h-screen relative bg-background antialiased font-sans">
+        <body
+          className={`${onest.className} min-h-screen relative bg-transparent antialiased`}
+        >
           <ClientProviders>
             <ThemeProvider
               attribute="class"
               defaultTheme="system"
               enableSystem
               disableTransitionOnChange
-              storageKey="delivery-theme"
             >
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center min-h-screen">
-                    Cargando...
-                  </div>
-                }
-              >
-                <div className="relative min-h-screen">
-                  <AnimatedBackground />
-                  <NextTopLoader
-                    color="#2563eb"
-                    initialPosition={0.08}
-                    crawlSpeed={200}
-                    height={3}
-                    crawl={true}
-                    showSpinner={false}
-                    easing="ease"
-                    speed={200}
-                    shadow="0 0 10px #2563eb,0 0 5px #2563eb"
-                    zIndex={1600}
-                  />
-                  <div className="relative z-10">
-                    <ClientLayout>{children}</ClientLayout>
-                    <FooterConditional />
-                  </div>
-                  <Toaster
-                    position="bottom-right"
-                    richColors
-                    closeButton
-                    duration={4000}
-                    visibleToasts={5}
-                    expand
-                    gap={12}
-                  />
-                </div>
-              </Suspense>
+              <AnimatedBackground />
+              <NextTopLoader
+                color="#2563eb"
+                initialPosition={0.08}
+                crawlSpeed={200}
+                height={3}
+                crawl={true}
+                showSpinner={false}
+                easing="ease"
+                speed={200}
+                shadow="0 0 10px #2563eb,0 0 5px #2563eb"
+              />
+              <ClientLayout>{children}</ClientLayout>
+              <Toaster
+                position="bottom-right"
+                richColors
+                closeButton
+                duration={4000}
+              />
+              <FooterConditional />
             </ThemeProvider>
           </ClientProviders>
         </body>

@@ -4,11 +4,11 @@ import { useCart } from '@/hooks/use-cart';
 import { SignOutButton, useAuth, useUser } from '@clerk/nextjs';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  LayoutDashboard,
   LogOut,
   Menu,
   Package,
   Search,
-  Shield,
   ShoppingCart,
   User,
   X,
@@ -142,7 +142,6 @@ export default function Navbar() {
             >
               <Icon paths={ICONS.search.paths} />
             </button>
-
             <button
               aria-label="Carrito"
               onClick={() => setIsCartOpen(true)}
@@ -167,15 +166,14 @@ export default function Navbar() {
               </Link>
             )}
 
-            {isLoaded && isSignedIn && isAdmin && (
-              <Link
-                href="/admin"
-                className="p-2 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 border border-white/20 dark:border-neutral-700/30 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-all"
-                aria-label="Admin"
-              >
-                <Icon paths={ICONS.shield.paths} />
-              </Link>
-            )}
+            {/* Enlace al dashboard visible para todos */}
+            <Link
+              href="/dashboard"
+              className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 border border-white/20 dark:border-neutral-700/30 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-all"
+              aria-label="Dashboard"
+            >
+              <LayoutDashboard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            </Link>
 
             {isLoaded && isSignedIn && user ? (
               <>
@@ -210,7 +208,6 @@ export default function Navbar() {
                 Iniciar sesión
               </Link>
             )}
-
             <ModeToggle />
           </div>
 
@@ -335,6 +332,19 @@ export default function Navbar() {
                       Pedidos
                     </Link>
                   )}
+
+                  {/* Enlace al dashboard visible para todos */}
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    <LayoutDashboard
+                      size={18}
+                      className="mr-3 text-indigo-600 dark:text-indigo-400"
+                    />
+                    Dashboard
+                  </Link>
                 </div>
 
                 {/* Cuenta de usuario */}
@@ -358,16 +368,20 @@ export default function Navbar() {
                         />
                         Mi cuenta
                       </Link>
-                      {isAdmin && (
-                        <Link
-                          href="/admin"
-                          onClick={() => setIsMenuOpen(false)}
-                          className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                        >
-                          <Shield size={18} className="mr-3 text-yellow-500" />
-                          Panel de administración
-                        </Link>
-                      )}
+
+                      {/* Enlace al dashboard en la sección de cuenta para usuarios autenticados */}
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                      >
+                        <LayoutDashboard
+                          size={18}
+                          className="mr-3 text-indigo-600 dark:text-indigo-400"
+                        />
+                        Dashboard
+                      </Link>
+
                       <SignOutButton>
                         <button className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
                           <LogOut size={18} className="mr-3 text-red-500" />

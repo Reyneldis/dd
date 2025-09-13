@@ -222,7 +222,7 @@ export default function ProductsPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white/65 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="container mx-auto px-4 py-8">
         {/* Encabezado */}
-        <div className="mb-10 text-center pt-10 animate-fadeIn">
+        <div className="mb-10 text-center  animate-fadeIn">
           <div className="inline-flex items-center justify-center mb-4">
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1 rounded-full">
               <div className="bg-white dark:bg-gray-800 rounded-full p-2">

@@ -51,8 +51,8 @@ model Product {
   id          String   @id @default(cuid())
   slug        String   @unique
   productName String
-  price       Float    
-  stock       Int      @default(0)
+  price       Float   
+  stock       Int      @default(0) @db.SmallInt
   description String?
   features    String[]
   status      Status   @default(ACTIVE)
