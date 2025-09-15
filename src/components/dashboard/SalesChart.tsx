@@ -12,6 +12,7 @@ import {
   Title,
   Tooltip,
 } from 'chart.js';
+import { useTheme } from 'next-themes';
 import { Line } from 'react-chartjs-2';
 
 // Registrar componentes de Chart.js
@@ -30,6 +31,9 @@ interface SalesChartProps {
 }
 
 export function SalesChart({ data }: SalesChartProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   try {
     // Verificar si hay datos
     if (!data || data.length === 0) {
@@ -68,12 +72,16 @@ export function SalesChart({ data }: SalesChartProps) {
         {
           label: 'Ventas ($)',
           data: data.map(item => item.sales),
-          borderColor: 'rgb(99, 102, 241)',
-          backgroundColor: 'rgba(99, 102, 241, 0.1)',
+          borderColor: isDark ? 'rgb(129, 140, 248)' : 'rgb(99, 102, 241)',
+          backgroundColor: isDark
+            ? 'rgba(129, 140, 248, 0.1)'
+            : 'rgba(99, 102, 241, 0.1)',
           tension: 0.4,
           fill: true,
-          pointBackgroundColor: 'rgb(99, 102, 241)',
-          pointBorderColor: '#fff',
+          pointBackgroundColor: isDark
+            ? 'rgb(129, 140, 248)'
+            : 'rgb(99, 102, 241)',
+          pointBorderColor: isDark ? 'rgb(31, 41, 55)' : '#fff',
           pointBorderWidth: 2,
           pointRadius: 6,
           pointHoverRadius: 8,
@@ -96,9 +104,13 @@ export function SalesChart({ data }: SalesChartProps) {
           display: false,
         },
         tooltip: {
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          titleColor: '#fff',
-          bodyColor: '#fff',
+          backgroundColor: isDark
+            ? 'rgba(31, 41, 55, 0.95)'
+            : 'rgba(0, 0, 0, 0.8)',
+          titleColor: isDark ? '#f9fafb' : '#fff',
+          bodyColor: isDark ? '#f9fafb' : '#fff',
+          borderColor: isDark ? 'rgba(75, 85, 99, 0.3)' : 'rgba(0, 0, 0, 0.1)',
+          borderWidth: 1,
           padding: 12,
           displayColors: false,
           callbacks: {
@@ -112,7 +124,7 @@ export function SalesChart({ data }: SalesChartProps) {
         y: {
           beginAtZero: true,
           grid: {
-            color: 'rgba(0, 0, 0, 0.05)',
+            color: isDark ? 'rgba(75, 85, 99, 0.2)' : 'rgba(0, 0, 0, 0.05)',
           },
           border: {
             display: false,
@@ -121,7 +133,7 @@ export function SalesChart({ data }: SalesChartProps) {
             callback: function (value) {
               return '$' + value.toLocaleString();
             },
-            color: 'rgba(0, 0, 0, 0.5)',
+            color: isDark ? 'rgba(156, 163, 175, 0.8)' : 'rgba(0, 0, 0, 0.5)',
             font: {
               size: 11,
             },
@@ -135,7 +147,7 @@ export function SalesChart({ data }: SalesChartProps) {
             display: false,
           },
           ticks: {
-            color: 'rgba(0, 0, 0, 0.5)',
+            color: isDark ? 'rgba(156, 163, 175, 0.8)' : 'rgba(0, 0, 0, 0.5)',
             font: {
               size: 11,
             },

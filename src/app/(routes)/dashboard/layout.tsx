@@ -1,6 +1,6 @@
 // src/app/(routes)/dashboard/layout.tsx - VERSIÓN MÓVIL OPTIMIZADA
 'use client';
-import { Header } from '@/components/dashboard/Header';
+// import { Header } from '@/components/dashboard/Header';
 import { Button } from '@/components/ui/button';
 import {
   ArrowLeft,
@@ -108,7 +108,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Home className="h-4 w-4 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+              <h2 className="text-lg font-bold text-gray-500 dark:text-white">
                 Dashboard
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">Panel</p>
@@ -415,7 +415,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       <div className="hidden md:flex md:flex-1 md:flex-col">
-        <Header />
+        {/* <Header /> */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>

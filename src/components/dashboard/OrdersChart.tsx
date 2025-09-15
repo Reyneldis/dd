@@ -8,6 +8,7 @@ import {
   Legend,
   Tooltip,
 } from 'chart.js';
+import { useTheme } from 'next-themes';
 import { Pie } from 'react-chartjs-2';
 
 // Registrar componentes de Chart.js
@@ -17,7 +18,7 @@ interface OrdersChartProps {
   data: { name: string; count: number }[];
 }
 
-const COLORS = [
+const LIGHT_COLORS = [
   'rgba(99, 102, 241, 0.8)', // Indigo
   'rgba(16, 185, 129, 0.8)', // Green
   'rgba(251, 146, 60, 0.8)', // Orange
@@ -25,7 +26,18 @@ const COLORS = [
   'rgba(236, 72, 153, 0.8)', // Pink
 ];
 
+const DARK_COLORS = [
+  'rgba(129, 140, 248, 0.8)', // Indigo
+  'rgba(52, 211, 153, 0.8)', // Green
+  'rgba(251, 191, 36, 0.8)', // Orange
+  'rgba(167, 139, 250, 0.8)', // Purple
+  'rgba(244, 114, 182, 0.8)', // Pink
+];
+
 export function OrdersChart({ data }: OrdersChartProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const COLORS = isDark ? DARK_COLORS : LIGHT_COLORS;
   try {
     // Verificar si hay datos
     if (!data || data.length === 0) {
@@ -67,7 +79,7 @@ export function OrdersChart({ data }: OrdersChartProps) {
         {
           data: data.map(item => item.count),
           backgroundColor: COLORS.slice(0, data.length),
-          borderColor: '#fff',
+          borderColor: isDark ? 'rgb(31, 41, 55)' : '#fff',
           borderWidth: 2,
           hoverOffset: 8,
         },
@@ -86,6 +98,7 @@ export function OrdersChart({ data }: OrdersChartProps) {
             font: {
               size: 12,
             },
+            color: isDark ? 'rgba(156, 163, 175, 0.8)' : 'rgba(0, 0, 0, 0.7)',
             generateLabels: function (chart) {
               const data = chart.data;
               if (data.labels && data.datasets.length) {
@@ -109,9 +122,13 @@ export function OrdersChart({ data }: OrdersChartProps) {
           },
         },
         tooltip: {
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          titleColor: '#fff',
-          bodyColor: '#fff',
+          backgroundColor: isDark
+            ? 'rgba(31, 41, 55, 0.95)'
+            : 'rgba(0, 0, 0, 0.8)',
+          titleColor: isDark ? '#f9fafb' : '#fff',
+          bodyColor: isDark ? '#f9fafb' : '#fff',
+          borderColor: isDark ? 'rgba(75, 85, 99, 0.3)' : 'rgba(0, 0, 0, 0.1)',
+          borderWidth: 1,
           padding: 12,
           displayColors: true,
           callbacks: {

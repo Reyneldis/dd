@@ -11,6 +11,7 @@ import {
   Title,
   Tooltip,
 } from 'chart.js';
+import { useTheme } from 'next-themes';
 import { Bar } from 'react-chartjs-2';
 
 // Registrar componentes de Chart.js
@@ -27,7 +28,7 @@ interface TopProductsChartProps {
   data: { productName: string; totalSold: number }[];
 }
 
-const COLORS = [
+const LIGHT_COLORS = [
   'rgba(99, 102, 241, 0.8)',
   'rgba(16, 185, 129, 0.8)',
   'rgba(251, 146, 60, 0.8)',
@@ -35,7 +36,18 @@ const COLORS = [
   'rgba(236, 72, 153, 0.8)',
 ];
 
+const DARK_COLORS = [
+  'rgba(129, 140, 248, 0.8)',
+  'rgba(52, 211, 153, 0.8)',
+  'rgba(251, 191, 36, 0.8)',
+  'rgba(167, 139, 250, 0.8)',
+  'rgba(244, 114, 182, 0.8)',
+];
+
 export function TopProductsChart({ data }: TopProductsChartProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const COLORS = isDark ? DARK_COLORS : LIGHT_COLORS;
   try {
     // Verificar si hay datos
     if (!data || data.length === 0) {
@@ -104,9 +116,13 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
           display: false,
         },
         tooltip: {
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          titleColor: '#fff',
-          bodyColor: '#fff',
+          backgroundColor: isDark
+            ? 'rgba(31, 41, 55, 0.95)'
+            : 'rgba(0, 0, 0, 0.8)',
+          titleColor: isDark ? '#f9fafb' : '#fff',
+          bodyColor: isDark ? '#f9fafb' : '#fff',
+          borderColor: isDark ? 'rgba(75, 85, 99, 0.3)' : 'rgba(0, 0, 0, 0.1)',
+          borderWidth: 1,
           padding: 12,
           displayColors: false,
           callbacks: {
@@ -123,13 +139,13 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
         x: {
           beginAtZero: true,
           grid: {
-            color: 'rgba(0, 0, 0, 0.05)',
+            color: isDark ? 'rgba(75, 85, 99, 0.2)' : 'rgba(0, 0, 0, 0.05)',
           },
           border: {
             display: false,
           },
           ticks: {
-            color: 'rgba(0, 0, 0, 0.5)',
+            color: isDark ? 'rgba(156, 163, 175, 0.8)' : 'rgba(0, 0, 0, 0.5)',
             font: {
               size: 11,
             },
@@ -146,7 +162,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
             display: false,
           },
           ticks: {
-            color: 'rgba(0, 0, 0, 0.5)',
+            color: isDark ? 'rgba(156, 163, 175, 0.8)' : 'rgba(0, 0, 0, 0.5)',
             font: {
               size: 11,
             },

@@ -71,15 +71,18 @@ export async function GET() {
     if (!userId) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
     });
+
     if (!user) {
       return NextResponse.json({
         error: 'Usuario no encontrado',
         status: 404,
       });
     }
+
     const orders = await prisma.order.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
@@ -115,6 +118,7 @@ export async function GET() {
         },
       },
     });
+
     // Mapear los datos para exponer customerAddress y customerPhone
     const mappedOrders = orders.map(order => ({
       ...order,
@@ -123,6 +127,7 @@ export async function GET() {
         ? `${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zip}, ${order.shippingAddress.country}`
         : '',
     }));
+
     return NextResponse.json(mappedOrders);
   } catch (error) {
     console.error('Error al obtener pedidos:', error);
@@ -137,6 +142,7 @@ export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.json();
     const parsed = checkoutBodySchema.safeParse(rawBody);
+
     if (!parsed.success) {
       return NextResponse.json(
         {
@@ -146,17 +152,20 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
     const { items, shippingAddress, contactInfo } = parsed.data as {
       items: CheckoutItem[];
       shippingAddress: ShippingAddressInput;
       contactInfo: ContactInfoInput;
     };
+
     if (!items || !shippingAddress || !contactInfo) {
       return NextResponse.json({
         error: 'Datos requeridos faltantes',
         status: 400,
       });
     }
+
     // Validar stock y precios
     try {
       await validateOrder(
@@ -173,11 +182,13 @@ export async function POST(request: NextRequest) {
         status: 400,
       });
     }
+
     // Obtener usuario autenticado (si existe)
     const { userId: clerkUserId } = await auth();
     const user = clerkUserId
       ? await prisma.user.findUnique({ where: { clerkId: clerkUserId } })
       : null;
+
     const order = await prisma.$transaction(async tx => {
       // Decrementar stock de forma atómica para cada item
       for (const item of items) {
@@ -189,6 +200,7 @@ export async function POST(request: NextRequest) {
           },
           data: { stock: { decrement: item.quantity } },
         });
+
         if (updated.count === 0) {
           throw new Error(
             `Stock insuficiente o producto no disponible para ${
@@ -197,6 +209,7 @@ export async function POST(request: NextRequest) {
           );
         }
       }
+
       // Crear la orden y los items
       const created = await tx.order.create({
         data: {
@@ -253,8 +266,10 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+
       return created;
     });
+
     console.log('📦 [orders] Creando pedido exitosamente:', {
       orderId: order.id,
       customerEmail: contactInfo.email,

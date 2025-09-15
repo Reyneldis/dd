@@ -1,29 +1,1033 @@
 // src/lib/dashboard-service.ts
-import { prisma } from '@/lib/prisma';
+import { Category, Order, OrdersResponse, Product, User } from '@/types';
+import { OrderStatus, PrismaClient, Role, Status } from '@prisma/client';
 
-// Tipos de datos para el dashboard
-export interface DashboardStats {
-  totalOrders: number;
-  pendingOrders: number;
-  totalProducts: number;
-  totalUsers: number;
-  salesByCategory: { name: string; sales: number }[];
-  ordersByStatus: { name: string; count: number }[];
-  topProducts: { productName: string; totalSold: number }[];
-  recentOrders: {
-    id: string;
-    orderNumber: string;
-    customerName: string;
-    total: number;
-    status: string;
-  }[];
+const prisma = new PrismaClient();
+
+// ============================================================================
+// TIPOS Y INTERFACES
+// ============================================================================
+
+interface OrderFilters {
+  search?: string;
+  status?: OrderStatus;
+  page?: number;
+  limit?: number;
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  try {
-    console.log('Iniciando obtención de estadísticas del dashboard...');
+interface ProductFilters {
+  search?: string;
+  status?: Status;
+  categoryId?: string;
+  featured?: boolean;
+  page?: number;
+  limit?: number;
+}
 
-    // Obtener conteos básicos
+interface UserFilters {
+  search?: string;
+  role?: Role;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+interface CategoryFilters {
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+interface CreateProductData {
+  productName: string;
+  slug: string;
+  price: number;
+  stock: number;
+  description?: string;
+  features: string[];
+  status: Status;
+  featured: boolean;
+  categoryId: string;
+}
+
+interface UpdateProductData {
+  productName?: string;
+  slug?: string;
+  price?: number;
+  stock?: number;
+  description?: string;
+  features?: string[];
+  status?: Status;
+  featured?: boolean;
+  categoryId?: string;
+}
+
+interface CreateCategoryData {
+  categoryName: string;
+  slug: string;
+  description?: string;
+  mainImage?: string;
+}
+
+interface UpdateCategoryData {
+  categoryName?: string;
+  slug?: string;
+  description?: string;
+  mainImage?: string;
+}
+
+interface UpdateUserData {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: Role;
+  isActive?: boolean;
+  avatar?: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+// ============================================================================
+// FUNCIONES DE ÓRDENES
+// ============================================================================
+
+export async function getOrders(
+  filters: OrderFilters = {},
+): Promise<OrdersResponse> {
+  try {
+    const { search = '', status, page = 1, limit = 10 } = filters;
+
+    const skip = (page - 1) * limit;
+
+    // Construir condiciones de búsqueda
+    const whereConditions: Record<string, unknown> = {};
+
+    if (status) {
+      whereConditions.status = status;
+    }
+
+    if (search) {
+      whereConditions.OR = [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { customerEmail: { contains: search, mode: 'insensitive' } },
+        { contactInfo: { name: { contains: search, mode: 'insensitive' } } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+        { user: { firstName: { contains: search, mode: 'insensitive' } } },
+        { user: { lastName: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where: whereConditions,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          contactInfo: true,
+          shippingAddress: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+              avatar: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  slug: true,
+                  productName: true,
+                  price: true,
+                  description: true,
+                  categoryId: true,
+                  features: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  category: {
+                    select: {
+                      id: true,
+                      categoryName: true,
+                      slug: true,
+                      mainImage: true,
+                      description: true,
+                      createdAt: true,
+                      updatedAt: true,
+                    },
+                  },
+                  images: {
+                    select: {
+                      id: true,
+                      productId: true,
+                      url: true,
+                      alt: true,
+                      sortOrder: true,
+                      isPrimary: true,
+                      createdAt: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.order.count({ where: whereConditions }),
+    ]);
+
+    // Serializar las órdenes
+    const serializedOrders: Order[] = orders.map(order => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status as Order['status'],
+      customerEmail: order.customerEmail || undefined,
+      subtotal: order.subtotal,
+      taxAmount: order.taxAmount,
+      shippingAmount: order.shippingAmount,
+      total: order.total,
+      paymentStatus: 'PENDING' as const,
+      paymentMethod: null,
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString(),
+      userId: order.userId || undefined,
+      user: order.user
+        ? {
+            id: order.user.id,
+            clerkId: '', // No disponible en la consulta actual
+            email: order.user.email,
+            firstName: order.user.firstName || '',
+            lastName: order.user.lastName || '',
+            role: order.user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+            avatar: order.user.avatar,
+            createdAt: order.user.createdAt.toISOString(),
+            updatedAt: order.user.updatedAt.toISOString(),
+          }
+        : null,
+      items: order.items.map(item => ({
+        id: item.id,
+        orderId: item.orderId,
+        productId: item.productId,
+        productName: item.productName || 'Producto sin nombre',
+        productSku: item.productSku || '',
+        price: item.price,
+        quantity: item.quantity,
+        total: item.total,
+        createdAt: item.createdAt.toISOString(),
+        product: {
+          id: item.product.id,
+          slug: item.product.slug,
+          productName: item.product.productName,
+          price: item.product.price,
+          description: item.product.description,
+          categoryId: item.product.categoryId,
+          features: item.product.features,
+          createdAt: item.product.createdAt.toISOString(),
+          updatedAt: item.product.updatedAt.toISOString(),
+          category: {
+            id: item.product.category.id,
+            categoryName: item.product.category.categoryName,
+            slug: item.product.category.slug,
+            mainImage: item.product.category.mainImage,
+            description: item.product.category.description,
+            createdAt: item.product.category.createdAt.toISOString(),
+            updatedAt: item.product.category.updatedAt.toISOString(),
+          },
+          images: item.product.images.map(img => ({
+            id: img.id,
+            productId: img.productId,
+            url: img.url,
+            alt: img.alt,
+            sortOrder: img.sortOrder,
+            isPrimary: img.isPrimary,
+            createdAt: img.createdAt.toISOString(),
+          })),
+        },
+      })),
+      contactInfo: order.contactInfo
+        ? {
+            id: order.contactInfo.id,
+            name: order.contactInfo.name,
+            email: order.contactInfo.email,
+            phone: order.contactInfo.phone,
+            createdAt: order.contactInfo.createdAt.toISOString(),
+            updatedAt: order.contactInfo.updatedAt.toISOString(),
+            orderId: order.contactInfo.orderId,
+          }
+        : null,
+      shippingAddress: order.shippingAddress
+        ? {
+            id: order.shippingAddress.id,
+            street: order.shippingAddress.street,
+            city: order.shippingAddress.city,
+            state: order.shippingAddress.state,
+            zip: order.shippingAddress.zip,
+            country: order.shippingAddress.country,
+            createdAt: order.shippingAddress.createdAt.toISOString(),
+            updatedAt: order.shippingAddress.updatedAt.toISOString(),
+            orderId: order.shippingAddress.orderId,
+          }
+        : null,
+    }));
+
+    return {
+      data: serializedOrders,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    throw new Error('Error al obtener las órdenes');
+  }
+}
+
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+): Promise<ApiResponse<{ success: boolean }>> {
+  try {
+    // Validar que el status sea válido
+    const validStatuses: OrderStatus[] = [
+      'PENDING',
+      'CONFIRMED',
+      'PROCESSING',
+      'SHIPPED',
+      'DELIVERED',
+      'CANCELLED',
+      'REFUNDED',
+    ];
+
+    if (!validStatuses.includes(status)) {
+      return {
+        success: false,
+        error: `Estado inválido: ${status}. Estados válidos: ${validStatuses.join(
+          ', ',
+        )}`,
+      };
+    }
+
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { status },
+    });
+
+    return {
+      success: true,
+      data: { success: true },
+    };
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error desconocido al actualizar el estado',
+    };
+  }
+}
+
+// ============================================================================
+// FUNCIONES DE PRODUCTOS
+// ============================================================================
+
+export async function getProducts(
+  filters: ProductFilters = {},
+): Promise<PaginatedResponse<Product>> {
+  try {
+    const {
+      search = '',
+      status,
+      categoryId,
+      featured,
+      page = 1,
+      limit = 10,
+    } = filters;
+
+    const skip = (page - 1) * limit;
+
+    // Construir condiciones de búsqueda
+    const whereConditions: Record<string, unknown> = {};
+
+    if (status) {
+      whereConditions.status = status;
+    }
+
+    if (categoryId) {
+      whereConditions.categoryId = categoryId;
+    }
+
+    if (featured !== undefined) {
+      whereConditions.featured = featured;
+    }
+
+    if (search) {
+      whereConditions.OR = [
+        { productName: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where: whereConditions,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          category: true,
+          images: {
+            where: { isPrimary: true },
+            take: 1,
+          },
+          _count: {
+            select: {
+              orderItems: true,
+            },
+          },
+        },
+      }),
+      prisma.product.count({ where: whereConditions }),
+    ]);
+
+    // Serializar productos
+    const serializedProducts: Product[] = products.map(product => ({
+      id: product.id,
+      slug: product.slug,
+      productName: product.productName,
+      price: product.price,
+      stock: product.stock,
+      description: product.description,
+      categoryId: product.categoryId,
+      features: product.features,
+      status: product.status as 'ACTIVE' | 'INACTIVE',
+      featured: product.featured,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      category: {
+        id: product.category.id,
+        categoryName: product.category.categoryName,
+        slug: product.category.slug,
+        description: product.category.description,
+        mainImage: product.category.mainImage,
+        createdAt: product.category.createdAt,
+        updatedAt: product.category.updatedAt,
+      },
+      images: product.images.map(img => ({
+        id: img.id,
+        productId: img.productId,
+        url: img.url,
+        alt: img.alt,
+        sortOrder: img.sortOrder,
+        isPrimary: img.isPrimary,
+        createdAt: img.createdAt,
+      })),
+      reviewCount: 0, // Se puede calcular si es necesario
+      _count: {
+        ...product._count,
+        reviews: 0, // Se puede calcular si es necesario
+      },
+    }));
+
+    return {
+      data: serializedProducts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    throw new Error('Error al obtener los productos');
+  }
+}
+
+export async function createProduct(
+  productData: CreateProductData,
+): Promise<ApiResponse<Product>> {
+  try {
+    // Validar que la categoría existe
+    const category = await prisma.category.findUnique({
+      where: { id: productData.categoryId },
+    });
+
+    if (!category) {
+      return {
+        success: false,
+        error: 'La categoría especificada no existe',
+      };
+    }
+
+    // Generar slug si no se proporciona
+    const slug =
+      productData.slug ||
+      productData.productName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+    const product = await prisma.product.create({
+      data: {
+        ...productData,
+        slug,
+      },
+      include: {
+        category: true,
+        images: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: product as Product,
+    };
+  } catch (error) {
+    console.error('Error creating product:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Error al crear el producto',
+    };
+  }
+}
+
+export async function updateProduct(
+  productId: string,
+  productData: UpdateProductData,
+): Promise<ApiResponse<Product>> {
+  try {
+    // Verificar que el producto existe
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!existingProduct) {
+      return {
+        success: false,
+        error: 'El producto no existe',
+      };
+    }
+
+    // Si se actualiza la categoría, verificar que existe
+    if (productData.categoryId) {
+      const category = await prisma.category.findUnique({
+        where: { id: productData.categoryId },
+      });
+
+      if (!category) {
+        return {
+          success: false,
+          error: 'La categoría especificada no existe',
+        };
+      }
+    }
+
+    const product = await prisma.product.update({
+      where: { id: productId },
+      data: productData,
+      include: {
+        category: true,
+        images: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: product as Product,
+    };
+  } catch (error) {
+    console.error('Error updating product:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al actualizar el producto',
+    };
+  }
+}
+
+export async function deleteProduct(
+  productId: string,
+): Promise<ApiResponse<{ success: boolean }>> {
+  try {
+    // Verificar que el producto existe
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!existingProduct) {
+      return {
+        success: false,
+        error: 'El producto no existe',
+      };
+    }
+
+    await prisma.product.delete({
+      where: { id: productId },
+    });
+
+    return {
+      success: true,
+      data: { success: true },
+    };
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al eliminar el producto',
+    };
+  }
+}
+
+// ============================================================================
+// FUNCIONES DE CATEGORÍAS
+// ============================================================================
+
+export async function getCategories(
+  filters: CategoryFilters = {},
+): Promise<Category[]> {
+  try {
+    const { search = '', page = 1, limit = 50 } = filters;
+
+    const whereConditions: Record<string, unknown> = {};
+
+    if (search) {
+      whereConditions.OR = [
+        { categoryName: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const categories = await prisma.category.findMany({
+      where: whereConditions,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { categoryName: 'asc' },
+      include: {
+        _count: {
+          select: {
+            products: true,
+          },
+        },
+      },
+    });
+
+    return categories.map(category => ({
+      id: category.id,
+      categoryName: category.categoryName,
+      slug: category.slug,
+      description: category.description,
+      mainImage: category.mainImage,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+      _count: category._count,
+    }));
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    throw new Error('Error al obtener las categorías');
+  }
+}
+
+export async function createCategory(
+  categoryData: CreateCategoryData,
+): Promise<ApiResponse<Category>> {
+  try {
+    // Generar slug si no se proporciona
+    const slug =
+      categoryData.slug ||
+      categoryData.categoryName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+    // Verificar que el slug no existe
+    const existingCategory = await prisma.category.findUnique({
+      where: { slug },
+    });
+
+    if (existingCategory) {
+      return {
+        success: false,
+        error: 'Ya existe una categoría con este slug',
+      };
+    }
+
+    const category = await prisma.category.create({
+      data: {
+        ...categoryData,
+        slug,
+      },
+    });
+
+    return {
+      success: true,
+      data: category as Category,
+    };
+  } catch (error) {
+    console.error('Error creating category:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Error al crear la categoría',
+    };
+  }
+}
+
+export async function updateCategory(
+  categoryId: string,
+  categoryData: UpdateCategoryData,
+): Promise<ApiResponse<Category>> {
+  try {
+    // Verificar que la categoría existe
+    const existingCategory = await prisma.category.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (!existingCategory) {
+      return {
+        success: false,
+        error: 'La categoría no existe',
+      };
+    }
+
+    // Si se actualiza el slug, verificar que no existe
+    if (categoryData.slug && categoryData.slug !== existingCategory.slug) {
+      const slugExists = await prisma.category.findUnique({
+        where: { slug: categoryData.slug },
+      });
+
+      if (slugExists) {
+        return {
+          success: false,
+          error: 'Ya existe una categoría con este slug',
+        };
+      }
+    }
+
+    const category = await prisma.category.update({
+      where: { id: categoryId },
+      data: categoryData,
+    });
+
+    return {
+      success: true,
+      data: category as Category,
+    };
+  } catch (error) {
+    console.error('Error updating category:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al actualizar la categoría',
+    };
+  }
+}
+
+export async function deleteCategory(
+  categoryId: string,
+): Promise<ApiResponse<{ success: boolean }>> {
+  try {
+    // Verificar que la categoría existe
+    const existingCategory = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        _count: {
+          select: {
+            products: true,
+          },
+        },
+      },
+    });
+
+    if (!existingCategory) {
+      return {
+        success: false,
+        error: 'La categoría no existe',
+      };
+    }
+
+    // Verificar que no tiene productos asociados
+    if (existingCategory._count.products > 0) {
+      return {
+        success: false,
+        error:
+          'No se puede eliminar la categoría porque tiene productos asociados',
+      };
+    }
+
+    await prisma.category.delete({
+      where: { id: categoryId },
+    });
+
+    return {
+      success: true,
+      data: { success: true },
+    };
+  } catch (error) {
+    console.error('Error deleting category:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al eliminar la categoría',
+    };
+  }
+}
+
+// ============================================================================
+// FUNCIONES DE USUARIOS
+// ============================================================================
+
+export async function getUsers(
+  filters: UserFilters = {},
+): Promise<PaginatedResponse<User>> {
+  try {
+    const { search = '', role, isActive, page = 1, limit = 10 } = filters;
+
+    const skip = (page - 1) * limit;
+
+    // Construir condiciones de búsqueda
+    const whereConditions: Record<string, unknown> = {};
+
+    if (role) {
+      whereConditions.role = role;
+    }
+
+    if (isActive !== undefined) {
+      whereConditions.isActive = isActive;
+    }
+
+    if (search) {
+      whereConditions.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where: whereConditions,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: {
+            select: {
+              orders: true,
+            },
+          },
+        },
+      }),
+      prisma.user.count({ where: whereConditions }),
+    ]);
+
+    // Serializar usuarios
+    const serializedUsers: User[] = users.map(user => ({
+      id: user.id,
+      clerkId: user.clerkId,
+      email: user.email,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+      avatar: user.avatar,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }));
+
+    return {
+      data: serializedUsers,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    throw new Error('Error al obtener los usuarios');
+  }
+}
+
+export async function updateUser(
+  userId: string,
+  userData: UpdateUserData,
+): Promise<ApiResponse<User>> {
+  try {
+    // Verificar que el usuario existe
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      return {
+        success: false,
+        error: 'El usuario no existe',
+      };
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: userData,
+    });
+
+    return {
+      success: true,
+      data: user as User,
+    };
+  } catch (error) {
+    console.error('Error updating user:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al actualizar el usuario',
+    };
+  }
+}
+
+export async function toggleUserActive(
+  userId: string,
+): Promise<ApiResponse<{ success: boolean }>> {
+  try {
+    // Verificar que el usuario existe
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      return {
+        success: false,
+        error: 'El usuario no existe',
+      };
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: !existingUser.isActive },
+    });
+
+    return {
+      success: true,
+      data: { success: true },
+    };
+  } catch (error) {
+    console.error('Error toggling user active status:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al cambiar el estado del usuario',
+    };
+  }
+}
+
+// ============================================================================
+// FUNCIONES DE EMAILS FALLIDOS
+// ============================================================================
+
+export async function getFailedEmails() {
+  try {
+    const emails = await prisma.emailMetrics.findMany({
+      where: { status: 'failed' },
+      orderBy: { timestamp: 'desc' },
+      include: {
+        order: {
+          select: {
+            orderNumber: true,
+          },
+        },
+      },
+    });
+
+    return emails.map(email => ({
+      id: email.id,
+      timestamp: email.timestamp.toISOString(),
+      type: email.type,
+      recipient: email.recipient,
+      orderId: email.orderId,
+      status: email.status,
+      attempt: email.attempt,
+      error: email.error,
+      order: email.order,
+    }));
+  } catch (error) {
+    console.error('Error fetching failed emails:', error);
+    throw new Error('Error al obtener los emails fallidos');
+  }
+}
+
+export async function retryEmail(
+  emailId: string,
+): Promise<ApiResponse<{ success: boolean }>> {
+  try {
+    await prisma.emailMetrics.update({
+      where: { id: emailId },
+      data: {
+        status: 'retry',
+        attempt: { increment: 1 },
+      },
+    });
+
+    return {
+      success: true,
+      data: { success: true },
+    };
+  } catch (error) {
+    console.error('Error retrying email:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Error al reintentar el email',
+    };
+  }
+}
+
+// ============================================================================
+// FUNCIONES DEL DASHBOARD PRINCIPAL
+// ============================================================================
+
+export async function getDashboardStats() {
+  try {
+    // Estadísticas básicas
     const [totalOrders, pendingOrders, totalProducts, totalUsers] =
       await Promise.all([
         prisma.order.count(),
@@ -32,118 +1036,80 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         prisma.user.count(),
       ]);
 
-    console.log('Conteos básicos obtenidos:', {
-      totalOrders,
-      pendingOrders,
-      totalProducts,
-      totalUsers,
-    });
+    // Ventas por categoría
+    const salesByCategory = (await prisma.$queryRaw`
+      SELECT c."categoryName" as name, COALESCE(SUM(oi.quantity * oi.price), 0) as sales
+      FROM "categories" c
+      LEFT JOIN "products" p ON c.id = p."categoryId"
+      LEFT JOIN "order_items" oi ON p.id = oi."productId"
+      GROUP BY c."categoryName"
+      ORDER BY sales DESC
+    `) as { name: string; sales: number }[];
 
-    // Obtener ventas por categoría usando Prisma
-    const orderItems = await prisma.orderItem.findMany({
+    // Pedidos por estado
+    const ordersByStatus = (await prisma.$queryRaw`
+      SELECT 
+        CASE 
+          WHEN status::text = 'PENDING' THEN 'Pendiente'
+          WHEN status::text = 'CONFIRMED' THEN 'Confirmado'
+          WHEN status::text = 'SHIPPED' THEN 'Enviado'
+          WHEN status::text = 'DELIVERED' THEN 'Entregado'
+          WHEN status::text = 'CANCELLED' THEN 'Cancelado'
+          WHEN status::text = 'PROCESSING' THEN 'Procesando'
+          WHEN status::text = 'REFUNDED' THEN 'Reembolsado'
+          WHEN status::text = 'FAILED' THEN 'Fallido'
+          ELSE status::text
+        END as name,
+        COUNT(*)::integer as count
+      FROM "orders"
+      GROUP BY status
+      ORDER BY count DESC
+    `) as { name: string; count: number }[];
+
+    // Productos más vendidos
+    const topProducts = (await prisma.$queryRaw`
+      SELECT p."productName", COALESCE(SUM(oi.quantity), 0)::integer as "totalSold"
+      FROM "products" p
+      LEFT JOIN "order_items" oi ON p.id = oi."productId"
+      GROUP BY p.id, p."productName"
+      ORDER BY "totalSold" DESC
+      LIMIT 5
+    `) as { productName: string; totalSold: number }[];
+
+    // Pedidos recientes
+    const recentOrders = await prisma.order.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
       include: {
-        product: {
+        contactInfo: true,
+        items: {
           include: {
-            category: true,
+            product: {
+              select: {
+                productName: true,
+                slug: true,
+              },
+            },
           },
         },
       },
     });
 
-    console.log(`Se encontraron ${orderItems.length} items de orden`);
-
-    // Agrupar ventas por categoría
-    const salesByCategoryMap = new Map<string, number>();
-    orderItems.forEach(item => {
-      const categoryName = item.product.category.categoryName;
-      const sales = item.quantity * item.price;
-
-      if (salesByCategoryMap.has(categoryName)) {
-        salesByCategoryMap.set(
-          categoryName,
-          salesByCategoryMap.get(categoryName)! + sales,
-        );
-      } else {
-        salesByCategoryMap.set(categoryName, sales);
-      }
-    });
-
-    const salesByCategory = Array.from(salesByCategoryMap.entries()).map(
-      ([name, sales]) => ({
-        name,
-        sales,
-      }),
-    );
-
-    console.log('Ventas por categoría:', salesByCategory);
-
-    // Obtener pedidos por estado
-    const ordersByStatus = await prisma.order.groupBy({
-      by: ['status'],
-      _count: {
-        status: true,
-      },
-    });
-
-    const formattedOrdersByStatus = ordersByStatus.map(item => ({
-      name: item.status,
-      count: item._count.status,
-    }));
-
-    console.log('Pedidos por estado:', formattedOrdersByStatus);
-
-    // Obtener productos más vendidos
-    const productSales = await prisma.orderItem.groupBy({
-      by: ['productId'],
-      _sum: {
-        quantity: true,
-      },
-      orderBy: {
-        _sum: {
-          quantity: 'desc',
-        },
-      },
-      take: 5,
-    });
-
-    const productIds = productSales.map(item => item.productId);
-    const products = await prisma.product.findMany({
-      where: {
-        id: {
-          in: productIds,
-        },
-      },
-    });
-
-    const topProducts = productSales.map(item => {
-      const product = products.find(p => p.id === item.productId);
-      return {
-        productName: product?.productName || 'Desconocido',
-        totalSold: item._sum.quantity || 0,
-      };
-    });
-
-    console.log('Productos más vendidos:', topProducts);
-
-    // Obtener pedidos recientes
-    const recentOrders = await prisma.order.findMany({
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        contactInfo: true,
-      },
-    });
-
-    // Transformar los datos al formato esperado
-    const formattedRecentOrders = recentOrders.map(order => ({
+    const formattedOrders = recentOrders.map(order => ({
       id: order.id,
       orderNumber: order.orderNumber,
-      customerName: order.contactInfo?.name || 'N/A',
+      customerName: order.contactInfo?.name || 'Cliente sin nombre',
       total: order.total,
       status: order.status,
+      createdAt: order.createdAt.toISOString(),
+      items: order.items.map(item => ({
+        id: item.id,
+        quantity: item.quantity,
+        price: item.price,
+        productName: item.product?.productName || 'Producto desconocido',
+        productSku: item.product?.slug || '',
+      })),
     }));
-
-    console.log('Pedidos recientes:', formattedRecentOrders);
 
     return {
       totalOrders,
@@ -151,12 +1117,154 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       totalProducts,
       totalUsers,
       salesByCategory,
-      ordersByStatus: formattedOrdersByStatus,
+      ordersByStatus,
       topProducts,
-      recentOrders: formattedRecentOrders,
+      recentOrders: formattedOrders,
     };
   } catch (error) {
-    console.error('Error detallado en getDashboardStats:', error);
-    throw error;
+    console.error('Error fetching dashboard stats:', error);
+    throw new Error('Error al obtener las estadísticas del dashboard');
+  }
+}
+
+// ============================================================================
+// FUNCIONES DE UTILIDAD
+// ============================================================================
+
+export async function getOrderById(
+  orderId: string,
+): Promise<ApiResponse<Order>> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        contactInfo: true,
+        shippingAddress: true,
+        user: true,
+        items: {
+          include: {
+            product: {
+              include: {
+                category: true,
+                images: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      return {
+        success: false,
+        error: 'Orden no encontrada',
+      };
+    }
+
+    // Serializar la orden (similar a getOrders)
+    const serializedOrder: Order = {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status as Order['status'],
+      customerEmail: order.customerEmail || undefined,
+      subtotal: order.subtotal,
+      taxAmount: order.taxAmount,
+      shippingAmount: order.shippingAmount,
+      total: order.total,
+      paymentStatus: 'PENDING' as const,
+      paymentMethod: null,
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString(),
+      userId: order.userId || undefined,
+      user: order.user
+        ? {
+            id: order.user.id,
+            clerkId: order.user.clerkId,
+            email: order.user.email,
+            firstName: order.user.firstName || '',
+            lastName: order.user.lastName || '',
+            role: order.user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+            avatar: order.user.avatar,
+            createdAt: order.user.createdAt.toISOString(),
+            updatedAt: order.user.updatedAt.toISOString(),
+          }
+        : null,
+      items: order.items.map(item => ({
+        id: item.id,
+        orderId: item.orderId,
+        productId: item.productId,
+        productName: item.productName || 'Producto sin nombre',
+        productSku: item.productSku || '',
+        price: item.price,
+        quantity: item.quantity,
+        total: item.total,
+        createdAt: item.createdAt.toISOString(),
+        product: {
+          id: item.product.id,
+          slug: item.product.slug,
+          productName: item.product.productName,
+          price: item.product.price,
+          description: item.product.description,
+          categoryId: item.product.categoryId,
+          features: item.product.features,
+          createdAt: item.product.createdAt.toISOString(),
+          updatedAt: item.product.updatedAt.toISOString(),
+          category: {
+            id: item.product.category.id,
+            categoryName: item.product.category.categoryName,
+            slug: item.product.category.slug,
+            mainImage: item.product.category.mainImage,
+            description: item.product.category.description,
+            createdAt: item.product.category.createdAt.toISOString(),
+            updatedAt: item.product.category.updatedAt.toISOString(),
+          },
+          images: item.product.images.map(img => ({
+            id: img.id,
+            productId: img.productId,
+            url: img.url,
+            alt: img.alt,
+            sortOrder: img.sortOrder,
+            isPrimary: img.isPrimary,
+            createdAt: img.createdAt.toISOString(),
+          })),
+        },
+      })),
+      contactInfo: order.contactInfo
+        ? {
+            id: order.contactInfo.id,
+            name: order.contactInfo.name,
+            email: order.contactInfo.email,
+            phone: order.contactInfo.phone,
+            createdAt: order.contactInfo.createdAt.toISOString(),
+            updatedAt: order.contactInfo.updatedAt.toISOString(),
+            orderId: order.contactInfo.orderId,
+          }
+        : null,
+      shippingAddress: order.shippingAddress
+        ? {
+            id: order.shippingAddress.id,
+            street: order.shippingAddress.street,
+            city: order.shippingAddress.city,
+            state: order.shippingAddress.state,
+            zip: order.shippingAddress.zip,
+            country: order.shippingAddress.country,
+            createdAt: order.shippingAddress.createdAt.toISOString(),
+            updatedAt: order.shippingAddress.updatedAt.toISOString(),
+            orderId: order.shippingAddress.orderId,
+          }
+        : null,
+    };
+
+    return {
+      success: true,
+      data: serializedOrder,
+    };
+  } catch (error) {
+    console.error('Error fetching order by ID:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Error al obtener la orden',
+    };
   }
 }
