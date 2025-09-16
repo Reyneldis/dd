@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       search,
-      status: status as any,
+      status: status as 'ACTIVE' | 'INACTIVE' | undefined,
       categoryId,
       featured,
     };
@@ -39,9 +39,48 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Usar formData en lugar de json porque estamos enviando archivos
+    const formData = await request.formData();
 
-    const result = await createProduct(body);
+    // Extraer los datos del formData
+    const productName = formData.get('productName') as string;
+    const slug = formData.get('slug') as string;
+    const price = parseFloat(formData.get('price') as string);
+    const stock = parseInt(formData.get('stock') as string, 10);
+    const description = formData.get('description') as string;
+    const categoryId = formData.get('categoryId') as string;
+    const status = formData.get('status') as 'ACTIVE' | 'INACTIVE';
+    const featured = formData.get('featured') === 'true';
+
+    // Extraer características (viene como string JSON)
+    let features: string[] = [];
+    const featuresStr = formData.get('features') as string;
+    if (featuresStr) {
+      try {
+        features = JSON.parse(featuresStr);
+      } catch (e) {
+        console.error('Error parsing features:', e);
+      }
+    }
+
+    // Extraer imágenes
+    const images = formData.getAll('images') as File[];
+
+    // Construir objeto del producto
+    const productData = {
+      productName,
+      slug,
+      price,
+      stock,
+      description,
+      categoryId,
+      features,
+      status,
+      featured,
+      images,
+    };
+
+    const result = await createProduct(productData);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });

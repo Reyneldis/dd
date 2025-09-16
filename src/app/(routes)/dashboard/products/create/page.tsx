@@ -19,21 +19,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Category, ProductFull } from '@/types';
-import { ArrowLeft, Loader2, Upload, X } from 'lucide-react';
+import { Category } from '@/types';
+import { ArrowLeft, Upload, X } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function EditProductPage() {
-  const params = useParams();
+export default function CreateProductPage() {
   const router = useRouter();
-  const productId = params.id as string;
-
   const [categories, setCategories] = useState<Category[]>([]);
-  const [product, setProduct] = useState<ProductFull | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     productName: '',
     slug: '',
@@ -49,42 +44,8 @@ export default function EditProductPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
-  // Cargar producto y categorías
+  // Cargar categorías
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(
-          `/api/dashboard/products/${productId}/details`,
-        );
-        const data = await response.json();
-        setProduct(data);
-
-        // Inicializar formulario con datos del producto
-        setFormData({
-          productName: data.productName,
-          slug: data.slug,
-          price: data.price.toString(),
-          stock: data.stock.toString(),
-          description: data.description || '',
-          categoryId: data.categoryId,
-          features: data.features || [],
-          status: data.status,
-          featured: data.featured,
-        });
-
-        // Cargar imágenes existentes
-        if (data.images && data.images.length > 0) {
-          const previews = data.images.map((img: any) => img.url);
-          setImagePreviews(previews);
-        }
-      } catch (error) {
-        console.error('Error fetching product:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     const fetchCategories = async () => {
       try {
         const response = await fetch('/api/dashboard/categories');
@@ -95,9 +56,8 @@ export default function EditProductPage() {
       }
     };
 
-    fetchProduct();
     fetchCategories();
-  }, [productId]);
+  }, []);
 
   // Manejar cambios en el formulario
   const handleInputChange = (
@@ -174,7 +134,7 @@ export default function EditProductPage() {
   // Enviar formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
+    setLoading(true);
 
     try {
       // Crear FormData para enviar archivos
@@ -193,13 +153,13 @@ export default function EditProductPage() {
       // Agregar características como JSON
       productData.append('features', JSON.stringify(formData.features));
 
-      // Agregar imágenes nuevas
+      // Agregar imágenes
       imageFiles.forEach(file => {
         productData.append('images', file);
       });
 
-      const response = await fetch(`/api/dashboard/products/${productId}`, {
-        method: 'PUT',
+      const response = await fetch('/api/dashboard/products', {
+        method: 'POST',
         body: productData,
       });
 
@@ -207,38 +167,18 @@ export default function EditProductPage() {
         router.push('/dashboard/products');
       } else {
         const error = await response.json();
-        console.error('Error updating product:', error);
+        console.error('Error creating product:', error);
         alert(
-          'Error al actualizar el producto: ' +
-            (error.error || 'Error desconocido'),
+          'Error al crear el producto: ' + (error.error || 'Error desconocido'),
         );
       }
     } catch (error) {
-      console.error('Error updating product:', error);
-      alert('Error al actualizar el producto');
+      console.error('Error creating product:', error);
+      alert('Error al crear el producto');
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-      </div>
-    );
-  }
-
-  if (!product) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold">Producto no encontrado</h1>
-        <Button asChild className="mt-4">
-          <Link href="/dashboard/products">Volver a productos</Link>
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -249,7 +189,7 @@ export default function EditProductPage() {
             Volver a productos
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Editar Producto</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Nuevo Producto</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -444,7 +384,7 @@ export default function EditProductPage() {
             <CardHeader>
               <CardTitle>Imágenes del Producto</CardTitle>
               <CardDescription>
-                Agrega o actualiza las imágenes del producto
+                Agrega imágenes para el producto
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -502,8 +442,8 @@ export default function EditProductPage() {
           <Button type="button" variant="outline" asChild>
             <Link href="/dashboard/products">Cancelar</Link>
           </Button>
-          <Button type="submit" disabled={saving}>
-            {saving ? 'Guardando...' : 'Actualizar Producto'}
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Guardando...' : 'Guardar Producto'}
           </Button>
         </div>
       </form>

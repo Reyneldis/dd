@@ -270,10 +270,13 @@ export interface CategoryFilters {
 }
 
 // src/types/product.ts
-export type ProductFull = {
+// src/types/product.ts
+
+// ... (otras importaciones e interfaces)
+
+export interface ProductFull {
   id: string;
   slug: string;
-  reviewCount: number;
   productName: string;
   price: number;
   stock: number;
@@ -301,6 +304,11 @@ export type ProductFull = {
     isPrimary: boolean;
     createdAt: Date;
   }>;
+  // Añadir la propiedad _count
+  _count?: {
+    orderItems?: number;
+    reviews?: number;
+  };
   reviews?: Array<{
     id: string;
     rating: number;
@@ -311,7 +319,7 @@ export type ProductFull = {
     userId: string;
     productId: string;
   }>;
-};
+}
 
 export interface UserProfile {
   id: string;

@@ -1,6 +1,8 @@
 // src/lib/dashboard-service.ts
 import { Category, Order, OrdersResponse, Product, User } from '@/types';
 import { OrderStatus, PrismaClient, Role, Status } from '@prisma/client';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
 
 const prisma = new PrismaClient();
 
@@ -48,6 +50,7 @@ interface CreateProductData {
   status: Status;
   featured: boolean;
   categoryId: string;
+  images?: File[];
 }
 
 interface UpdateProductData {
@@ -66,14 +69,14 @@ interface CreateCategoryData {
   categoryName: string;
   slug: string;
   description?: string;
-  mainImage?: string;
+  mainImage?: File | string;
 }
 
 interface UpdateCategoryData {
   categoryName?: string;
   slug?: string;
   description?: string;
-  mainImage?: string;
+  mainImage?: File | string | null; // Permitir null para eliminar la imagen
 }
 
 interface UpdateUserData {
@@ -99,6 +102,604 @@ interface PaginatedResponse<T> {
     total: number;
     pages: number;
   };
+}
+
+// ============================================================================
+// FUNCIONES DE PRODUCTOS
+// ============================================================================
+
+export async function getProducts(
+  filters: ProductFilters = {},
+): Promise<PaginatedResponse<Product>> {
+  try {
+    const {
+      search = '',
+      status,
+      categoryId,
+      featured,
+      page = 1,
+      limit = 10,
+    } = filters;
+
+    const skip = (page - 1) * limit;
+
+    // Construir condiciones de búsqueda
+    const whereConditions: Record<string, unknown> = {};
+
+    if (status) {
+      whereConditions.status = status;
+    }
+
+    if (categoryId) {
+      whereConditions.categoryId = categoryId;
+    }
+
+    if (featured !== undefined) {
+      whereConditions.featured = featured;
+    }
+
+    if (search) {
+      whereConditions.OR = [
+        { productName: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where: whereConditions,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          category: true,
+          images: {
+            where: { isPrimary: true },
+            take: 1,
+          },
+          _count: {
+            select: {
+              orderItems: true,
+            },
+          },
+        },
+      }),
+      prisma.product.count({ where: whereConditions }),
+    ]);
+
+    // Serializar productos
+    const serializedProducts: Product[] = products.map(product => ({
+      id: product.id,
+      slug: product.slug,
+      productName: product.productName,
+      price: product.price,
+      stock: product.stock,
+      description: product.description,
+      categoryId: product.categoryId,
+      features: product.features,
+      status: product.status as 'ACTIVE' | 'INACTIVE',
+      featured: product.featured,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      category: {
+        id: product.category.id,
+        categoryName: product.category.categoryName,
+        slug: product.category.slug,
+        description: product.category.description,
+        mainImage: product.category.mainImage,
+        createdAt: product.category.createdAt,
+        updatedAt: product.category.updatedAt,
+      },
+      images: product.images.map(img => ({
+        id: img.id,
+        productId: img.productId,
+        url: img.url,
+        alt: img.alt,
+        sortOrder: img.sortOrder,
+        isPrimary: img.isPrimary,
+        createdAt: img.createdAt,
+      })),
+      reviewCount: 0,
+      _count: {
+        ...product._count,
+        reviews: 0,
+      },
+    }));
+
+    return {
+      data: serializedProducts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    throw new Error('Error al obtener los productos');
+  }
+}
+
+// Función para guardar imágenes localmente
+async function saveImageLocally(
+  image: File,
+  productId: string,
+): Promise<string> {
+  // Crear directorio si no existe
+  const uploadDir = join(process.cwd(), 'public', 'uploads', 'products');
+  try {
+    await mkdir(uploadDir, { recursive: true });
+  } catch (error) {
+    // El directorio ya existe, ignorar error
+  }
+
+  // Generar nombre de archivo único
+  const fileName = `${productId}-${Date.now()}-${image.name}`;
+  const filePath = join(uploadDir, fileName);
+
+  // Guardar archivo
+  const bytes = await image.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+  await writeFile(filePath, buffer);
+
+  // Retornar URL pública
+  return `/uploads/products/${fileName}`;
+}
+
+export async function createProduct(
+  productData: CreateProductData,
+): Promise<ApiResponse<Product>> {
+  try {
+    // Validar que la categoría existe
+    const category = await prisma.category.findUnique({
+      where: { id: productData.categoryId },
+    });
+
+    if (!category) {
+      return {
+        success: false,
+        error: 'La categoría especificada no existe',
+      };
+    }
+
+    // Generar slug si no se proporciona
+    const slug =
+      productData.slug ||
+      productData.productName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+    // Crear el producto primero sin imágenes
+    const product = await prisma.product.create({
+      data: {
+        productName: productData.productName,
+        slug,
+        price: productData.price,
+        stock: productData.stock,
+        description: productData.description,
+        categoryId: productData.categoryId,
+        features: productData.features,
+        status: productData.status,
+        featured: productData.featured,
+      },
+      include: {
+        category: true,
+        images: true,
+      },
+    });
+
+    // Procesar imágenes si existen
+    if (productData.images && productData.images.length > 0) {
+      const imagePromises = productData.images.map(async (image, index) => {
+        const imageUrl = await saveImageLocally(image, product.id);
+
+        return prisma.productImage.create({
+          data: {
+            productId: product.id,
+            url: imageUrl,
+            alt: productData.productName,
+            sortOrder: index,
+            isPrimary: index === 0,
+          },
+        });
+      });
+
+      await Promise.all(imagePromises);
+    }
+
+    // Recuperar el producto con las imágenes actualizadas
+    const updatedProduct = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: {
+        category: true,
+        images: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      data: updatedProduct as Product,
+    };
+  } catch (error) {
+    console.error('Error creating product:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Error al crear el producto',
+    };
+  }
+}
+
+export async function updateProduct(
+  productId: string,
+  productData: UpdateProductData,
+): Promise<ApiResponse<Product>> {
+  try {
+    // Verificar que el producto existe
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!existingProduct) {
+      return {
+        success: false,
+        error: 'El producto no existe',
+      };
+    }
+
+    // Si se actualiza la categoría, verificar que existe
+    if (productData.categoryId) {
+      const category = await prisma.category.findUnique({
+        where: { id: productData.categoryId },
+      });
+
+      if (!category) {
+        return {
+          success: false,
+          error: 'La categoría especificada no existe',
+        };
+      }
+    }
+
+    const product = await prisma.product.update({
+      where: { id: productId },
+      data: productData,
+      include: {
+        category: true,
+        images: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: product as Product,
+    };
+  } catch (error) {
+    console.error('Error updating product:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al actualizar el producto',
+    };
+  }
+}
+
+export async function deleteProduct(
+  productId: string,
+): Promise<ApiResponse<{ success: boolean }>> {
+  try {
+    // Verificar que el producto existe
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!existingProduct) {
+      return {
+        success: false,
+        error: 'El producto no existe',
+      };
+    }
+
+    await prisma.product.delete({
+      where: { id: productId },
+    });
+
+    return {
+      success: true,
+      data: { success: true },
+    };
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al eliminar el producto',
+    };
+  }
+}
+
+// ============================================================================
+// FUNCIONES DE CATEGORÍAS
+// ============================================================================
+
+export async function getCategories(
+  filters: CategoryFilters = {},
+): Promise<Category[]> {
+  try {
+    const { search = '', page = 1, limit = 50 } = filters;
+
+    const whereConditions: Record<string, unknown> = {};
+
+    if (search) {
+      whereConditions.OR = [
+        { categoryName: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const categories = await prisma.category.findMany({
+      where: whereConditions,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { categoryName: 'asc' },
+      include: {
+        _count: {
+          select: {
+            products: true,
+          },
+        },
+      },
+    });
+
+    return categories.map(category => ({
+      id: category.id,
+      categoryName: category.categoryName,
+      slug: category.slug,
+      description: category.description,
+      mainImage: category.mainImage,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+      _count: category._count,
+    }));
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    throw new Error('Error al obtener las categorías');
+  }
+}
+
+// Función para guardar imágenes de categorías localmente
+async function saveCategoryImageLocally(
+  image: File,
+  categoryId: string,
+): Promise<string> {
+  // Crear directorio si no existe
+  const uploadDir = join(process.cwd(), 'public', 'uploads', 'categories');
+  try {
+    await mkdir(uploadDir, { recursive: true });
+  } catch (error) {
+    // El directorio ya existe, ignorar error
+  }
+
+  // Generar nombre de archivo único
+  const fileName = `${categoryId}-${Date.now()}-${image.name}`;
+  const filePath = join(uploadDir, fileName);
+
+  // Guardar archivo
+  const bytes = await image.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+  await writeFile(filePath, buffer);
+
+  // Retornar URL pública
+  return `/uploads/categories/${fileName}`;
+}
+
+export async function createCategory(
+  categoryData: CreateCategoryData,
+): Promise<ApiResponse<Category>> {
+  try {
+    // Generar slug si no se proporciona
+    const slug =
+      categoryData.slug ||
+      categoryData.categoryName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+    // Verificar que el slug no existe
+    const existingCategory = await prisma.category.findUnique({
+      where: { slug },
+    });
+
+    if (existingCategory) {
+      return {
+        success: false,
+        error: 'Ya existe una categoría con este slug',
+      };
+    }
+
+    // Crear la categoría primero sin imagen
+    const category = await prisma.category.create({
+      data: {
+        categoryName: categoryData.categoryName,
+        slug,
+        description: categoryData.description,
+      },
+    });
+
+    // Procesar imagen si existe
+    if (categoryData.mainImage) {
+      let imageUrl: string;
+
+      if (categoryData.mainImage instanceof File) {
+        imageUrl = await saveCategoryImageLocally(
+          categoryData.mainImage,
+          category.id,
+        );
+      } else {
+        imageUrl = categoryData.mainImage; // Es una URL existente
+      }
+
+      await prisma.category.update({
+        where: { id: category.id },
+        data: { mainImage: imageUrl },
+      });
+    }
+
+    // Recuperar la categoría con la imagen actualizada
+    const updatedCategory = await prisma.category.findUnique({
+      where: { id: category.id },
+    });
+
+    return {
+      success: true,
+      data: updatedCategory as Category,
+    };
+  } catch (error) {
+    console.error('Error creating category:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Error al crear la categoría',
+    };
+  }
+}
+
+export async function updateCategory(
+  categoryId: string,
+  categoryData: UpdateCategoryData,
+): Promise<ApiResponse<Category>> {
+  try {
+    // Verificar que la categoría existe
+    const existingCategory = await prisma.category.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (!existingCategory) {
+      return {
+        success: false,
+        error: 'La categoría no existe',
+      };
+    }
+
+    // Si se actualiza el slug, verificar que no existe
+    if (categoryData.slug && categoryData.slug !== existingCategory.slug) {
+      const slugExists = await prisma.category.findUnique({
+        where: { slug: categoryData.slug },
+      });
+
+      if (slugExists) {
+        return {
+          success: false,
+          error: 'Ya existe una categoría con este slug',
+        };
+      }
+    }
+
+    // Preparar datos para la actualización
+    const updateData: any = {
+      categoryName: categoryData.categoryName,
+      slug: categoryData.slug,
+      description: categoryData.description,
+    };
+
+    // Procesar imagen si existe
+    if (categoryData.mainImage !== undefined) {
+      if (categoryData.mainImage instanceof File) {
+        // Es un nuevo archivo de imagen
+        updateData.mainImage = await saveCategoryImageLocally(
+          categoryData.mainImage,
+          categoryId,
+        );
+      } else if (categoryData.mainImage === null) {
+        // Se quiere eliminar la imagen
+        updateData.mainImage = null;
+      } else {
+        // Es una URL existente
+        updateData.mainImage = categoryData.mainImage;
+      }
+    }
+
+    const category = await prisma.category.update({
+      where: { id: categoryId },
+      data: updateData,
+    });
+
+    return {
+      success: true,
+      data: category as Category,
+    };
+  } catch (error) {
+    console.error('Error updating category:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al actualizar la categoría',
+    };
+  }
+}
+
+export async function deleteCategory(
+  categoryId: string,
+): Promise<ApiResponse<{ success: boolean }>> {
+  try {
+    // Verificar que la categoría existe
+    const existingCategory = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        _count: {
+          select: {
+            products: true,
+          },
+        },
+      },
+    });
+
+    if (!existingCategory) {
+      return {
+        success: false,
+        error: 'La categoría no existe',
+      };
+    }
+
+    // Verificar que no tiene productos asociados
+    if (existingCategory._count.products > 0) {
+      return {
+        success: false,
+        error:
+          'No se puede eliminar la categoría porque tiene productos asociados',
+      };
+    }
+
+    await prisma.category.delete({
+      where: { id: categoryId },
+    });
+
+    return {
+      success: true,
+      data: { success: true },
+    };
+  } catch (error) {
+    console.error('Error deleting category:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al eliminar la categoría',
+    };
+  }
 }
 
 // ============================================================================
@@ -347,464 +948,6 @@ export async function updateOrderStatus(
         error instanceof Error
           ? error.message
           : 'Error desconocido al actualizar el estado',
-    };
-  }
-}
-
-// ============================================================================
-// FUNCIONES DE PRODUCTOS
-// ============================================================================
-
-export async function getProducts(
-  filters: ProductFilters = {},
-): Promise<PaginatedResponse<Product>> {
-  try {
-    const {
-      search = '',
-      status,
-      categoryId,
-      featured,
-      page = 1,
-      limit = 10,
-    } = filters;
-
-    const skip = (page - 1) * limit;
-
-    // Construir condiciones de búsqueda
-    const whereConditions: Record<string, unknown> = {};
-
-    if (status) {
-      whereConditions.status = status;
-    }
-
-    if (categoryId) {
-      whereConditions.categoryId = categoryId;
-    }
-
-    if (featured !== undefined) {
-      whereConditions.featured = featured;
-    }
-
-    if (search) {
-      whereConditions.OR = [
-        { productName: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { slug: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where: whereConditions,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          category: true,
-          images: {
-            where: { isPrimary: true },
-            take: 1,
-          },
-          _count: {
-            select: {
-              orderItems: true,
-            },
-          },
-        },
-      }),
-      prisma.product.count({ where: whereConditions }),
-    ]);
-
-    // Serializar productos
-    const serializedProducts: Product[] = products.map(product => ({
-      id: product.id,
-      slug: product.slug,
-      productName: product.productName,
-      price: product.price,
-      stock: product.stock,
-      description: product.description,
-      categoryId: product.categoryId,
-      features: product.features,
-      status: product.status as 'ACTIVE' | 'INACTIVE',
-      featured: product.featured,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
-      category: {
-        id: product.category.id,
-        categoryName: product.category.categoryName,
-        slug: product.category.slug,
-        description: product.category.description,
-        mainImage: product.category.mainImage,
-        createdAt: product.category.createdAt,
-        updatedAt: product.category.updatedAt,
-      },
-      images: product.images.map(img => ({
-        id: img.id,
-        productId: img.productId,
-        url: img.url,
-        alt: img.alt,
-        sortOrder: img.sortOrder,
-        isPrimary: img.isPrimary,
-        createdAt: img.createdAt,
-      })),
-      reviewCount: 0, // Se puede calcular si es necesario
-      _count: {
-        ...product._count,
-        reviews: 0, // Se puede calcular si es necesario
-      },
-    }));
-
-    return {
-      data: serializedProducts,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    };
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    throw new Error('Error al obtener los productos');
-  }
-}
-
-export async function createProduct(
-  productData: CreateProductData,
-): Promise<ApiResponse<Product>> {
-  try {
-    // Validar que la categoría existe
-    const category = await prisma.category.findUnique({
-      where: { id: productData.categoryId },
-    });
-
-    if (!category) {
-      return {
-        success: false,
-        error: 'La categoría especificada no existe',
-      };
-    }
-
-    // Generar slug si no se proporciona
-    const slug =
-      productData.slug ||
-      productData.productName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-
-    const product = await prisma.product.create({
-      data: {
-        ...productData,
-        slug,
-      },
-      include: {
-        category: true,
-        images: true,
-      },
-    });
-
-    return {
-      success: true,
-      data: product as Product,
-    };
-  } catch (error) {
-    console.error('Error creating product:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'Error al crear el producto',
-    };
-  }
-}
-
-export async function updateProduct(
-  productId: string,
-  productData: UpdateProductData,
-): Promise<ApiResponse<Product>> {
-  try {
-    // Verificar que el producto existe
-    const existingProduct = await prisma.product.findUnique({
-      where: { id: productId },
-    });
-
-    if (!existingProduct) {
-      return {
-        success: false,
-        error: 'El producto no existe',
-      };
-    }
-
-    // Si se actualiza la categoría, verificar que existe
-    if (productData.categoryId) {
-      const category = await prisma.category.findUnique({
-        where: { id: productData.categoryId },
-      });
-
-      if (!category) {
-        return {
-          success: false,
-          error: 'La categoría especificada no existe',
-        };
-      }
-    }
-
-    const product = await prisma.product.update({
-      where: { id: productId },
-      data: productData,
-      include: {
-        category: true,
-        images: true,
-      },
-    });
-
-    return {
-      success: true,
-      data: product as Product,
-    };
-  } catch (error) {
-    console.error('Error updating product:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Error al actualizar el producto',
-    };
-  }
-}
-
-export async function deleteProduct(
-  productId: string,
-): Promise<ApiResponse<{ success: boolean }>> {
-  try {
-    // Verificar que el producto existe
-    const existingProduct = await prisma.product.findUnique({
-      where: { id: productId },
-    });
-
-    if (!existingProduct) {
-      return {
-        success: false,
-        error: 'El producto no existe',
-      };
-    }
-
-    await prisma.product.delete({
-      where: { id: productId },
-    });
-
-    return {
-      success: true,
-      data: { success: true },
-    };
-  } catch (error) {
-    console.error('Error deleting product:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Error al eliminar el producto',
-    };
-  }
-}
-
-// ============================================================================
-// FUNCIONES DE CATEGORÍAS
-// ============================================================================
-
-export async function getCategories(
-  filters: CategoryFilters = {},
-): Promise<Category[]> {
-  try {
-    const { search = '', page = 1, limit = 50 } = filters;
-
-    const whereConditions: Record<string, unknown> = {};
-
-    if (search) {
-      whereConditions.OR = [
-        { categoryName: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { slug: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const categories = await prisma.category.findMany({
-      where: whereConditions,
-      skip: (page - 1) * limit,
-      take: limit,
-      orderBy: { categoryName: 'asc' },
-      include: {
-        _count: {
-          select: {
-            products: true,
-          },
-        },
-      },
-    });
-
-    return categories.map(category => ({
-      id: category.id,
-      categoryName: category.categoryName,
-      slug: category.slug,
-      description: category.description,
-      mainImage: category.mainImage,
-      createdAt: category.createdAt,
-      updatedAt: category.updatedAt,
-      _count: category._count,
-    }));
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    throw new Error('Error al obtener las categorías');
-  }
-}
-
-export async function createCategory(
-  categoryData: CreateCategoryData,
-): Promise<ApiResponse<Category>> {
-  try {
-    // Generar slug si no se proporciona
-    const slug =
-      categoryData.slug ||
-      categoryData.categoryName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-
-    // Verificar que el slug no existe
-    const existingCategory = await prisma.category.findUnique({
-      where: { slug },
-    });
-
-    if (existingCategory) {
-      return {
-        success: false,
-        error: 'Ya existe una categoría con este slug',
-      };
-    }
-
-    const category = await prisma.category.create({
-      data: {
-        ...categoryData,
-        slug,
-      },
-    });
-
-    return {
-      success: true,
-      data: category as Category,
-    };
-  } catch (error) {
-    console.error('Error creating category:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'Error al crear la categoría',
-    };
-  }
-}
-
-export async function updateCategory(
-  categoryId: string,
-  categoryData: UpdateCategoryData,
-): Promise<ApiResponse<Category>> {
-  try {
-    // Verificar que la categoría existe
-    const existingCategory = await prisma.category.findUnique({
-      where: { id: categoryId },
-    });
-
-    if (!existingCategory) {
-      return {
-        success: false,
-        error: 'La categoría no existe',
-      };
-    }
-
-    // Si se actualiza el slug, verificar que no existe
-    if (categoryData.slug && categoryData.slug !== existingCategory.slug) {
-      const slugExists = await prisma.category.findUnique({
-        where: { slug: categoryData.slug },
-      });
-
-      if (slugExists) {
-        return {
-          success: false,
-          error: 'Ya existe una categoría con este slug',
-        };
-      }
-    }
-
-    const category = await prisma.category.update({
-      where: { id: categoryId },
-      data: categoryData,
-    });
-
-    return {
-      success: true,
-      data: category as Category,
-    };
-  } catch (error) {
-    console.error('Error updating category:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Error al actualizar la categoría',
-    };
-  }
-}
-
-export async function deleteCategory(
-  categoryId: string,
-): Promise<ApiResponse<{ success: boolean }>> {
-  try {
-    // Verificar que la categoría existe
-    const existingCategory = await prisma.category.findUnique({
-      where: { id: categoryId },
-      include: {
-        _count: {
-          select: {
-            products: true,
-          },
-        },
-      },
-    });
-
-    if (!existingCategory) {
-      return {
-        success: false,
-        error: 'La categoría no existe',
-      };
-    }
-
-    // Verificar que no tiene productos asociados
-    if (existingCategory._count.products > 0) {
-      return {
-        success: false,
-        error:
-          'No se puede eliminar la categoría porque tiene productos asociados',
-      };
-    }
-
-    await prisma.category.delete({
-      where: { id: categoryId },
-    });
-
-    return {
-      success: true,
-      data: { success: true },
-    };
-  } catch (error) {
-    console.error('Error deleting category:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Error al eliminar la categoría',
     };
   }
 }
