@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/table';
 import { Category, Product } from '@/types';
 import {
+  ChevronLeft,
+  ChevronRight,
   Edit,
   Eye,
   Filter,
@@ -41,6 +43,7 @@ import {
   Plus,
   Search,
   Trash2,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -56,6 +59,7 @@ export default function ProductsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Cargar productos
   useEffect(() => {
@@ -135,16 +139,32 @@ export default function ProductsPage() {
     }
   };
 
+  // Limpiar todos los filtros
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('ALL');
+    setCategoryFilter('ALL');
+    setFeaturedFilter('ALL');
+    setCurrentPage(1);
+  };
+
+  // Verificar si hay filtros activos
+  const hasActiveFilters =
+    searchTerm ||
+    statusFilter !== 'ALL' ||
+    categoryFilter !== 'ALL' ||
+    featuredFilter !== 'ALL';
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-screen p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+        <div className="text-center md:text-left mb-4 md:mb-0">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
             Gestión de Productos
           </h1>
           <p className="text-gray-500">Administra los productos de tu tienda</p>
         </div>
-        <Button asChild className="mt-4 md:mt-0">
+        <Button asChild className="w-full md:w-auto">
           <Link href="/dashboard/products/create">
             <Plus className="mr-2 h-4 w-4" />
             Nuevo Producto
@@ -152,13 +172,115 @@ export default function ProductsPage() {
         </Button>
       </div>
 
-      {/* Filtros */}
-      <Card>
+      {/* Busqueda móvil */}
+      <div className="md:hidden">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+          <Input
+            placeholder="Buscar productos..."
+            className="pl-8 w-full"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Botón de filtros para móvil */}
+      <div className="md:hidden flex justify-between items-center">
+        <Button
+          variant="outline"
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center w-full"
+        >
+          <Filter className="mr-2 h-4 w-4" />
+          {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+        </Button>
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="text-gray-500"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      {/* Filtros - Versión móvil */}
+      {showFilters && (
+        <Card className="md:hidden">
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Estado</label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todos los estados</SelectItem>
+                    <SelectItem value="ACTIVE">Activo</SelectItem>
+                    <SelectItem value="INACTIVE">Inactivo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Categoría</label>
+                <Select
+                  value={categoryFilter}
+                  onValueChange={setCategoryFilter}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todas las categorías</SelectItem>
+                    {categories.map(category => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.categoryName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Destacado</label>
+                <Select
+                  value={featuredFilter}
+                  onValueChange={setFeaturedFilter}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Destacado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todos</SelectItem>
+                    <SelectItem value="true">Destacados</SelectItem>
+                    <SelectItem value="false">No destacados</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Filtros - Versión desktop */}
+      <Card className="hidden md:block">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtros
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filtros
+            </CardTitle>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
           <CardDescription>
             Filtra los productos por diferentes criterios
           </CardDescription>
@@ -226,50 +348,72 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
 
-      {/* Tabla de productos */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      {/* Resultados y paginación */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+        <div className="text-center md:text-left mb-4 md:mb-0">
+          <h2 className="text-xl font-semibold flex items-center justify-center md:justify-start gap-2">
             <Package className="h-5 w-5" />
             Productos ({totalProducts})
-          </CardTitle>
-          <CardDescription>
-            Lista de todos los productos en tu tienda
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </h2>
+          <p className="text-gray-500 text-sm">
+            {products.length} productos mostrados
+          </p>
+        </div>
+
+        {/* Paginación móvil */}
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-4 md:hidden">
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm whitespace-nowrap">
+                Página {currentPage} de {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tabla de productos */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-0 md:p-6">
           {loading ? (
-            <div className="flex justify-center py-8">
+            <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Categoría</TableHead>
-                    <TableHead>Precio</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Destacado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
-                        No se encontraron productos
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    products.map(product => (
-                      <TableRow key={product.id}>
-                        <TableCell>
+              {/* Versión móvil - Cards en lugar de tabla */}
+              <div className="md:hidden space-y-4 p-4">
+                {products.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No se encontraron productos
+                  </div>
+                ) : (
+                  products.map(product => (
+                    <Card
+                      key={product.id}
+                      className="overflow-hidden shadow-sm"
+                    >
+                      <div className="p-4">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                           <div className="flex items-center space-x-3">
                             {product.images && product.images.length > 0 && (
-                              <div className="flex-shrink-0 h-10 w-10 rounded-md bg-gray-100 overflow-hidden">
+                              <div className="flex-shrink-0 h-16 w-16 rounded-md bg-gray-100 overflow-hidden">
                                 <img
                                   src={product.images[0].url}
                                   alt={
@@ -279,82 +423,199 @@ export default function ProductsPage() {
                                 />
                               </div>
                             )}
-                            <div>
-                              <div className="font-medium">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-lg truncate">
                                 {product.productName}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {product.slug}
+                              </h3>
+                              <p className="text-sm text-gray-500 truncate">
+                                {product.category.categoryName}
+                              </p>
+                              <div className="mt-1 flex flex-wrap items-center gap-2">
+                                <span className="font-semibold">
+                                  ${product.price.toFixed(2)}
+                                </span>
+                                <span className="text-sm text-gray-500">
+                                  Stock: {product.stock}
+                                </span>
                               </div>
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell>{product.category.categoryName}</TableCell>
-                        <TableCell>${product.price.toFixed(2)}</TableCell>
-                        <TableCell>{product.stock}</TableCell>
-                        <TableCell>
-                          <Badge
-                            className={getStatusColor(
-                              product.status || 'ACTIVE',
-                            )}
-                          >
-                            {product.status === 'ACTIVE'
-                              ? 'Activo'
-                              : 'Inactivo'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {product.featured ? (
-                            <Badge className="bg-yellow-100 text-yellow-800">
-                              Destacado
-                            </Badge>
-                          ) : (
-                            <span className="text-gray-500">No</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link
-                                  href={`/dashboard/products/${product.id}`}
-                                >
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Ver detalles
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link
-                                  href={`/dashboard/products/${product.id}/edit`}
-                                >
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Editar
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteProduct(product.id)}
-                                className="text-red-600"
+                          <div className="flex flex-col items-end space-y-2">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Badge
+                                className={getStatusColor(
+                                  product.status || 'ACTIVE',
+                                )}
                               >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                {product.status === 'ACTIVE'
+                                  ? 'Activo'
+                                  : 'Inactivo'}
+                              </Badge>
+                              {product.featured && (
+                                <Badge className="bg-yellow-100 text-yellow-800">
+                                  Destacado
+                                </Badge>
+                              )}
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link
+                                    href={`/dashboard/products/${product.id}`}
+                                  >
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Ver detalles
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <Link
+                                    href={`/dashboard/products/${product.id}/edit`}
+                                  >
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Editar
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleDeleteProduct(product.id)
+                                  }
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Eliminar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+
+              {/* Versión desktop - Tabla */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead>Precio</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Destacado</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">
+                          No se encontraron productos
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      products.map(product => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              {product.images && product.images.length > 0 && (
+                                <div className="flex-shrink-0 h-10 w-10 rounded-md bg-gray-100 overflow-hidden">
+                                  <img
+                                    src={product.images[0].url}
+                                    alt={
+                                      product.images[0].alt ||
+                                      product.productName
+                                    }
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              )}
+                              <div>
+                                <div className="font-medium">
+                                  {product.productName}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {product.slug}
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{product.category.categoryName}</TableCell>
+                          <TableCell>${product.price.toFixed(2)}</TableCell>
+                          <TableCell>{product.stock}</TableCell>
+                          <TableCell>
+                            <Badge
+                              className={getStatusColor(
+                                product.status || 'ACTIVE',
+                              )}
+                            >
+                              {product.status === 'ACTIVE'
+                                ? 'Activo'
+                                : 'Inactivo'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {product.featured ? (
+                              <Badge className="bg-yellow-100 text-yellow-800">
+                                Destacado
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-500">No</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link
+                                    href={`/dashboard/products/${product.id}`}
+                                  >
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Ver detalles
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <Link
+                                    href={`/dashboard/products/${product.id}/edit`}
+                                  >
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Editar
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleDeleteProduct(product.id)
+                                  }
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Eliminar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-              {/* Paginación */}
+              {/* Paginación desktop */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between space-x-2 py-4">
+                <div className="hidden md:flex items-center justify-between border-t px-4 py-3">
                   <div className="text-sm text-gray-500">
                     Mostrando {products.length} de {totalProducts} productos
                   </div>

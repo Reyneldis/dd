@@ -94,17 +94,17 @@ export default function CategoriesPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 md:px-0">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
             Gestión de Categorías
           </h1>
           <p className="text-gray-500">
             Administra las categorías de tu tienda
           </p>
         </div>
-        <Button asChild className="mt-4 md:mt-0">
+        <Button asChild className="mt-4 md:mt-0 w-full md:w-auto">
           <Link href="/dashboard/categories/create">
             <Plus className="mr-2 h-4 w-4" />
             Nueva Categoría
@@ -114,8 +114,8 @@ export default function CategoriesPage() {
 
       {/* Filtros */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Search className="h-5 w-5" />
             Buscar Categorías
           </CardTitle>
@@ -138,8 +138,82 @@ export default function CategoriesPage() {
         </CardContent>
       </Card>
 
-      {/* Tabla de categorías */}
-      <Card>
+      {/* Vista móvil - Tarjetas */}
+      <div className="md:hidden">
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+          </div>
+        ) : filteredCategories.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              No se encontraron categorías
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredCategories.map(category => (
+              <Card key={category.id} className="overflow-hidden">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg">
+                        {category.categoryName}
+                      </CardTitle>
+                      <CardDescription className="text-sm mt-1">
+                        {category.slug}
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {category._count?.products || 0} productos
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">
+                      {new Date(category.createdAt).toLocaleDateString()}
+                    </span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/dashboard/categories/${category.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver detalles
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`/dashboard/categories/${category.id}/edit`}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteCategory(category.id)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Vista escritorio - Tabla */}
+      <Card className="hidden md:block">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Tag className="h-5 w-5" />
@@ -155,79 +229,83 @@ export default function CategoriesPage() {
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Slug</TableHead>
-                  <TableHead>Productos</TableHead>
-                  <TableHead>Fecha de creación</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCategories.length === 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      No se encontraron categorías
-                    </TableCell>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Slug</TableHead>
+                    <TableHead>Productos</TableHead>
+                    <TableHead>Fecha de creación</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
-                ) : (
-                  filteredCategories.map(category => (
-                    <TableRow key={category.id}>
-                      <TableCell>
-                        <div className="font-medium">
-                          {category.categoryName}
-                        </div>
-                      </TableCell>
-                      <TableCell>{category.slug}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {category._count?.products || 0} productos
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(category.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link
-                                href={`/dashboard/categories/${category.id}`}
-                              >
-                                <Eye className="mr-2 h-4 w-4" />
-                                Ver detalles
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link
-                                href={`/dashboard/categories/${category.id}/edit`}
-                              >
-                                <Edit className="mr-2 h-4 w-4" />
-                                Editar
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteCategory(category.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                </TableHeader>
+                <TableBody>
+                  {filteredCategories.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        No se encontraron categorías
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    filteredCategories.map(category => (
+                      <TableRow key={category.id}>
+                        <TableCell>
+                          <div className="font-medium">
+                            {category.categoryName}
+                          </div>
+                        </TableCell>
+                        <TableCell>{category.slug}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {category._count?.products || 0} productos
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(category.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link
+                                  href={`/dashboard/categories/${category.id}`}
+                                >
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Ver detalles
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <Link
+                                  href={`/dashboard/categories/${category.id}/edit`}
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Editar
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleDeleteCategory(category.id)
+                                }
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

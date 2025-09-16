@@ -105,7 +105,6 @@ export default function CreateProductPage() {
         const reader = new FileReader();
         reader.onload = event => {
           if (event.target?.result) {
-            // Corregir el tipo de event.target.result
             const result = event.target.result as string;
             setImagePreviews(prev => [...prev, result]);
           }
@@ -181,15 +180,22 @@ export default function CreateProductPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-2">
-        <Button variant="ghost" size="sm" asChild>
+    <div className="space-y-6 min-h-screen p-4 md:p-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+        <div className="text-center md:text-left mb-4 md:mb-0">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Nuevo Producto
+          </h1>
+          <p className="text-gray-500">
+            Ingresa los detalles del nuevo producto
+          </p>
+        </div>
+        <Button variant="outline" asChild className="w-full md:w-auto">
           <Link href="/dashboard/products">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver a productos
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Nuevo Producto</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -336,7 +342,7 @@ export default function CreateProductPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex space-x-2">
+              <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
                 <Input
                   placeholder="Agregar característica"
                   value={featureInput}
@@ -345,6 +351,7 @@ export default function CreateProductPage() {
                     e.key === 'Enter' &&
                     (e.preventDefault(), handleAddFeature())
                   }
+                  className="flex-1"
                 />
                 <Button type="button" onClick={handleAddFeature}>
                   Agregar
@@ -379,7 +386,7 @@ export default function CreateProductPage() {
             </CardContent>
           </Card>
 
-          {/* Imágenes */}
+          {/* Imágenes - CORREGIDO */}
           <Card className="md:col-span-3">
             <CardHeader>
               <CardTitle>Imágenes del Producto</CardTitle>
@@ -388,10 +395,11 @@ export default function CreateProductPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Área de carga de imágenes */}
               <div className="flex items-center justify-center w-full">
                 <label
                   htmlFor="images"
-                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="w-8 h-8 mb-4 text-gray-500" />
@@ -414,35 +422,53 @@ export default function CreateProductPage() {
                 </label>
               </div>
 
+              {/* Vista previa de imágenes - MEJORADA */}
               {imagePreviews.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={preview}
-                        alt={`Preview ${index}`}
-                        className="w-full h-32 object-cover rounded-md"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index)}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium">
+                    Imágenes seleccionadas:
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <div className="aspect-square w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                          <img
+                            src={preview}
+                            alt={`Preview ${index}`}
+                            className="w-full h-full object-contain"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '200px',
+                              objectFit: 'contain',
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        <div className="flex justify-end space-x-2 mt-6">
-          <Button type="button" variant="outline" asChild>
+        <div className="flex flex-col md:flex-row justify-end space-y-2 md:space-y-0 md:space-x-2 mt-6">
+          <Button
+            type="button"
+            variant="outline"
+            asChild
+            className="w-full md:w-auto"
+          >
             <Link href="/dashboard/products">Cancelar</Link>
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="w-full md:w-auto">
             {loading ? 'Guardando...' : 'Guardar Producto'}
           </Button>
         </div>

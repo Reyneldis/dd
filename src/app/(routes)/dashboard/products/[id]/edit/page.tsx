@@ -24,6 +24,7 @@ import { ArrowLeft, Loader2, Upload, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 export default function EditProductPage() {
   const params = useParams();
@@ -80,6 +81,7 @@ export default function EditProductPage() {
         }
       } catch (error) {
         console.error('Error fetching product:', error);
+        toast.error('Error al cargar el producto');
       } finally {
         setLoading(false);
       }
@@ -92,6 +94,7 @@ export default function EditProductPage() {
         setCategories(data);
       } catch (error) {
         console.error('Error fetching categories:', error);
+        toast.error('Error al cargar las categorías');
       }
     };
 
@@ -123,6 +126,7 @@ export default function EditProductPage() {
         features: [...prev.features, featureInput.trim()],
       }));
       setFeatureInput('');
+      toast.success('Característica agregada');
     }
   };
 
@@ -132,9 +136,10 @@ export default function EditProductPage() {
       ...prev,
       features: prev.features.filter((_, i) => i !== index),
     }));
+    toast.info('Característica eliminada');
   };
 
-  // Manejar imágenes - CORREGIDO
+  // Manejar imágenes
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
@@ -145,13 +150,14 @@ export default function EditProductPage() {
         const reader = new FileReader();
         reader.onload = event => {
           if (event.target?.result) {
-            // Corregir el tipo de event.target.result
             const result = event.target.result as string;
             setImagePreviews(prev => [...prev, result]);
           }
         };
         reader.readAsDataURL(file);
       });
+
+      toast.success(`${files.length} imagen(es) agregada(s)`);
     }
   };
 
@@ -159,6 +165,7 @@ export default function EditProductPage() {
   const handleRemoveImage = (index: number) => {
     setImageFiles(prev => prev.filter((_, i) => i !== index));
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    toast.info('Imagen eliminada');
   };
 
   // Generar slug automáticamente
@@ -204,18 +211,20 @@ export default function EditProductPage() {
       });
 
       if (response.ok) {
+        toast.success('Producto actualizado exitosamente');
         router.push('/dashboard/products');
       } else {
         const error = await response.json();
         console.error('Error updating product:', error);
-        alert(
-          'Error al actualizar el producto: ' +
-            (error.error || 'Error desconocido'),
+        toast.error(
+          `Error al actualizar el producto: ${
+            error.error || 'Error desconocido'
+          }`,
         );
       }
     } catch (error) {
       console.error('Error updating product:', error);
-      alert('Error al actualizar el producto');
+      toast.error('Error al actualizar el producto');
     } finally {
       setSaving(false);
     }
