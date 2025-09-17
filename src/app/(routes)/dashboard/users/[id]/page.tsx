@@ -1,5 +1,3 @@
-// src/app/(routes)/dashboard/categories/[id]/page.tsx
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -10,42 +8,42 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Category } from '@/types';
+import { User } from '@/types';
 import {
   ArrowLeft,
+  Calendar,
   Edit,
-  Image as ImageIcon,
-  Package,
-  Tag,
+  Shield,
+  User as UserIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function CategoryDetailPage() {
+export default function UserDetailPage() {
   const params = useParams();
-  const categoryId = params.id as string;
+  const userId = params.id as string;
 
-  const [category, setCategory] = useState<Category | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Cargar categoría
+  // Cargar usuario
   useEffect(() => {
-    const fetchCategory = async () => {
+    const fetchUser = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/dashboard/categories/${categoryId}`);
+        const response = await fetch(`/api/dashboard/users/${userId}`);
         const data = await response.json();
-        setCategory(data);
+        setUser(data);
       } catch (error) {
-        console.error('Error fetching category:', error);
+        console.error('Error fetching user:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCategory();
-  }, [categoryId]);
+    fetchUser();
+  }, [userId]);
 
   if (loading) {
     return (
@@ -55,12 +53,12 @@ export default function CategoryDetailPage() {
     );
   }
 
-  if (!category) {
+  if (!user) {
     return (
       <div className="text-center py-12">
-        <h1 className="text-2xl font-bold">Categoría no encontrada</h1>
+        <h1 className="text-2xl font-bold">Usuario no encontrado</h1>
         <Button asChild className="mt-4">
-          <Link href="/dashboard/categories">Volver a categorías</Link>
+          <Link href="/dashboard/users">Volver a usuarios</Link>
         </Button>
       </div>
     );
@@ -71,17 +69,17 @@ export default function CategoryDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/dashboard/categories">
+            <Link href="/dashboard/users">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver a categorías
+              Volver a usuarios
             </Link>
           </Button>
           <h1 className="text-3xl font-bold tracking-tight">
-            Detalles de la Categoría
+            Detalles del Usuario
           </h1>
         </div>
         <Button asChild>
-          <Link href={`/dashboard/categories/${categoryId}/edit`}>
+          <Link href={`/dashboard/users/${userId}/edit`}>
             <Edit className="mr-2 h-4 w-4" />
             Editar
           </Link>
@@ -89,81 +87,82 @@ export default function CategoryDetailPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Imagen */}
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ImageIcon className="h-5 w-5" />
-              Imagen
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {category.mainImage ? (
-              <div className="rounded-md overflow-hidden">
-                <img
-                  src={category.mainImage}
-                  alt={category.categoryName}
-                  className="w-full h-48 object-cover"
-                />
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2">No hay imagen disponible</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Información principal */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Tag className="h-5 w-5" />
-              {category.categoryName}
+              <UserIcon className="h-5 w-5" />
+              {user.firstName} {user.lastName}
             </CardTitle>
-            <CardDescription>
-              {category.description || 'Sin descripción disponible'}
-            </CardDescription>
+            <CardDescription>{user.email}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Slug</h3>
+                <h3 className="text-sm font-medium text-gray-500">ID</h3>
                 <p className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                  {category.slug}
+                  {user.id}
                 </p>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-gray-500">ID</h3>
+                <h3 className="text-sm font-medium text-gray-500">Clerk ID</h3>
                 <p className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                  {category.id}
+                  {user.clerkId}
                 </p>
               </div>
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Productos</h3>
+              <h3 className="text-sm font-medium text-gray-500">Rol</h3>
               <div className="flex items-center space-x-1">
-                <Package className="h-4 w-4 text-gray-500" />
-                <span>{category._count?.products || 0} productos</span>
+                <Shield className="h-4 w-4 text-gray-500" />
+                <span>{user.role}</span>
               </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <h3 className="text-sm font-medium text-gray-500">
-                  Fecha de creación
+                  Fecha de registro
                 </h3>
-                <p>{new Date(category.createdAt).toLocaleDateString()}</p>
+                <div className="flex items-center space-x-1">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <span>{new Date(user.createdAt).toLocaleDateString()}</span>
+                </div>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">
                   Última actualización
                 </h3>
-                <p>{new Date(category.updatedAt).toLocaleDateString()}</p>
+                <div className="flex items-center space-x-1">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <span>{new Date(user.updatedAt).toLocaleDateString()}</span>
+                </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Avatar */}
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle>Avatar</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {user.avatar ? (
+              <div className="rounded-md overflow-hidden">
+                <img
+                  src={user.avatar}
+                  alt={`${user.firstName} ${user.lastName}`}
+                  className="w-full h-48 object-cover"
+                />
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <p className="mt-2">No hay avatar disponible</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

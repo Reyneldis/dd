@@ -1,4 +1,4 @@
-// src/app/(routes)/dashboard/emails/page.tsx - Gestión de emails fallidos
+// src/app/(routes)/dashboard/emails/page.tsx
 'use client';
 
 import { Badge } from '@/components/ui/badge';
@@ -7,10 +7,12 @@ import { Card } from '@/components/ui/card';
 import {
   AlertCircle,
   CheckCircle,
+  Eye,
   Mail,
   RefreshCw,
   XCircle,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -40,7 +42,7 @@ export default function EmailsPage() {
   const fetchFailedEmails = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/dashboard/emails');
+      const response = await fetch('/api/dashboard/emails/failed');
       if (response.ok) {
         const data = await response.json();
         setEmails(data);
@@ -58,13 +60,12 @@ export default function EmailsPage() {
   const retryEmail = async (emailId: string) => {
     try {
       setRetrying(emailId);
-      const response = await fetch(`/api/dashboard/emails/${emailId}/retry`, {
+      const response = await fetch(`/api/dashboard/emails/failed/${emailId}`, {
         method: 'POST',
       });
 
       if (response.ok) {
         toast.success('Email marcado para reintento');
-        // Refrescar la lista
         fetchFailedEmails();
       } else {
         const error = await response.json();
@@ -241,6 +242,12 @@ export default function EmailsPage() {
                     <Badge className={statusInfo.color}>
                       {statusInfo.label}
                     </Badge>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/dashboard/emails/${email.id}`}>
+                        <Eye className="h-4 w-4 mr-1" />
+                        Detalles
+                      </Link>
+                    </Button>
                     {email.status === 'failed' && (
                       <Button
                         size="sm"

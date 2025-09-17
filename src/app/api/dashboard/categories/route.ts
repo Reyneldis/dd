@@ -1,3 +1,5 @@
+// src/app/api/dashboard/categories/route.ts
+
 import { createCategory, getCategories } from '@/lib/dashboard-service';
 import { NextRequest, NextResponse } from 'next/server';
 

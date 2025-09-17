@@ -47,7 +47,7 @@ const navigation = [
   },
   {
     name: 'Emails Fallidos',
-    href: '/dashboard/emails/failed',
+    href: '/dashboard/emails',
     icon: MailWarning,
     color: 'from-red-500 to-rose-500',
   },

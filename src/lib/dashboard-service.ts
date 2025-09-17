@@ -1,4 +1,3 @@
-// src/lib/dashboard-service.ts
 import { Category, Order, OrdersResponse, Product, User } from '@/types';
 import { OrderStatus, PrismaClient, Role, Status } from '@prisma/client';
 import { mkdir, writeFile } from 'fs/promises';
@@ -650,10 +649,14 @@ export async function updateCategory(
   }
 }
 
+// src/lib/dashboard-service.ts
+
 export async function deleteCategory(
   categoryId: string,
 ): Promise<ApiResponse<{ success: boolean }>> {
   try {
+    console.log('Deleting category with ID:', categoryId);
+
     // Verificar que la categoría existe
     const existingCategory = await prisma.category.findUnique({
       where: { id: categoryId },
@@ -666,7 +669,10 @@ export async function deleteCategory(
       },
     });
 
+    console.log('Existing category:', existingCategory);
+
     if (!existingCategory) {
+      console.error('Category not found');
       return {
         success: false,
         error: 'La categoría no existe',
@@ -674,7 +680,9 @@ export async function deleteCategory(
     }
 
     // Verificar que no tiene productos asociados
+    console.log('Product count:', existingCategory._count.products);
     if (existingCategory._count.products > 0) {
+      console.error('Category has associated products');
       return {
         success: false,
         error:
@@ -682,16 +690,40 @@ export async function deleteCategory(
       };
     }
 
-    await prisma.category.delete({
+    const deletedCategory = await prisma.category.delete({
       where: { id: categoryId },
     });
+
+    console.log('Deleted category:', deletedCategory);
 
     return {
       success: true,
       data: { success: true },
     };
   } catch (error) {
-    console.error('Error deleting category:', error);
+    console.error('Error in deleteCategory service:', error);
+
+    // Capturar error específico de Prisma para restricción de clave foránea
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error name:', error.name);
+
+      if (error.message.includes('foreign key constraint')) {
+        console.error('Foreign key constraint detected');
+        return {
+          success: false,
+          error:
+            'No se puede eliminar la categoría porque tiene productos asociados',
+        };
+      }
+    }
+
+    // Si el error es de Prisma, intentar obtener más información
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error('Prisma error code:', (error as any).code);
+      console.error('Prisma error meta:', (error as any).meta);
+    }
+
     return {
       success: false,
       error:
@@ -701,7 +733,50 @@ export async function deleteCategory(
     };
   }
 }
+export async function getUserById(userId: string): Promise<ApiResponse<User>> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        _count: {
+          select: {
+            orders: true,
+          },
+        },
+      },
+    });
 
+    if (!user) {
+      return {
+        success: false,
+        error: 'El usuario no existe',
+      };
+    }
+
+    const serializedUser: User = {
+      id: user.id,
+      clerkId: user.clerkId,
+      email: user.email,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+      avatar: user.avatar,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    return {
+      success: true,
+      data: serializedUser,
+    };
+  } catch (error) {
+    console.error('Error fetching user by ID:', error);
+    return {
+      success: false,
+      error: 'Error al obtener el usuario',
+    };
+  }
+}
 // ============================================================================
 // FUNCIONES DE ÓRDENES
 // ============================================================================
@@ -1107,8 +1182,13 @@ export async function toggleUserActive(
 // FUNCIONES DE EMAILS FALLIDOS
 // ============================================================================
 
+// src/lib/dashboard-service.ts
+
 export async function getFailedEmails() {
   try {
+    console.log('Consultando emails fallidos en la base de datos...');
+
+    // Verificar si la tabla EmailMetrics existe
     const emails = await prisma.emailMetrics.findMany({
       where: { status: 'failed' },
       orderBy: { timestamp: 'desc' },
@@ -1120,6 +1200,10 @@ export async function getFailedEmails() {
         },
       },
     });
+
+    console.log(
+      `Se encontraron ${emails.length} emails fallidos en la base de datos`,
+    );
 
     return emails.map(email => ({
       id: email.id,
@@ -1133,7 +1217,19 @@ export async function getFailedEmails() {
       order: email.order,
     }));
   } catch (error) {
-    console.error('Error fetching failed emails:', error);
+    console.error('Error en getFailedEmails:', error);
+
+    // Si el error es que la tabla no existe, lo mostramos claramente
+    if (
+      error instanceof Error &&
+      error.message.includes('relation "EmailMetrics" does not exist')
+    ) {
+      console.error('La tabla EmailMetrics no existe en la base de datos');
+      throw new Error(
+        'La tabla de métricas de emails no existe. Ejecuta las migraciones de Prisma.',
+      );
+    }
+
     throw new Error('Error al obtener los emails fallidos');
   }
 }

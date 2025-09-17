@@ -1,3 +1,5 @@
+// src/app/(routes)/dashboard/categories/[id]/page.tsx
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -8,30 +10,24 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Category } from '@/types';
-import { ArrowLeft, Loader2, Upload, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  Edit,
+  Image as ImageIcon,
+  Package,
+  Tag,
+} from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function EditCategoryPage() {
+export default function CategoryDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const categoryId = params.id as string;
 
   const [category, setCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    categoryName: '',
-    slug: '',
-    description: '',
-  });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Cargar categoría
   useEffect(() => {
@@ -41,18 +37,6 @@ export default function EditCategoryPage() {
         const response = await fetch(`/api/dashboard/categories/${categoryId}`);
         const data = await response.json();
         setCategory(data);
-
-        // Inicializar formulario con datos de la categoría
-        setFormData({
-          categoryName: data.categoryName,
-          slug: data.slug,
-          description: data.description || '',
-        });
-
-        // Cargar imagen existente si hay
-        if (data.mainImage) {
-          setImagePreview(data.mainImage);
-        }
       } catch (error) {
         console.error('Error fetching category:', error);
       } finally {
@@ -63,94 +47,10 @@ export default function EditCategoryPage() {
     fetchCategory();
   }, [categoryId]);
 
-  // Manejar cambios en el formulario
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  // Manejar imagen
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-
-      // Crear vista previa
-      const reader = new FileReader();
-      reader.onload = event => {
-        if (event.target?.result) {
-          const result = event.target.result as string;
-          setImagePreview(result);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Eliminar imagen
-  const handleRemoveImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
-  };
-
-  // Generar slug automáticamente
-  const generateSlug = () => {
-    const slug = formData.categoryName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-
-    setFormData(prev => ({ ...prev, slug }));
-  };
-
-  // Enviar formulario
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      // Crear FormData para enviar la imagen
-      const categoryData = new FormData();
-
-      // Agregar datos de la categoría
-      categoryData.append('categoryName', formData.categoryName);
-      categoryData.append('slug', formData.slug);
-      categoryData.append('description', formData.description);
-
-      // Agregar imagen si existe
-      if (imageFile) {
-        categoryData.append('mainImage', imageFile);
-      }
-
-      const response = await fetch(`/api/dashboard/categories/${categoryId}`, {
-        method: 'PUT',
-        body: categoryData,
-      });
-
-      if (response.ok) {
-        router.push('/dashboard/categories');
-      } else {
-        const error = await response.json();
-        console.error('Error updating category:', error);
-        alert(
-          'Error al actualizar la categoría: ' +
-            (error.error || 'Error desconocido'),
-        );
-      }
-    } catch (error) {
-      console.error('Error updating category:', error);
-      alert('Error al actualizar la categoría');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
@@ -168,129 +68,105 @@ export default function EditCategoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-2">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/dashboard/categories">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver a categorías
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard/categories">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver a categorías
+            </Link>
+          </Button>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Detalles de la Categoría
+          </h1>
+        </div>
+        <Button asChild>
+          <Link href={`/dashboard/categories/${categoryId}/edit`}>
+            <Edit className="mr-2 h-4 w-4" />
+            Editar
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Editar Categoría</h1>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Información básica */}
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Información Básica</CardTitle>
-              <CardDescription>
-                Ingresa los detalles principales de la categoría
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="categoryName">Nombre de la Categoría</Label>
-                  <Input
-                    id="categoryName"
-                    name="categoryName"
-                    value={formData.categoryName}
-                    onChange={handleInputChange}
-                    onBlur={generateSlug}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="slug">Slug</Label>
-                  <Input
-                    id="slug"
-                    name="slug"
-                    value={formData.slug}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Descripción</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  rows={4}
-                  value={formData.description}
-                  onChange={handleInputChange}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Imagen */}
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" />
+              Imagen
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {category.mainImage ? (
+              <div className="rounded-md overflow-hidden">
+                <img
+                  src={category.mainImage}
+                  alt={category.categoryName}
+                  className="w-full h-48 object-cover"
                 />
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Imagen */}
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Imagen de la Categoría</CardTitle>
-              <CardDescription>
-                Agrega o actualiza la imagen de la categoría
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-center w-full">
-                <label
-                  htmlFor="mainImage"
-                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
-                >
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-8 h-8 mb-4 text-gray-500" />
-                    <p className="mb-2 text-sm text-gray-500">
-                      <span className="font-semibold">Haz clic para subir</span>{' '}
-                      o arrastra y suelta
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      PNG, JPG o GIF (MAX. 5MB)
-                    </p>
-                  </div>
-                  <input
-                    id="mainImage"
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                  />
-                </label>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <p className="mt-2">No hay imagen disponible</p>
               </div>
+            )}
+          </CardContent>
+        </Card>
 
-              {imagePreview && (
-                <div className="flex justify-center">
-                  <div className="relative group">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-64 h-64 object-cover rounded-md"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        {/* Información principal */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Tag className="h-5 w-5" />
+              {category.categoryName}
+            </CardTitle>
+            <CardDescription>
+              {category.description || 'Sin descripción disponible'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Slug</h3>
+                <p className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                  {category.slug}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">ID</h3>
+                <p className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                  {category.id}
+                </p>
+              </div>
+            </div>
 
-        <div className="flex justify-end space-x-2 mt-6">
-          <Button type="button" variant="outline" asChild>
-            <Link href="/dashboard/categories">Cancelar</Link>
-          </Button>
-          <Button type="submit" disabled={saving}>
-            {saving ? 'Guardando...' : 'Actualizar Categoría'}
-          </Button>
-        </div>
-      </form>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Productos</h3>
+              <div className="flex items-center space-x-1">
+                <Package className="h-4 w-4 text-gray-500" />
+                <span>{category._count?.products || 0} productos</span>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Fecha de creación
+                </h3>
+                <p>{new Date(category.createdAt).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Última actualización
+                </h3>
+                <p>{new Date(category.updatedAt).toLocaleDateString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -1,15 +1,17 @@
 // src/app/api/dashboard/emails/failed/route.ts
 import { getFailedEmails } from '@/lib/dashboard-service';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const emails = await getFailedEmails();
-    return NextResponse.json(emails);
+    console.log('Iniciando obtención de emails fallidos...');
+    const failedEmails = await getFailedEmails();
+    console.log(`Se encontraron ${failedEmails.length} emails fallidos`);
+    return NextResponse.json(failedEmails);
   } catch (error) {
     console.error('Error fetching failed emails:', error);
     return NextResponse.json(
-      { error: 'Error fetching failed emails' },
+      { error: 'Error al obtener los emails fallidos' },
       { status: 500 },
     );
   }

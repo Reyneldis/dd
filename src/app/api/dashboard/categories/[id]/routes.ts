@@ -1,64 +1,59 @@
-import { deleteCategory, updateCategory } from '@/lib/dashboard-service';
+// src/app/api/dashboard/categories/[id]/route.ts
+
+import { deleteCategory } from '@/lib/dashboard-service';
 import { NextRequest, NextResponse } from 'next/server';
-
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
-
-    // Usar formData en lugar de json porque estamos enviando archivos
-    const formData = await request.formData();
-
-    // Extraer los datos del formData
-    const categoryName = formData.get('categoryName') as string;
-    const slug = formData.get('slug') as string;
-    const description = formData.get('description') as string;
-    const mainImage = formData.get('mainImage') as File | string | null;
-
-    // Construir objeto de la categoría
-    const categoryData = {
-      categoryName,
-      slug,
-      description,
-      mainImage,
-    };
-
-    const result = await updateCategory(id, categoryData);
-
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
-    }
-
-    return NextResponse.json(result.data);
-  } catch (error) {
-    console.error('Error updating category:', error);
-    return NextResponse.json(
-      { error: 'Error updating category' },
-      { status: 500 },
-    );
-  }
-}
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Desempaquetar la promesa para obtener el ID
     const { id } = await params;
+    console.log('DELETE request received for category ID:', id);
 
     const result = await deleteCategory(id);
+    console.log('Result from deleteCategory:', result);
 
     if (!result.success) {
+      console.error('Error deleting category:', result.error);
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      message: 'Categoría eliminada correctamente',
+    });
   } catch (error) {
-    console.error('Error deleting category:', error);
+    console.error('Error in DELETE API route:', error);
+
+    // Manejar error de restricción de clave foránea
+    if (
+      error instanceof Error &&
+      error.message.includes('foreign key constraint')
+    ) {
+      console.error('Foreign key constraint error');
+      return NextResponse.json(
+        {
+          error:
+            'No se puede eliminar la categoría porque tiene productos asociados',
+        },
+        { status: 400 },
+      );
+    }
+
+    // Manejar error de categoría no encontrada
+    if (error instanceof Error && error.message.includes('not found')) {
+      console.error('Category not found error');
+      return NextResponse.json(
+        { error: 'La categoría no existe' },
+        { status: 404 },
+      );
+    }
+
+    console.error('Unknown error:', error);
     return NextResponse.json(
-      { error: 'Error deleting category' },
+      { error: 'Error al eliminar la categoría' },
       { status: 500 },
     );
   }

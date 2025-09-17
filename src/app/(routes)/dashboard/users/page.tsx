@@ -1,5 +1,3 @@
-// src/app/(routes)/dashboard/categories/page.tsx
-
 'use client';
 
 import { Badge } from '@/components/ui/badge';
@@ -26,151 +24,100 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Category } from '@/types';
+import { User } from '@/types';
 import {
   Edit,
   Eye,
   MoreHorizontal,
   Plus,
   Search,
-  Tag,
   Trash2,
+  User as UserIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([]);
+export default function UsersPage() {
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
+  });
 
-  // Cargar categorías
+  // Cargar usuarios
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchUsers = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/dashboard/categories');
+        const params = new URLSearchParams({
+          search: searchTerm,
+          page: pagination.page.toString(),
+          limit: pagination.limit.toString(),
+        });
+        const response = await fetch(`/api/dashboard/users?${params}`);
 
         if (!response.ok) {
-          throw new Error('Error al cargar las categorías');
-        }
-
-        // Verificar que la respuesta es JSON antes de analizarla
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('La respuesta no es JSON válido');
+          throw new Error('Error al cargar los usuarios');
         }
 
         const data = await response.json();
-        setCategories(data);
+        setUsers(data.data);
+        setPagination(data.pagination);
       } catch (error) {
-        console.error('Error fetching categories:', error);
-        toast.error('Error al cargar las categorías');
+        console.error('Error fetching users:', error);
+        toast.error('Error al cargar los usuarios');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCategories();
-  }, []);
+    fetchUsers();
+  }, [searchTerm, pagination.page, pagination.limit]);
 
-  // Eliminar categoría
-  const handleDeleteCategory = async (id: string) => {
+  // Eliminar usuario (desactivar)
+  const handleDeleteUser = async (id: string) => {
     setDeletingId(id);
 
     try {
-      console.log('Intentando eliminar categoría con ID:', id);
-
-      const response = await fetch(`/api/dashboard/categories/${id}`, {
+      const response = await fetch(`/api/dashboard/users/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
 
-      console.log('Respuesta del servidor - Status:', response.status);
-      console.log('Content-Type:', response.headers.get('content-type'));
-
-      // Verificar si la respuesta es JSON antes de analizarla
-      const contentType = response.headers.get('content-type');
-      let result;
-
-      if (contentType && contentType.includes('application/json')) {
-        result = await response.json();
-        console.log('Respuesta JSON:', result);
-      } else {
-        // Si no es JSON, obtener el texto para depuración
-        const text = await response.text();
-        console.error('Respuesta no JSON:', text.substring(0, 200));
-
-        // Si la respuesta contiene HTML, intentar extraer el mensaje de error
-        if (text.includes('<!DOCTYPE html>')) {
-          // Extraer el título de la página de error
-          const titleMatch = text.match(/<title>(.*?)<\/title>/);
-          const errorMessage = titleMatch ? titleMatch[1] : 'Error desconocido';
-
-          // Verificar si es un error 404
-          if (text.includes('404') || text.includes('Not Found')) {
-            throw new Error(
-              `La ruta API no fue encontrada (404): ${errorMessage}`,
-            );
-          }
-
-          throw new Error(`Error del servidor: ${errorMessage}`);
-        }
-
-        throw new Error(
-          `La respuesta del servidor no es JSON válido. Estado: ${response.status}. Content-Type: ${contentType}`,
-        );
-      }
+      const result = await response.json();
 
       if (response.ok) {
-        setCategories(categories.filter(category => category.id !== id));
-        toast.success(result.message || 'Categoría eliminada correctamente');
+        setUsers(users.filter(user => user.id !== id));
+        toast.success(result.message || 'Usuario desactivado correctamente');
       } else {
-        toast.error(result.error || 'Error al eliminar la categoría');
+        toast.error(result.error || 'Error al desactivar el usuario');
       }
     } catch (error) {
-      console.error('Error deleting category:', error);
-      if (error instanceof Error) {
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
-      toast.error(
-        `Error de conexión al eliminar la categoría: ${
-          error instanceof Error ? error.message : 'Error desconocido'
-        }`,
-      );
+      console.error('Error deleting user:', error);
+      toast.error('Error de conexión al desactivar el usuario');
     } finally {
       setDeletingId(null);
     }
   };
-
-  // Filtrar categorías por término de búsqueda
-  const filteredCategories = categories.filter(
-    category =>
-      category.categoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (category.description &&
-        category.description.toLowerCase().includes(searchTerm.toLowerCase())),
-  );
 
   return (
     <div className="space-y-6 px-4 md:px-0">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Gestión de Categorías
+            Gestión de Usuarios
           </h1>
-          <p className="text-gray-500">
-            Administra las categorías de tu tienda
-          </p>
+          <p className="text-gray-500">Administra los usuarios de tu tienda</p>
         </div>
         <Button asChild className="mt-4 md:mt-0 w-full md:w-auto">
-          <Link href="/dashboard/categories/create">
+          <Link href="/dashboard/users/create">
             <Plus className="mr-2 h-4 w-4" />
-            Nueva Categoría
+            Nuevo Usuario
           </Link>
         </Button>
       </div>
@@ -180,10 +127,10 @@ export default function CategoriesPage() {
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Search className="h-5 w-5" />
-            Buscar Categorías
+            Buscar Usuarios
           </CardTitle>
           <CardDescription>
-            Busca categorías por nombre o descripción
+            Busca usuarios por nombre, email o apellido
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -191,7 +138,7 @@ export default function CategoriesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
-                placeholder="Buscar categorías..."
+                placeholder="Buscar usuarios..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
@@ -207,35 +154,37 @@ export default function CategoriesPage() {
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
           </div>
-        ) : filteredCategories.length === 0 ? (
+        ) : users.length === 0 ? (
           <Card>
             <CardContent className="text-center py-8">
-              No se encontraron categorías
+              No se encontraron usuarios
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
-            {filteredCategories.map(category => (
-              <Card key={category.id} className="overflow-hidden">
+            {users.map(user => (
+              <Card key={user.id} className="overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle className="text-lg">
-                        {category.categoryName}
+                        {user.firstName} {user.lastName}
                       </CardTitle>
                       <CardDescription className="text-sm mt-1">
-                        {category.slug}
+                        {user.email}
                       </CardDescription>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {category._count?.products || 0} productos
+                    <Badge
+                      variant={user.role === 'ADMIN' ? 'default' : 'secondary'}
+                    >
+                      {user.role}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-500">
-                      {new Date(category.createdAt).toLocaleDateString()}
+                      {new Date(user.createdAt).toLocaleDateString()}
                     </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -245,33 +194,31 @@ export default function CategoriesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/categories/${category.id}`}>
+                          <Link href={`/dashboard/users/${user.id}`}>
                             <Eye className="mr-2 h-4 w-4" />
                             Ver detalles
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link
-                            href={`/dashboard/categories/${category.id}/edit`}
-                          >
+                          <Link href={`/dashboard/users/${user.id}/edit`}>
                             <Edit className="mr-2 h-4 w-4" />
                             Editar
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => handleDeleteCategory(category.id)}
+                          onClick={() => handleDeleteUser(user.id)}
                           className="text-red-600"
-                          disabled={deletingId === category.id}
+                          disabled={deletingId === user.id}
                         >
-                          {deletingId === category.id ? (
+                          {deletingId === user.id ? (
                             <>
                               <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              Eliminando...
+                              Desactivando...
                             </>
                           ) : (
                             <>
                               <Trash2 className="mr-2 h-4 w-4" />
-                              Eliminar
+                              Desactivar
                             </>
                           )}
                         </DropdownMenuItem>
@@ -289,11 +236,11 @@ export default function CategoriesPage() {
       <Card className="hidden md:block">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Tag className="h-5 w-5" />
-            Categorías ({filteredCategories.length})
+            <UserIcon className="h-5 w-5" />
+            Usuarios ({users.length})
           </CardTitle>
           <CardDescription>
-            Lista de todas las categorías en tu tienda
+            Lista de todos los usuarios en tu tienda
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -307,35 +254,39 @@ export default function CategoriesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nombre</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead>Productos</TableHead>
-                    <TableHead>Fecha de creación</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Rol</TableHead>
+                    <TableHead>Fecha de registro</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCategories.length === 0 ? (
+                  {users.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-8">
-                        No se encontraron categorías
+                        No se encontraron usuarios
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredCategories.map(category => (
-                      <TableRow key={category.id}>
+                    users.map(user => (
+                      <TableRow key={user.id}>
                         <TableCell>
                           <div className="font-medium">
-                            {category.categoryName}
+                            {user.firstName} {user.lastName}
                           </div>
                         </TableCell>
-                        <TableCell>{category.slug}</TableCell>
+                        <TableCell>{user.email}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">
-                            {category._count?.products || 0} productos
+                          <Badge
+                            variant={
+                              user.role === 'ADMIN' ? 'default' : 'secondary'
+                            }
+                          >
+                            {user.role}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {new Date(category.createdAt).toLocaleDateString()}
+                          {new Date(user.createdAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
@@ -346,37 +297,31 @@ export default function CategoriesPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem asChild>
-                                <Link
-                                  href={`/dashboard/categories/${category.id}`}
-                                >
+                                <Link href={`/dashboard/users/${user.id}`}>
                                   <Eye className="mr-2 h-4 w-4" />
                                   Ver detalles
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
-                                <Link
-                                  href={`/dashboard/categories/${category.id}/edit`}
-                                >
+                                <Link href={`/dashboard/users/${user.id}/edit`}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Editar
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() =>
-                                  handleDeleteCategory(category.id)
-                                }
+                                onClick={() => handleDeleteUser(user.id)}
                                 className="text-red-600"
-                                disabled={deletingId === category.id}
+                                disabled={deletingId === user.id}
                               >
-                                {deletingId === category.id ? (
+                                {deletingId === user.id ? (
                                   <>
                                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                    Eliminando...
+                                    Desactivando...
                                   </>
                                 ) : (
                                   <>
                                     <Trash2 className="mr-2 h-4 w-4" />
-                                    Eliminar
+                                    Desactivar
                                   </>
                                 )}
                               </DropdownMenuItem>
@@ -392,6 +337,43 @@ export default function CategoriesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Paginación */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-700">
+          Mostrando{' '}
+          <span className="font-medium">
+            {(pagination.page - 1) * pagination.limit + 1}
+          </span>{' '}
+          a{' '}
+          <span className="font-medium">
+            {Math.min(pagination.page * pagination.limit, pagination.total)}
+          </span>{' '}
+          de <span className="font-medium">{pagination.total}</span> resultados
+        </div>
+        <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setPagination({ ...pagination, page: pagination.page - 1 })
+            }
+            disabled={pagination.page <= 1}
+          >
+            Anterior
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setPagination({ ...pagination, page: pagination.page + 1 })
+            }
+            disabled={pagination.page >= pagination.pages}
+          >
+            Siguiente
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
