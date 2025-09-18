@@ -232,6 +232,7 @@ async function saveImageLocally(
     await mkdir(uploadDir, { recursive: true });
   } catch (error) {
     // El directorio ya existe, ignorar error
+    console.log(error);
   }
 
   // Generar nombre de archivo único
@@ -487,6 +488,7 @@ async function saveCategoryImageLocally(
     await mkdir(uploadDir, { recursive: true });
   } catch (error) {
     // El directorio ya existe, ignorar error
+    console.log(error);
   }
 
   // Generar nombre de archivo único

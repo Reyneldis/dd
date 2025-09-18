@@ -2,6 +2,49 @@
 import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 
+interface ProductImage {
+  id: string;
+  productId: string;
+  url: string;
+  alt: string | null;
+  sortOrder: number;
+  isPrimary: boolean;
+  createdAt: Date;
+}
+
+interface ProductCategory {
+  id: string;
+  categoryName: string;
+  slug: string;
+  description: string | null;
+  mainImage: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface ProductCount {
+  orderItems: number;
+  reviews: number;
+}
+
+interface SerializedProduct {
+  id: string;
+  slug: string;
+  productName: string;
+  price: number;
+  stock: number;
+  description: string | null;
+  categoryId: string;
+  features: string[];
+  status: 'ACTIVE' | 'INACTIVE';
+  featured: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  category: ProductCategory;
+  images: ProductImage[];
+  _count: ProductCount;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -33,7 +76,7 @@ export async function GET(
     }
 
     // Serializar el producto
-    const serializedProduct = {
+    const serializedProduct: SerializedProduct = {
       id: product.id,
       slug: product.slug,
       productName: product.productName,

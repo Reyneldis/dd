@@ -2,7 +2,7 @@
 import { getFailedEmails } from '@/lib/dashboard-service';
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     console.log('Iniciando obtención de emails fallidos...');
     const failedEmails = await getFailedEmails();

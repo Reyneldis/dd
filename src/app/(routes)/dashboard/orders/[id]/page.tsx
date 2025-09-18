@@ -662,7 +662,7 @@ export default function OrderDetailsPage() {
           </div>
         ) : orderHistory.length > 0 ? (
           <div className="space-y-4">
-            {orderHistory.map((item, index) => (
+            {orderHistory.map((item, _index) => (
               <div
                 key={item.id}
                 className="flex items-start space-x-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"

@@ -25,7 +25,6 @@ export interface ProductImage {
 }
 
 export interface Product {
-  reviewCount: number;
   id: string;
   slug: string;
   productName: string;
@@ -61,8 +60,6 @@ export interface User {
 }
 
 // Interfaz Order corregida para que coincida con tu schema
-// src/types/index.ts
-
 export interface Order {
   id: string;
   orderNumber: string;
@@ -269,11 +266,7 @@ export interface CategoryFilters {
   limit?: number;
 }
 
-// src/types/product.ts
-// src/types/product.ts
-
-// ... (otras importaciones e interfaces)
-
+// INTERFAZ PRODUCTFULL CORREGIDA - Agregando reviewCount
 export interface ProductFull {
   id: string;
   slug: string;
@@ -304,6 +297,8 @@ export interface ProductFull {
     isPrimary: boolean;
     createdAt: Date;
   }>;
+  // Añadir la propiedad reviewCount
+  reviewCount: number;
   // Añadir la propiedad _count
   _count?: {
     orderItems?: number;

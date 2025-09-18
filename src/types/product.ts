@@ -1,9 +1,5 @@
 // src/types/product.ts
 
-// src/types/product.ts
-
-// ... (otras importaciones e interfaces)
-
 export interface ProductFull {
   id: string;
   slug: string;

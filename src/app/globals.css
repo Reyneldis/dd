@@ -2,7 +2,13 @@
 @import 'tw-animate-css';
 
 @import url('@fontsource/onest/400.css');
+@import url('@fontsource/onest/500.css');
+@import url('@fontsource/onest/600.css');
 @import url('@fontsource/onest/700.css');
+@import url('@fontsource/inter/400.css');
+@import url('@fontsource/inter/500.css');
+@import url('@fontsource/inter/600.css');
+@import url('@fontsource/inter/700.css');
 
 @custom-variant dark (&:is(.dark *));
 img,
@@ -98,7 +104,8 @@ html.dark {
   }
 }
 :root {
-  --font-onest: 'Onest', sans-serif;
+  --font-onest: 'Onest', 'Inter', sans-serif;
+  --font-inter: 'Inter', sans-serif;
   /* Colores base - Minimalista y fresco */
   --background: oklch(0.99 0.002 110); /* Blanco roto con ligero tinte verde */
   --foreground: oklch(0.18 0.01 250); /* Gris oscuro suave */

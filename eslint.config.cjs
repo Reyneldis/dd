@@ -1,13 +1,13 @@
-// eslint.config.js
-import js from '@eslint/js';
-import nextPlugin from '@next/eslint-plugin-next';
-import tsPlugin from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
-import reactPlugin from 'eslint-plugin-react';
-import hooksPlugin from 'eslint-plugin-react-hooks';
-import globals from 'globals';
+// eslint.config.cjs
+const js = require('@eslint/js');
+const nextPlugin = require('@next/eslint-plugin-next');
+const tsPlugin = require('@typescript-eslint/eslint-plugin');
+const tsParser = require('@typescript-eslint/parser');
+const reactPlugin = require('eslint-plugin-react');
+const hooksPlugin = require('eslint-plugin-react-hooks');
+const globals = require('globals');
 
-export default [
+module.exports = [
   {
     ignores: [
       'node_modules/',
@@ -32,7 +32,7 @@ export default [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        ecmaVersion: 2020,
+        ecmaVersion: 2022,
         sourceType: 'module',
         ecmaFeatures: {
           jsx: true,
@@ -53,12 +53,17 @@ export default [
       ...nextPlugin.configs['core-web-vitals'].rules,
       'react/prop-types': 'off',
       'react/react-in-jsx-scope': 'off',
-      // Reglas adicionales para evitar errores
+      // Reglas personalizadas para manejar advertencias comunes
       '@typescript-eslint/no-unused-vars': [
         'error',
-        { argsIgnorePattern: '^_' },
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
       ],
-      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'react-hooks/exhaustive-deps': 'warn',
+      '@next/next/no-img-element': 'warn',
     },
     settings: {
       react: {

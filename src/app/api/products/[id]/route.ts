@@ -6,11 +6,11 @@ import { productSchema } from '@/schemas/productSchema';
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ slug: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const { slug } = await params;
+  const { id } = await params;
   const product = await prisma.product.findUnique({
-    where: { slug },
+    where: { id },
     include: {
       images: true,
       category: true,

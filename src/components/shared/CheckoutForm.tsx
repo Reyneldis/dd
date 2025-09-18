@@ -1,4 +1,3 @@
-// src/components/shared/CheckoutForm.tsx
 'use client';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/hooks/use-cart';
@@ -74,10 +73,8 @@ export default function CheckoutForm() {
       .split(',')
       .map(n => n.trim())
       .filter(n => n.length > 0);
-    const firstAdmin = adminNumbers[0];
-    const base = firstAdmin
-      ? `https://wa.me/${firstAdmin.replace(/\D/g, '')}`
-      : 'https://wa.me/';
+    const firstAdmin = adminNumbers[0] || '+535358134753'; // Fallback
+    const base = `https://wa.me/${firstAdmin.replace(/\D/g, '')}`;
     const message = buildWhatsappMessage();
     return `${base}?text=${encodeURIComponent(message)}`;
   };

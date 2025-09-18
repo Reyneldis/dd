@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Loader2, Upload, X } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -223,10 +224,12 @@ export default function CreateCategoryPage() {
               {imagePreview && (
                 <div className="flex justify-center">
                   <div className="relative group">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-64 h-64 object-cover rounded-md"
+                    <Image
+                      src={product.imageUrl}
+                      alt={product.name}
+                      width={300} // Ajusta según tu diseño
+                      height={300}
+                      className="object-cover rounded-lg"
                     />
                     <button
                       type="button"

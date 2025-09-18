@@ -1,11 +1,9 @@
-// src/app/api/orders/route.ts
 import {
   createTransporter,
   sendOrderConfirmationEmail,
 } from '@/lib/email/order-confirmation';
 import { validateOrder } from '@/lib/order/validator';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -67,24 +65,8 @@ const checkoutBodySchema = z.object({
 
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
-
-    if (!user) {
-      return NextResponse.json({
-        error: 'Usuario no encontrado',
-        status: 404,
-      });
-    }
-
+    // Obtener todas las órdenes sin filtrar por usuario
     const orders = await prisma.order.findMany({
-      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       include: {
         items: {
@@ -183,11 +165,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Obtener usuario autenticado (si existe)
-    const { userId: clerkUserId } = await auth();
-    const user = clerkUserId
-      ? await prisma.user.findUnique({ where: { clerkId: clerkUserId } })
-      : null;
+    // No se verifica autenticación con Clerk
+    // La orden se crea sin usuario asociado
 
     const order = await prisma.$transaction(async tx => {
       // Decrementar stock de forma atómica para cada item
@@ -228,7 +207,7 @@ export async function POST(request: NextRequest) {
           ),
           orderNumber: `#${Date.now().toString().slice(-6)}`,
           customerEmail: contactInfo.email,
-          userId: user?.id ?? null,
+          userId: null, // No hay usuario autenticado
           contactInfo: {
             create: {
               name: contactInfo.name,
@@ -317,7 +296,21 @@ export async function POST(request: NextRequest) {
     // Devolver respuesta con información sobre el estado del correo
     return NextResponse.json(
       {
-        ...order,
+        order: {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          customerEmail: order.customerEmail,
+          subtotal: order.subtotal,
+          taxAmount: order.taxAmount,
+          shippingAmount: order.shippingAmount,
+          total: order.total,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
+          contactInfo: order.contactInfo,
+          shippingAddress: order.shippingAddress,
+          items: order.items,
+        },
         emailSent,
         emailError: emailError ? emailError : undefined,
         message: emailSent

@@ -177,7 +177,7 @@ export default async function Categories() {
 
         {/* Grid de categorías */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 py-8">
-          {categories.map((category, index) => (
+          {categories.map((category, _index) => (
             <Link
               key={category.id}
               href={`/categories/${category.slug}`}

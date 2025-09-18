@@ -1,3 +1,5 @@
+// src/app/(routes)/categories/[id]/page.tsx
+
 import ProductCardCompact from '@/components/shared/ProductCard/ProductCardCompact';
 import { prisma } from '@/lib/prisma';
 import { ProductFull } from '@/types/product';
@@ -9,7 +11,7 @@ import { notFound } from 'next/navigation';
 
 interface PageProps {
   params: Promise<{
-    slug: string;
+    id: string; // Cambiado de slug a id para coincidir con el nombre de la carpeta
   }>;
   searchParams: Promise<{
     page?: string;
@@ -26,6 +28,9 @@ type ProductWithRelations = Product & {
 
 // Función para transformar un producto de Prisma a ProductFull
 function transformToProductFull(product: ProductWithRelations): ProductFull {
+  // Asegurarnos de que reviews siempre sea un array, incluso si es null o undefined
+  const reviews = product.reviews || [];
+
   return {
     id: product.id,
     slug: product.slug,
@@ -48,15 +53,15 @@ function transformToProductFull(product: ProductWithRelations): ProductFull {
       createdAt: product.category.createdAt,
       updatedAt: product.category.updatedAt,
     },
-    images: product.images.map(image => ({
+    images: (product.images || []).map(image => ({
       id: image.id,
       url: image.url,
-      alt: image.alt,
+      alt: image.alt || '', // Proporcionar un valor por defecto para alt
       sortOrder: image.sortOrder,
       isPrimary: image.isPrimary,
       createdAt: image.createdAt,
     })),
-    reviews: product.reviews.map(review => ({
+    reviews: reviews.map(review => ({
       id: review.id,
       rating: review.rating,
       comment: review.comment,
@@ -66,17 +71,27 @@ function transformToProductFull(product: ProductWithRelations): ProductFull {
       userId: review.userId,
       productId: review.productId,
     })),
-    reviewCount: product.reviews.length,
+    reviewCount: reviews.length, // Ahora usamos el array que sabemos que existe
   };
 }
 
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const category = await prisma.category.findUnique({
-    where: { slug },
+  const { id } = await params;
+
+  // Primero intentamos obtener por ID
+  let category = await prisma.category.findUnique({
+    where: { id },
   });
+
+  // Si no se encuentra, intentamos por slug (por compatibilidad)
+  if (!category) {
+    category = await prisma.category.findUnique({
+      where: { slug: id },
+    });
+  }
+
   if (!category) {
     return {
       title: 'Categoría no encontrada',
@@ -94,17 +109,28 @@ export default async function CategoryPage({
   params,
   searchParams,
 }: PageProps) {
-  const { slug } = await params;
+  const { id } = await params;
   const { page = '1', priceRange } = await searchParams;
-  const category = await prisma.category.findUnique({
-    where: { slug },
+
+  // Primero intentamos obtener por ID
+  let category = await prisma.category.findUnique({
+    where: { id },
   });
+
+  // Si no se encuentra, intentamos por slug (por compatibilidad)
+  if (!category) {
+    category = await prisma.category.findUnique({
+      where: { slug: id },
+    });
+  }
+
   if (!category) {
     notFound();
   }
+
   // Parsear filtros
   const currentPage = parseInt(page, 10);
-  const pageSize = 4; // Solo 3 productos por página
+  const pageSize = 4; // Solo 4 productos por página
   const skip = (currentPage - 1) * pageSize;
   const where: {
     categoryId: string;
@@ -129,7 +155,7 @@ export default async function CategoryPage({
       include: {
         category: true,
         images: true,
-        reviews: true,
+        reviews: true, // Asegurémonos de que reviews esté incluido
       },
       orderBy: {
         createdAt: 'desc',
@@ -173,7 +199,9 @@ export default async function CategoryPage({
           {priceRanges.map((range, index) => (
             <Link
               key={range.value}
-              href={`/categories/${slug}?priceRange=${range.value}`}
+              href={`/categories/${category.slug || category.id}?priceRange=${
+                range.value
+              }`}
               className={`relative px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-300 ease-out ${
                 priceRange === range.value
                   ? 'bg-gradient-to-r from-sky-500 to-emerald-500 text-white shadow-md transform scale-105'
@@ -210,9 +238,9 @@ export default async function CategoryPage({
             <div className="mt-8 sm:mt-12 flex justify-center items-center gap-4">
               {currentPage > 1 && (
                 <Link
-                  href={`/categories/${slug}?page=${currentPage - 1}${
-                    priceRange ? `&priceRange=${priceRange}` : ''
-                  }`}
+                  href={`/categories/${category.slug || category.id}?page=${
+                    currentPage - 1
+                  }${priceRange ? `&priceRange=${priceRange}` : ''}`}
                   className="p-2 rounded-full bg-green-400 hover:bg-green-700 transition-colors"
                   aria-label="Página anterior"
                 >
@@ -224,9 +252,9 @@ export default async function CategoryPage({
               </span>
               {currentPage < totalPages && (
                 <Link
-                  href={`/categories/${slug}?page=${currentPage + 1}${
-                    priceRange ? `&priceRange=${priceRange}` : ''
-                  }`}
+                  href={`/categories/${category.slug || category.id}?page=${
+                    currentPage + 1
+                  }${priceRange ? `&priceRange=${priceRange}` : ''}`}
                   className="p-2 rounded-full bg-green-600 hover:bg-green-700 transition-colors"
                   aria-label="Página siguiente"
                 >

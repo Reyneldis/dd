@@ -1,21 +1,15 @@
+// src/app/layout.tsx
 import { ClientProviders } from '@/components/ClientProviders';
 import AnimatedBackground from '@/components/shared/AnimatedBackground';
 import FooterConditional from '@/components/shared/footer/FooterConditional';
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from 'next-themes';
-import { Onest } from 'next/font/google';
 import NextTopLoader from 'nextjs-toploader';
 import React from 'react';
 import { Toaster } from 'sonner';
 import ClientLayout from './ClientLayout';
 import './globals.css';
-
-const onest = Onest({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-onest',
-});
 
 export const viewport: Viewport = {
   themeColor: [
@@ -75,18 +69,11 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="es" suppressHydrationWarning className={onest.variable}>
+      <html lang="es" suppressHydrationWarning>
         <head>
-          {/* Preconnect para mejorar performance */}
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link
-            rel="preconnect"
-            href="https://fonts.gstatic.com"
-            crossOrigin="anonymous"
-          />
           {/* DNS Prefetch para recursos externos */}
           <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
-          <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+
           {/* Structured Data para SEO */}
           <script
             type="application/ld+json"
@@ -117,9 +104,7 @@ export default function RootLayout({
             }}
           />
         </head>
-        <body
-          className={`${onest.className} min-h-screen relative bg-transparent antialiased`}
-        >
+        <body className="min-h-screen relative bg-transparent antialiased font-sans">
           <ClientProviders>
             <ThemeProvider
               attribute="class"

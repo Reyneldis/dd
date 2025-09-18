@@ -2,13 +2,25 @@
 import { deleteProduct, updateProduct } from '@/lib/dashboard-service';
 import { NextRequest, NextResponse } from 'next/server';
 
+interface UpdateProductData {
+  productName?: string;
+  slug?: string;
+  price?: number;
+  stock?: number;
+  description?: string;
+  features?: string[];
+  status?: 'ACTIVE' | 'INACTIVE';
+  featured?: boolean;
+  categoryId?: string;
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
+    const body = (await request.json()) as UpdateProductData;
 
     const result = await updateProduct(id, body);
 
