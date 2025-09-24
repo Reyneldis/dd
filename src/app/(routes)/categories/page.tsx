@@ -1,3 +1,5 @@
+// src/app/(routes)/categories/page.tsx
+
 import { Badge } from '@/components/ui/badge';
 import {
   Card,
@@ -101,7 +103,9 @@ export default async function CategoriesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           {categories.map((category, index) => {
-            const href = `/categories/${category.slug || ''}`;
+            // Asegurarse de que el slug no sea nulo o undefined
+            const slug = category.slug || category.id;
+            const href = `/categories/${slug}`;
             console.log(
               `Generando enlace para la categoría ${category.categoryName}:`,
               href,
@@ -110,7 +114,9 @@ export default async function CategoriesPage() {
               <Link key={category.id} href={href}>
                 <Card className="group bg-white dark:bg-neutral-800 border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden">
                   <div
-                    className={`bg-gradient-to-r ${getCategoryColor(index)} p-6`}
+                    className={`bg-gradient-to-r ${getCategoryColor(
+                      index,
+                    )} p-6`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-white">

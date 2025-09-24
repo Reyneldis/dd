@@ -1,433 +1,500 @@
+// src/app/(routes)/products/page.tsx
 'use client';
 
-// Agregar esta línea para evitar el renderizado estático
-export const dynamic = 'force-dynamic';
-
+import FilterPanel from '@/components/shared/FilterPanel';
 import ProductCardCompact from '@/components/shared/ProductCard/ProductCardCompact';
-import { Badge } from '@/components/ui/badge';
+import { SearchBar } from '@/components/shared/SearchBar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Category, Product } from '@/types';
-import { Filter, Grid, List, Package, Search, ShoppingBag } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react'; // Importar Suspense
-import { toast } from 'sonner';
+import { useFilterStore } from '@/store/filters';
+import {
+  AlertCircle,
+  CheckCircle,
+  Filter,
+  Grid,
+  List,
+  Loader2,
+  Package,
+  RefreshCw,
+  ShoppingCart,
+  Sparkles,
+  X,
+} from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-// Componente envuelto en Suspense para manejar useSearchParams
-function ProductsContent() {
-  const router = useRouter();
+// Importar el tipo ProductFull
+import { ProductFull } from '@/types/product';
+
+interface ProductWithCategory {
+  id: string;
+  slug: string;
+  productName: string;
+  price: number;
+  stock: number;
+  description?: string | null;
+  features: string[];
+  status: 'ACTIVE' | 'INACTIVE';
+  featured: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  categoryId: string;
+  category: {
+    id: string;
+    categoryName: string;
+    slug: string;
+    description?: string | null;
+    mainImage?: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  images: Array<{
+    id: string;
+    url: string;
+    alt: string | null;
+    sortOrder: number;
+    isPrimary?: boolean;
+  }>;
+}
+
+export default function ProductsPage() {
   const searchParams = useSearchParams();
-  // Obtener el parámetro de categoría directamente
-  const categoryParam = searchParams.get('category');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const {
+    searchQuery,
+    category,
+    minPrice,
+    maxPrice,
+    sortBy,
+    inStock,
+    onSale,
+    setSearchQuery,
+    setCategory,
+    setMinPrice,
+    setMaxPrice,
+    resetFilters,
+  } = useFilterStore();
+  const [products, setProducts] = useState<ProductWithCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>(
-    categoryParam || 'all',
-  );
-  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [sortBy, setSortBy] = useState<'name' | 'price' | 'featured'>(
-    'featured',
-  );
-  // Estados para paginación
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
-  const productsPerPage = viewMode === 'grid' ? 12 : 6;
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFirstRender, setIsFirstRender] = useState(true);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
 
-  // Actualizar la URL cuando cambia la categoría
+  // Sincronizar los filtros con los parámetros de la URL
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (selectedCategory === 'all') {
-      params.delete('category');
-    } else {
-      params.set('category', selectedCategory);
+    const categoryParam = searchParams.get('category');
+    const searchParam = searchParams.get('q');
+    const minPriceParam = searchParams.get('minPrice');
+    const maxPriceParam = searchParams.get('maxPrice');
+
+    if (categoryParam) setCategory(categoryParam);
+    if (searchParam) setSearchQuery(searchParam);
+    if (minPriceParam) setMinPrice(Number(minPriceParam));
+    if (maxPriceParam) setMaxPrice(Number(maxPriceParam));
+  }, [searchParams, setCategory, setSearchQuery, setMinPrice, setMaxPrice]);
+
+  // Construir URL de búsqueda con parámetros
+  const searchUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (searchQuery) params.append('q', searchQuery);
+    if (category) params.append('category', category);
+    if (minPrice !== null) params.append('minPrice', minPrice.toString());
+    if (maxPrice !== null) params.append('maxPrice', maxPrice.toString());
+    params.append('sortBy', sortBy);
+    params.append('inStock', inStock.toString());
+    params.append('onSale', onSale.toString());
+    return `/api/products/search?${params.toString()}`;
+  }, [searchQuery, category, minPrice, maxPrice, sortBy, inStock, onSale]);
+
+  // Obtener productos
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(searchUrl);
+      if (!response.ok) throw new Error('Error al cargar productos');
+      const data = await response.json();
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setError('Error al cargar productos. Por favor, intenta de nuevo.');
+      setProducts([]);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
     }
-    const newUrl = `/products${
-      params.toString() ? `?${params.toString()}` : ''
-    }`;
-    router.replace(newUrl);
-  }, [selectedCategory, router, searchParams]);
+  }, [searchUrl]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Obtener productos
-        let productsData = { data: [], total: 0 };
-        try {
-          const productsResponse = await fetch(`/api/products?limit=100`, {
-            cache: 'no-store',
-            headers: { 'Cache-Control': 'no-cache' },
-          });
+    fetchProducts();
+  }, [fetchProducts]);
 
-          if (productsResponse && productsResponse.ok) {
-            productsData = await productsResponse.json();
-          }
-        } catch (error) {
-          console.error('Error cargando productos:', error);
-        }
+  // Refrescar productos
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    fetchProducts();
+  }, [fetchProducts]);
 
-        // Obtener categorías
-        let categoriesData = { categories: [] };
-        try {
-          const categoriesResponse = await fetch('/api/categories', {
-            cache: 'force-cache',
-          });
-
-          if (categoriesResponse && categoriesResponse.ok) {
-            categoriesData = await categoriesResponse.json();
-          }
-        } catch (error) {
-          console.error('Error cargando categorías:', error);
-        }
-
-        // Actualizar estado con los datos obtenidos
-        setProducts(productsData.data || []);
-        setCategories(categoriesData.categories || []);
-        setTotalProducts(productsData.total || productsData.data?.length || 0);
-
-        // Mostrar error solo si ambas peticiones fallaron
-        if (!productsData.data?.length && !categoriesData.categories?.length) {
-          toast.error('Error al cargar los datos');
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        toast.error('Error al cargar los datos');
-      } finally {
-        setLoading(false);
+  // Cerrar filtros en móvil al cambiar de tamaño de pantalla
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setShowFilters(false);
       }
     };
-
-    fetchData();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const filteredProducts = products.filter(product => {
-    const matchesCategory =
-      selectedCategory === 'all' || product.category?.slug === selectedCategory;
-    const matchesSearch =
-      product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.description?.toLowerCase() || '').includes(
-        searchTerm.toLowerCase(),
-      );
-    return matchesCategory && matchesSearch;
-  });
-
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    switch (sortBy) {
-      case 'name':
-        return a.productName.localeCompare(b.productName);
-      case 'price':
-        return a.price - b.price;
-      case 'featured':
-        return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
-      default:
-        return 0;
+  // Controlar la animación del panel de filtros
+  useEffect(() => {
+    if (isFirstRender) {
+      setIsFirstRender(false);
+      return;
     }
-  });
+    if (showFilters && window.innerWidth < 768 && filterPanelRef.current) {
+      filterPanelRef.current.classList.add('animate-slideLeft');
+      const timeoutId = setTimeout(() => {
+        if (filterPanelRef.current) {
+          filterPanelRef.current.classList.remove('animate-slideLeft');
+        }
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [showFilters, isFirstRender]);
 
-  // Calcular productos para la página actual
-  const indexOfLastProduct = currentPage * productsPerPage;
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = sortedProducts.slice(
-    indexOfFirstProduct,
-    indexOfLastProduct,
+  // Resetear filtros
+  const handleResetFilters = useCallback(() => {
+    resetFilters();
+    setError(null);
+    setIsFiltering(true);
+    setTimeout(() => setIsFiltering(false), 500);
+  }, [resetFilters]);
+
+  // En tu archivo src/app/(routes)/products/page.tsx, modifica la función transformToProductFull:
+
+  // src/app/(routes)/products/page.tsx
+
+  const transformToProductFull = useCallback(
+    (product: ProductWithCategory): ProductFull => {
+      const reviewCount = 0; // Por defecto 0
+      const orderItemsCount = 0; // Por defecto 0
+
+      // Obtener la imagen primaria o la primera imagen como fallback
+      const primaryImage =
+        product.images.find(img => img.isPrimary) || product.images[0];
+
+      // Usar directamente la URL de la imagen primaria o la imagen por defecto
+      const imageUrl = primaryImage?.url || '/img/placeholder-product.jpg';
+
+      console.log('Producto:', product.productName, 'URL de imagen:', imageUrl);
+
+      return {
+        id: product.id,
+        slug: product.slug,
+        productName: product.productName,
+        price: product.price,
+        stock: product.stock,
+        description: product.description,
+        features: product.features || [],
+        status: product.status,
+        featured: product.featured,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+        categoryId: product.categoryId,
+        category: {
+          id: product.category.id,
+          categoryName: product.category.categoryName,
+          slug: product.category.slug,
+          description: product.category.description,
+          mainImage: product.category.mainImage,
+          createdAt: product.category.createdAt,
+          updatedAt: product.category.updatedAt,
+        },
+        images: product.images.map((img, index) => ({
+          id: img.id || `img-${product.id}-${index}`,
+          url: img.url || '/img/placeholder-category.jpg',
+          alt: img.alt || null,
+          sortOrder: img.sortOrder || index,
+          isPrimary: img.isPrimary || index === 0,
+          createdAt: new Date(),
+        })),
+        reviews: [],
+        _count: {
+          reviews: reviewCount,
+          orderItems: orderItemsCount,
+        },
+        reviewCount, // Añadir explícitamente la propiedad
+        image: imageUrl, // Usar directamente la URL de la imagen primaria
+      };
+    },
+    [],
   );
-  const totalPages = Math.ceil(sortedProducts.length / productsPerPage);
 
-  const clearFilters = () => {
-    setSelectedCategory('all');
-    setSearchTerm('');
-    setCurrentPage(1);
-  };
-
-  // Función para mostrar el nombre de la categoría de forma segura
-  const renderCategoryName = (category: Category) => {
-    return category.categoryName || category.slug || `Categoría ${category.id}`;
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen grid place-content-center items-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-300">
-              Cargando productos...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Contador de productos filtrados
+  const productCount = useMemo(() => {
+    return products.length;
+  }, [products]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="text-center pt-3.5">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-              Nuestros Productos
-            </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              Explora nuestra amplia gama de productos de alta calidad.
-              Encuentra exactamente lo que necesitas con nuestros filtros
-              inteligentes.
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24">
-        {/* Filtros y controles */}
-        <Card className="bg-white dark:bg-neutral-800 border-0 shadow-xl rounded-2xl mb-8">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-              {/* Búsqueda */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar productos..."
-                  value={searchTerm}
-                  onChange={e => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-neutral-700 dark:text-white"
-                />
-              </div>
-              {/* Filtros */}
-              <div className="flex flex-wrap gap-3">
-                {/* Filtro por categoría */}
-                <select
-                  value={selectedCategory}
-                  onChange={e => {
-                    setSelectedCategory(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="px-4 py-2 border border-gray-300 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-neutral-700 dark:text-white"
-                >
-                  <option value="all">
-                    Todas las categorías ({totalProducts})
-                  </option>
-                  {categories.map(category => (
-                    <option key={category.id} value={category.slug}>
-                      {renderCategoryName(category)}
-                    </option>
-                  ))}
-                </select>
-                {/* Ordenar por */}
-                <select
-                  value={sortBy}
-                  onChange={e => {
-                    setSortBy(e.target.value as 'name' | 'price' | 'featured');
-                    setCurrentPage(1);
-                  }}
-                  className="px-4 py-2 border border-gray-300 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-neutral-700 dark:text-white"
-                >
-                  <option value="featured">Destacados</option>
-                  <option value="name">Nombre A-Z</option>
-                  <option value="price">Precio</option>
-                </select>
-                {/* Vista */}
-                <div className="flex border border-gray-300 dark:border-neutral-600 rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => {
-                      setViewMode('grid');
-                      setCurrentPage(1);
-                    }}
-                    className={`px-3 py-2 ${
-                      viewMode === 'grid'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white dark:bg-neutral-700 text-gray-600 dark:text-gray-300'
-                    }`}
-                  >
-                    <Grid className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setViewMode('list');
-                      setCurrentPage(1);
-                    }}
-                    className={`px-3 py-2 ${
-                      viewMode === 'list'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white dark:bg-neutral-700 text-gray-600 dark:text-gray-300'
-                    }`}
-                  >
-                    <List className="h-4 w-4" />
-                  </button>
-                </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white/65 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="container mx-auto px-4 py-8">
+        {/* Encabezado */}
+        <div className="mb-10 text-center  animate-fadeIn">
+          <div className="inline-flex items-center justify-center mb-4">
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1 rounded-full">
+              <div className="bg-white dark:bg-gray-800 rounded-full p-2">
+                <Package className="h-8 w-8 text-blue-500" />
               </div>
             </div>
-          </CardContent>
-        </Card>
-        {/* Estadísticas */}
-        <div className="mb-8">
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Badge variant="secondary" className="px-4 py-2 text-sm">
-              <Package className="h-4 w-4 mr-2" />
-              {sortedProducts.length} productos encontrados
-            </Badge>
-            {selectedCategory !== 'all' && (
-              <Badge variant="outline" className="px-4 py-2 text-sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filtrado por categoría
-              </Badge>
-            )}
-            {searchTerm && (
-              <Badge variant="outline" className="px-4 py-2 text-sm">
-                <Search className="h-4 w-4 mr-2" />
-                Búsqueda: &quot;{searchTerm}&quot;
-              </Badge>
-            )}
           </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3 tracking-tight">
+            Nuestros Productos
+          </h1>
+          <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+            Descubre nuestra selección de productos de alta calidad con filtros
+            avanzados para encontrar exactamente lo que buscas.
+          </p>
         </div>
-        {/* Grid de productos */}
-        {currentProducts.length > 0 ? (
-          <>
-            <div
-              className={
-                viewMode === 'grid'
-                  ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6'
-                  : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-              }
-            >
-              {currentProducts.map(product => (
-                <div key={product.id}>
-                  <ProductCardCompact product={product} />
-                </div>
-              ))}
-            </div>
-            {/* Paginación */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center space-x-2 mt-8">
-                <Button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  variant="outline"
-                  className="flex items-center gap-1"
-                >
-                  Anterior
-                </Button>
-                <div className="flex space-x-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let page;
-                    if (totalPages <= 5) {
-                      page = i + 1;
-                    } else if (currentPage <= 3) {
-                      page = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      page = totalPages - 4 + i;
-                    } else {
-                      page = currentPage - 2 + i;
-                    }
-                    return (
-                      <Button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        variant={currentPage === page ? 'default' : 'outline'}
-                        className="w-10 h-10"
-                      >
-                        {page}
-                      </Button>
-                    );
-                  })}
-                </div>
-                <Button
-                  onClick={() =>
-                    setCurrentPage(prev => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  variant="outline"
-                  className="flex items-center gap-1"
-                >
-                  Siguiente
-                </Button>
+
+        {/* Mensaje de error */}
+        {error && (
+          <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 p-4 rounded-lg animate-slideDown shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
+                <p className="text-red-700 dark:text-red-300 font-medium">
+                  {error}
+                </p>
               </div>
-            )}
-          </>
-        ) : (
-          <Card className="bg-white dark:bg-neutral-800 border-0 shadow-xl rounded-2xl">
-            <CardContent className="p-12 text-center">
-              <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                No se encontraron productos
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
-                Intenta ajustar los filtros o términos de búsqueda
-              </p>
               <Button
-                onClick={clearFilters}
-                className="bg-blue-500 hover:bg-blue-600"
+                variant="ghost"
+                size="sm"
+                onClick={() => setError(null)}
+                className="text-red-500 hover:text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/20"
               >
-                Limpiar filtros
+                <X className="h-4 w-4" />
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
-        {/* Call to Action */}
-        <div className="mt-16 text-center">
-          <Card className="bg-gradient-to-r from-blue-500 to-purple-600 border-0 shadow-xl rounded-2xl">
-            <CardContent className="p-8">
-              <div className="flex items-center justify-center gap-4 mb-4">
-                <ShoppingBag className="h-8 w-8 text-white" />
-                <h3 className="text-2xl font-bold text-white">
-                  ¿No encuentras lo que buscas?
-                </h3>
+
+        {/* Indicador de filtros activos */}
+        {(searchQuery ||
+          category ||
+          minPrice !== null ||
+          maxPrice !== null ||
+          inStock ||
+          onSale) && (
+          <div className="mb-6 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800/30">
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 text-blue-500 mr-2" />
+              <span className="text-blue-700 dark:text-blue-300 font-medium">
+                Filtros activos
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleResetFilters}
+              className="text-blue-500 hover:text-blue-700 dark:text-blue-300"
+            >
+              Limpiar filtros
+            </Button>
+          </div>
+        )}
+
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar con filtros */}
+          <div
+            ref={filterPanelRef}
+            className={`${showFilters ? 'block' : 'hidden'} lg:block lg:w-1/4`}
+          >
+            <FilterPanel />
+          </div>
+
+          {/* Contenido principal */}
+          <div className="lg:w-3/4">
+            {/* Barra de búsqueda y controles */}
+            <div className="mb-6 flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <SearchBar />
               </div>
-              <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
-                Nuestro equipo está aquí para ayudarte. Contáctanos y te
-                ayudaremos a encontrar exactamente lo que necesitas.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/contact">
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    className="bg-white text-blue-600 hover:bg-gray-100 font-semibold"
-                  >
-                    Contactar Soporte
-                  </Button>
-                </Link>
-                <Link href="/categories">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="lg:hidden bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700"
+                >
+                  <Filter className="h-4 w-4 mr-1 text-blue-500" />
+                  Filtros
+                </Button>
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  aria-label="Vista de cuadrícula"
+                  className={
+                    viewMode === 'grid'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600'
+                      : 'bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700'
+                  }
+                >
+                  <Grid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  aria-label="Vista de lista"
+                  className={
+                    viewMode === 'list'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600'
+                      : 'bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700'
+                  }
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={loading || isRefreshing}
+                  aria-label="Refrescar productos"
+                  className="bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${
+                      isRefreshing
+                        ? 'animate-spin text-blue-500'
+                        : 'text-blue-500'
+                    }`}
+                  />
+                </Button>
+              </div>
+            </div>
+
+            {/* Contador de resultados */}
+            <div className="mb-4 text-sm text-muted-foreground flex justify-between items-center">
+              {loading ? (
+                <span className="flex items-center">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2 text-blue-500" />
+                  <span className="text-blue-600 dark:text-blue-400">
+                    Buscando productos...
+                  </span>
+                </span>
+              ) : (
+                <span className="font-medium text-blue-600 dark:text-blue-400 flex items-center">
+                  {isFiltering && (
+                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  )}
+                  {productCount}{' '}
+                  {productCount === 1
+                    ? 'producto encontrado'
+                    : 'productos encontrados'}
+                </span>
+              )}
+              {productCount > 0 && (
+                <span className="text-xs bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 px-2 py-1 rounded-full text-blue-700 dark:text-blue-300">
+                  {viewMode === 'grid' ? 'Vista cuadrícula' : 'Vista lista'}
+                </span>
+              )}
+            </div>
+
+            {/* Resultados */}
+            {loading ? (
+              <div className="flex justify-center items-center py-16">
+                <div className="text-center">
+                  <div className="relative">
+                    <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Sparkles className="h-6 w-6 text-purple-500 animate-pulse" />
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">Cargando productos...</p>
+                </div>
+              </div>
+            ) : productCount === 0 ? (
+              <div className="text-center py-16 bg-gradient-to-br from-white to-blue-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-blue-100 dark:border-gray-700 animate-fadeIn">
+                <div className="mb-6">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 mb-4">
+                    <Filter className="h-10 w-10 text-blue-500" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-semibold text-foreground mb-3">
+                  No se encontraron productos
+                </h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  No hay productos que coincidan con los filtros seleccionados.
+                  Intenta ajustar tus criterios de búsqueda.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Button
                     variant="outline"
-                    size="lg"
-                    className="border-white text-black hover:bg-white hover:text-blue-600 font-semibold"
+                    onClick={handleResetFilters}
+                    className="px-6 bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700"
                   >
-                    Ver por Categorías
+                    Limpiar filtros
                   </Button>
-                </Link>
+                  <Button
+                    onClick={handleRefresh}
+                    className="px-6 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                  >
+                    Reintentar
+                  </Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            ) : (
+              <div
+                className={
+                  viewMode === 'grid'
+                    ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6'
+                    : 'space-y-4'
+                }
+              >
+                {products.map((product, index) => {
+                  const animationDelay = `${index * 0.05}s`;
+                  const transformedProduct = transformToProductFull(product);
+
+                  // Verificación de seguridad para asegurar que el producto transformado sea válido
+                  if (!transformedProduct || !transformedProduct.id) {
+                    console.warn(
+                      'Producto transformado inválido:',
+                      transformedProduct,
+                    );
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      key={product.id}
+                      className="h-full animate-fadeIn"
+                      style={{ animationDelay }}
+                    >
+                      <ProductCardCompact product={transformedProduct} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Pie de página */}
+        <div className="mt-16 text-center text-sm text-muted-foreground">
+          <div className="inline-flex items-center justify-center mb-2">
+            <ShoppingCart className="h-4 w-4 mr-2 text-blue-500" />
+            <span>Encuentra los mejores productos al mejor precio</span>
+          </div>
+          <p className="text-xs">
+            © {new Date().getFullYear()} Delivery Express. Todos los derechos
+            reservados.
+          </p>
         </div>
       </div>
     </div>
-  );
-}
-
-// Componente principal que envuelve en Suspense
-export default function ProductsPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen grid place-content-center items-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-300">
-                Cargando productos...
-              </p>
-            </div>
-          </div>
-        </div>
-      }
-    >
-      <ProductsContent />
-    </Suspense>
   );
 }

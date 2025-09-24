@@ -1,7 +1,7 @@
 'use client';
-
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/hooks/use-cart';
+import { OrderResponse } from '@/types/index'; // Importar los tipos necesarios
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -30,14 +30,12 @@ type CheckoutFormData = z.infer<typeof checkoutFormSchema>;
 
 export default function CheckoutForm() {
   const { items, clearCart } = useCart();
-
   const total = items.reduce(
     (acc, item) => acc + item.price * item.quantity,
     0,
   );
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const {
     register,
     handleSubmit,
@@ -45,31 +43,41 @@ export default function CheckoutForm() {
     formState: { errors },
   } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutFormSchema),
+    defaultValues: {
+      shippingAddress: {
+        country: 'Cuba',
+      },
+    },
   });
-
   const formData = watch();
+
   // Construye el mensaje de WhatsApp con los datos actuales del formulario y carrito
-  const buildWhatsappMessage = () => {
-    return `Nuevo Pedido:\n\nNombre: ${formData.contactInfo?.name || ''}\nTeléfono: ${formData.contactInfo?.phone || ''}\nEmail: ${formData.contactInfo?.email || ''}\nDirección: ${formData.shippingAddress?.street || ''}, ${formData.shippingAddress?.city || ''}\n\nProductos:\n${items
+  const buildWhatsappMessage = (): string => {
+    return `Nuevo Pedido:\n\nNombre: ${ 
+      formData.contactInfo?.name || ''
+    }\nTeléfono: ${formData.contactInfo?.phone || ''}\nEmail: ${ 
+      formData.contactInfo?.email || ''
+    }\nDirección: ${formData.shippingAddress?.street || ''}, ${ 
+      formData.shippingAddress?.city || ''
+    }\n\nProductos:\n${items
       .map(item => `${item.quantity}x ${item.productName} - $${item.price}`)
-      .join(
-        '\n',
-      )}\n\nTotal: $${total.toFixed(2)}\n\nNotas: ${formData.notes || ''}`;
+      .join('\n')}\n\nTotal: $${total.toFixed(2)}\n\nNotas: ${ 
+      formData.notes || ''
+    }`;
   };
+
   // Enlace del botón manual de WhatsApp: apunta al primer admin si está configurado
-  const adminButtonHref = (() => {
+  const adminButtonHref = (): string => {
     const adminNumbersEnv = process.env.NEXT_PUBLIC_WHATSAPP_ADMINS || '';
     const adminNumbers = adminNumbersEnv
       .split(',')
       .map(n => n.trim())
       .filter(n => n.length > 0);
-    const firstAdmin = adminNumbers[0];
-    const base = firstAdmin
-      ? `https://wa.me/${firstAdmin.replace(/\D/g, '')}`
-      : 'https://wa.me/';
+    const firstAdmin = adminNumbers[0] || '+535358134753'; // Fallback
+    const base = `https://wa.me/${firstAdmin.replace(/\D/g, '')}`;
     const message = buildWhatsappMessage();
     return `${base}?text=${encodeURIComponent(message)}`;
-  })();
+  };
 
   const onSubmit = async (data: CheckoutFormData) => {
     const { contactInfo, shippingAddress } = data;
@@ -99,48 +107,79 @@ export default function CheckoutForm() {
         body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
+      // Verificar si la respuesta es JSON
+      const contentType = response.headers.get('content-type');
+      let result: OrderResponse;
+
+      if (contentType && contentType.includes('application/json')) {
+        result = (await response.json()) as OrderResponse;
+      } else {
+        // Si no es JSON, obtener como texto
+        const text = await response.text();
+        throw new Error(`Respuesta no válida: ${text}`);
+      }
 
       if (!response.ok) {
         throw new Error(result.error || 'Hubo un problema al crear tu pedido.');
       }
 
       toast.dismiss();
-      toast.success('¡Pedido realizado con éxito!');
+
+      // MANEJO DE LA INFORMACIÓN DEL ESTADO DEL CORREO
+      const emailSent = result.emailSent || false;
+      const emailError = result.emailError || null;
+      const orderNumber = result.order?.orderNumber || '';
+
+      if (emailSent) {
+        toast.success(
+          `¡Pedido realizado con éxito! Revisa tu correo para la confirmación. Número de pedido: ${orderNumber}`,
+        );
+      } else {
+        toast.success(
+          `¡Pedido realizado con éxito! Número de pedido: ${orderNumber}`,
+          {
+            duration: 6000,
+          },
+        );
+
+        // Mostrar una notificación adicional sobre el error del correo
+        if (emailError) {
+          console.error('Error de correo:', emailError);
+          toast.error(
+            `No se pudo enviar el correo de confirmación: ${emailError}`,
+            {
+              duration: 8000, // Mostrar por más tiempo
+            },
+          );
+        } else {
+          toast.error(
+            'No se pudo enviar el correo de confirmación. Por favor, contacta con soporte.',
+            {
+              duration: 8000,
+            },
+          );
+        }
+      }
 
       // Notificación por WhatsApp (cliente) a admins vía wa.me si está configurado
       try {
-        const adminNumbersEnv = process.env.NEXT_PUBLIC_WHATSAPP_ADMINS || '';
-        const adminNumbers = adminNumbersEnv
-          .split(',')
-          .map(n => n.trim())
-          .filter(n => n.length > 0);
-
-        if (adminNumbers.length > 0) {
-          const total = items.reduce(
-            (acc, item) => acc + item.price * item.quantity,
-            0,
-          );
-          const message =
-            `🛒 NUEVO PEDIDO ${result?.orderNumber || ''}\n\n` +
-            `👤 Cliente: ${contactInfo.name}\n` +
-            `📞 Tel: ${contactInfo.phone}\n` +
-            `✉️ Email: ${contactInfo.email}\n` +
-            `📍 Dirección: ${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip || ''}\n\n` +
-            `🧾 Productos:\n${items.map(it => `• ${it.productName} x${it.quantity} - $${(it.price * it.quantity).toFixed(2)}`).join('\n')}\n\n` +
-            `💰 Total: $${total.toFixed(2)}`;
-
-          adminNumbers.forEach((num, idx) => {
-            const url = `https://wa.me/${num.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
-            setTimeout(() => window.open(url, '_blank'), idx * 400);
+        const whatsappLinks = result.whatsappLinks || [];
+        if (whatsappLinks.length > 0) {
+          whatsappLinks.forEach((link, idx) => {
+            setTimeout(() => window.open(link, '_blank'), idx * 400);
           });
         }
-      } catch {
+      } catch (error) {
+        console.error('Error al abrir WhatsApp:', error);
         // Ignorar errores de apertura de ventanas
       }
 
       clearCart();
-      router.push('/');
+
+      // Redirigir al usuario después de un breve retraso para que pueda ver las notificaciones
+      setTimeout(() => {
+        router.push('/');
+      }, 3000);
     } catch (error) {
       console.error('Error al enviar el formulario:', error);
       toast.dismiss();
@@ -155,7 +194,6 @@ export default function CheckoutForm() {
   };
 
   // Mensaje manual ya integrado en adminButtonHref a través de buildWhatsappMessage()
-
   if (items.length === 0) {
     return (
       <div className="text-center py-12">
@@ -193,7 +231,6 @@ export default function CheckoutForm() {
           </div>
         </div>
       </div>
-
       <div>
         <h2 className="text-2xl font-bold mb-6">Información de Envío</h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -208,7 +245,7 @@ export default function CheckoutForm() {
               id="contactInfo.name"
               {...register('contactInfo.name')}
               placeholder="Ana Martínez"
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.contactInfo?.name && (
               <p className="text-red-500 text-sm mt-1">
@@ -216,7 +253,6 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-
           <div className="space-y-1">
             <label
               htmlFor="contactInfo.email"
@@ -226,9 +262,10 @@ export default function CheckoutForm() {
             </label>
             <input
               id="contactInfo.email"
+              type="email"
               {...register('contactInfo.email')}
               placeholder="ana.martinez@correo.com"
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.contactInfo?.email && (
               <p className="text-red-500 text-sm mt-1">
@@ -236,7 +273,6 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-
           <div className="space-y-1">
             <label
               htmlFor="contactInfo.phone"
@@ -246,9 +282,10 @@ export default function CheckoutForm() {
             </label>
             <input
               id="contactInfo.phone"
+              type="tel"
               {...register('contactInfo.phone')}
               placeholder="55551234"
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.contactInfo?.phone && (
               <p className="text-red-500 text-sm mt-1">
@@ -256,7 +293,6 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-
           <div className="space-y-1">
             <label
               htmlFor="shippingAddress.street"
@@ -268,7 +304,7 @@ export default function CheckoutForm() {
               id="shippingAddress.street"
               {...register('shippingAddress.street')}
               placeholder="Avenida de la Independencia #456"
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.shippingAddress?.street && (
               <p className="text-red-500 text-sm mt-1">
@@ -276,7 +312,6 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-
           <div className="space-y-1">
             <label
               htmlFor="shippingAddress.city"
@@ -288,7 +323,7 @@ export default function CheckoutForm() {
               id="shippingAddress.city"
               {...register('shippingAddress.city')}
               placeholder="La Habana"
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.shippingAddress?.city && (
               <p className="text-red-500 text-sm mt-1">
@@ -296,7 +331,6 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-
           <div className="space-y-1">
             <label
               htmlFor="shippingAddress.state"
@@ -308,7 +342,7 @@ export default function CheckoutForm() {
               id="shippingAddress.state"
               {...register('shippingAddress.state')}
               placeholder="Plaza de la Revolución"
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.shippingAddress?.state && (
               <p className="text-red-500 text-sm mt-1">
@@ -316,7 +350,6 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-
           <div className="space-y-1">
             <label
               htmlFor="shippingAddress.zip"
@@ -328,7 +361,7 @@ export default function CheckoutForm() {
               id="shippingAddress.zip"
               {...register('shippingAddress.zip')}
               placeholder="10600"
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.shippingAddress?.zip && (
               <p className="text-red-500 text-sm mt-1">
@@ -336,7 +369,6 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-
           <div className="space-y-1">
             <label
               htmlFor="notes"
@@ -348,29 +380,29 @@ export default function CheckoutForm() {
               id="notes"
               {...register('notes')}
               placeholder="Entregar después de las 2 PM, por favor."
-              className="w-full px-3 py-2 border rounded-md"
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-semibold transition-colors disabled:bg-gray-400"
           >
             {isSubmitting ? 'Procesando...' : 'Finalizar Compra'}
           </Button>
           <a
-            href={adminButtonHref}
+            href={adminButtonHref()}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block w-full"
           >
-            <Button
+            {/* <Button
               type="button"
-              className="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4"
+              className="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-md font-semibold transition-colors"
             >
               O Enviar por WhatsApp
-            </Button>
+            </Button> */}
           </a>
         </form>
       </div>

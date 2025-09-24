@@ -1,3 +1,4 @@
+// src/app/api/products/route.ts
 import { requireRole } from '@/lib/auth-guard';
 import { prisma } from '@/lib/prisma';
 import { productSchema } from '@/schemas/productSchema';
@@ -20,7 +21,6 @@ export async function GET(request: NextRequest) {
     };
 
     if (category) {
-      console.log('Filtro por categoría (slug):', category);
       where.category = {
         slug: category,
       };
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
 
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
+
     if (minPrice || maxPrice) {
       where.price = {};
       if (minPrice) where.price.gte = Number(minPrice);
@@ -53,8 +54,11 @@ export async function GET(request: NextRequest) {
           description: true,
           stock: true,
           features: true,
+          status: true,
+          featured: true,
           createdAt: true,
           updatedAt: true,
+          categoryId: true,
           category: {
             select: {
               id: true,
@@ -70,6 +74,17 @@ export async function GET(request: NextRequest) {
               url: true,
               alt: true,
               isPrimary: true,
+              sortOrder: true,
+              createdAt: true,
+            },
+          },
+          _count: {
+            select: {
+              reviews: {
+                where: {
+                  isApproved: true,
+                },
+              },
             },
           },
         },
@@ -82,16 +97,15 @@ export async function GET(request: NextRequest) {
       prisma.product.count({ where }),
     ]);
 
-    console.log('Productos encontrados:', products.length, 'Total:', total);
-
-    // Convertir precios de Decimal a number
+    // Convertir precios de Decimal a number y agregar reviewCount
     const productsWithNumberPrice = products.map(product => ({
       ...product,
       price: Number(product.price),
+      reviewCount: product._count.reviews,
     }));
 
     const response = NextResponse.json({
-      data: productsWithNumberPrice, // Cambiar a 'data' para consistencia con la página de categorías
+      data: productsWithNumberPrice,
       pagination: {
         page,
         limit,
@@ -99,7 +113,6 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit),
       },
     });
-
     return response;
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -113,10 +126,9 @@ export async function GET(request: NextRequest) {
 // POST /api/products - Crear un nuevo producto (solo admin)
 export async function POST(request: NextRequest) {
   try {
-    // CORRECCIÓN: Pasar el objeto request como primer parámetro
-    await requireRole(request, ['ADMIN']);
-
+    await requireRole(['ADMIN']);
     const body = await request.json();
+
     // Validar con Zod
     const result = productSchema.safeParse(body);
     if (!result.success) {
@@ -142,6 +154,7 @@ export async function POST(request: NextRequest) {
     const existingProduct = await prisma.product.findUnique({
       where: { slug },
     });
+
     if (existingProduct) {
       return NextResponse.json(
         { error: 'Ya existe un producto con este slug' },
@@ -153,6 +166,7 @@ export async function POST(request: NextRequest) {
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
     });
+
     if (!category) {
       return NextResponse.json(
         { error: 'La categoría especificada no existe' },

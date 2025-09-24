@@ -6,76 +6,74 @@ import { useState } from 'react';
 interface CategoryImageProps
   extends Omit<ImageProps, 'src' | 'alt' | 'onError'> {
   src: string;
-  alt: string;
+  alt?: string; // Hacer alt opcional con valor por defecto
   fallback?: string;
 }
 
 export default function CategoryImage({
   src,
-  alt,
+  alt = 'Imagen de categoría', // Valor por defecto
   fallback = '/img/placeholder-category.jpg',
   ...props
 }: CategoryImageProps) {
   const [imgSrc, setImgSrc] = useState(src);
   const [hasError, setHasError] = useState(false);
 
-  // Construir la URL completa para depuración
   const getImageUrl = (imageSrc: string) => {
-    console.log(`Procesando URL de imagen: ${imageSrc}`);
-
-    // Si la imagen ya es una URL completa, devolverla tal cual
     if (imageSrc.startsWith('http://') || imageSrc.startsWith('https://')) {
       return imageSrc;
     }
-
-    // Si la imagen es el placeholder, devolverla tal cual
     if (imageSrc === '/img/placeholder-category.jpg') {
       return imageSrc;
     }
-
-    // Si la imagen comienza con /img/, devolverla tal cual
-    if (imageSrc.startsWith('/img/')) {
+    if (
+      imageSrc.startsWith('/img/') ||
+      imageSrc.startsWith('/uploads/') ||
+      imageSrc.startsWith('/api/')
+    ) {
       return imageSrc;
     }
-
-    // Si la imagen comienza con /uploads/, devolverla tal cual
-    if (imageSrc.startsWith('/uploads/')) {
-      return imageSrc;
-    }
-
-    // Si la imagen comienza con /api/, devolverla tal cual
-    if (imageSrc.startsWith('/api/')) {
-      return imageSrc;
-    }
-
-    // Si no, construir la URL usando la API
-    const apiUrl = `/api/images/${imageSrc.replace(/^\//, '')}`;
-    console.log(`URL construida para la API: ${apiUrl}`);
-    return apiUrl;
+    return `/api/images/${imageSrc.replace(/^\//, '')}`;
   };
 
   const handleError = () => {
-    console.error(`Error al cargar la imagen: ${imgSrc}`);
     if (!hasError) {
       setImgSrc(fallback);
       setHasError(true);
     }
   };
 
+  // Generar texto alt descriptivo basado en la URL si no se proporciona
+  const generateAltText = () => {
+    if (alt && alt !== 'Imagen de categoría') return alt;
+
+    // Intentar extraer el nombre del archivo para un alt más descriptivo
+    const filename = src.split('/').pop()?.split('.')[0] || '';
+    if (filename) {
+      return `Imagen de ${filename.replace(/[-_]/g, ' ')}`;
+    }
+
+    return 'Imagen de categoría';
+  };
+
+  const altText = generateAltText();
+
   return (
-    <>
+    <div className="relative w-full h-full">
       {hasError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-red-100 z-10">
-          <p className="text-red-500 text-xs p-2">Error al cargar imagen</p>
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10 rounded">
+          <p className="text-gray-500 text-xs p-2">Imagen no disponible</p>
         </div>
       )}
       <Image
         {...props}
         src={getImageUrl(imgSrc)}
-        alt={alt}
+        alt={altText}
+        fill
         onError={handleError}
-        unoptimized={imgSrc.startsWith('/api/')} // Desactivar optimización para imágenes de la API
+        className="object-cover"
+        unoptimized={imgSrc.startsWith('/api/')}
       />
-    </>
+    </div>
   );
 }

@@ -1,4 +1,6 @@
-export type ProductFull = {
+// En tu archivo src/types/index.ts, modifica la interfaz ProductFull para incluir reviewCount:
+
+export interface ProductFull {
   id: string;
   slug: string;
   productName: string;
@@ -28,6 +30,10 @@ export type ProductFull = {
     isPrimary: boolean;
     createdAt: Date;
   }>;
+  _count?: {
+    orderItems?: number;
+    reviews?: number;
+  };
   reviews?: Array<{
     id: string;
     rating: number;
@@ -38,4 +44,8 @@ export type ProductFull = {
     userId: string;
     productId: string;
   }>;
-};
+  reviewCount?: number; // Asegúrate de tener esta propiedad
+  rating?: number;
+  sold?: number;
+  image?: string; // Asegúrate de tener esta propiedad
+}

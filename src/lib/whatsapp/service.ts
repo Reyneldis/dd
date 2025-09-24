@@ -1,8 +1,11 @@
 // Servicio para enviar mensajes por WhatsApp (WhatsApp Cloud API)
-// Requiere variables de entorno:
-// - WHATSAPP_ACCESS_TOKEN
-// - WHATSAPP_PHONE_NUMBER_ID
-// - WHATSAPP_ADMIN_NUMBERS (lista separada por comas con prefijo de país, sin símbolos)
+// Usa configuración centralizada desde config.ts
+
+import {
+  formatPhoneForWhatsApp,
+  getWhatsAppConfig,
+  isWhatsAppCloudAPIConfigured,
+} from './config';
 
 type OrderItemSummary = {
   productName: string;
@@ -29,36 +32,26 @@ type OrderForWhatsApp = {
   items: Array<OrderItemSummary>;
 };
 
-function getEnv(name: string): string | undefined {
-  const value = process.env[name];
-  return value && value.trim().length > 0 ? value : undefined;
-}
-
-function normalizePhoneNumber(raw: string): string {
-  // Mantener solo dígitos; WhatsApp Cloud API requiere código de país
-  return raw.replace(/\D/g, '');
-}
-
 export async function sendWhatsAppMessage(toNumber: string, message: string) {
-  const token = getEnv('WHATSAPP_ACCESS_TOKEN');
-  const phoneNumberId = getEnv('WHATSAPP_PHONE_NUMBER_ID');
+  const config = getWhatsAppConfig();
 
-  if (!token || !phoneNumberId) {
+  if (!isWhatsAppCloudAPIConfigured()) {
     console.warn(
-      '[whatsapp] Variables de entorno faltantes. Omitiendo envío.',
+      '[whatsapp] WhatsApp Cloud API no configurado. Omitiendo envío automático.',
       {
-        hasToken: Boolean(token),
-        hasPhoneNumberId: Boolean(phoneNumberId),
+        hasToken: Boolean(config.accessToken),
+        hasPhoneNumberId: Boolean(config.phoneNumberId),
+        hasAdminNumbers: config.adminNumbers.length > 0,
       },
     );
     return;
   }
 
-  const apiUrl = `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`;
+  const apiUrl = `https://graph.facebook.com/v17.0/${config.phoneNumberId}/messages`;
 
   const payload = {
     messaging_product: 'whatsapp',
-    to: normalizePhoneNumber(toNumber),
+    to: formatPhoneForWhatsApp(toNumber),
     type: 'text',
     text: { body: message.slice(0, 4000) }, // Límite de WhatsApp
   } as const;
@@ -67,7 +60,7 @@ export async function sendWhatsAppMessage(toNumber: string, message: string) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${config.accessToken}`,
     },
     body: JSON.stringify(payload),
   });
@@ -101,7 +94,9 @@ export function buildOrderMessage(order: OrderForWhatsApp): string {
     '🧾 Productos:',
     ...order.items.map(
       it =>
-        `• ${it.productName} x${it.quantity} - $${(it.price * it.quantity).toFixed(2)}`,
+        `• ${it.productName} x${it.quantity} - $${(
+          it.price * it.quantity
+        ).toFixed(2)}`,
     ),
     '',
     `💰 Total: $${order.total.toFixed(2)}`,
@@ -113,26 +108,20 @@ export function buildOrderMessage(order: OrderForWhatsApp): string {
 }
 
 export async function notifyAdminsNewOrder(order: OrderForWhatsApp) {
-  const adminNumbersRaw = getEnv('WHATSAPP_ADMIN_NUMBERS');
-  if (!adminNumbersRaw) {
+  const config = getWhatsAppConfig();
+
+  if (config.adminNumbers.length === 0) {
     console.warn(
-      '[whatsapp] WHATSAPP_ADMIN_NUMBERS vacío. No se enviará notificación.',
+      '[whatsapp] No hay números de administradores configurados. No se enviará notificación.',
     );
     return;
   }
-
-  const adminNumbers = adminNumbersRaw
-    .split(',')
-    .map(n => n.trim())
-    .filter(n => n.length > 0);
-
-  if (adminNumbers.length === 0) return;
 
   const message = buildOrderMessage(order);
   const errors: Array<{ to: string; error: string }> = [];
 
   await Promise.all(
-    adminNumbers.map(async to => {
+    config.adminNumbers.map(async to => {
       try {
         await sendWhatsAppMessage(to, message);
       } catch (err) {
@@ -149,4 +138,16 @@ export async function notifyAdminsNewOrder(order: OrderForWhatsApp) {
       '[whatsapp] Algunos envíos fallaron: ' + JSON.stringify(errors),
     );
   }
+}
+
+// Función para generar enlaces wa.me (fallback cuando no hay Cloud API)
+export function generateWhatsAppLinks(order: OrderForWhatsApp): string[] {
+  const config = getWhatsAppConfig();
+  const message = buildOrderMessage(order);
+  const encodedMessage = encodeURIComponent(message);
+
+  return config.publicAdminNumbers.map(
+    phone =>
+      `https://wa.me/${formatPhoneForWhatsApp(phone)}?text=${encodedMessage}`,
+  );
 }

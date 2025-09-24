@@ -1,4 +1,5 @@
-// types/index.ts
+// src/types/index.ts
+
 // Tipos para la base de datos de Prisma
 export interface Category {
   id: string;
@@ -6,8 +7,8 @@ export interface Category {
   slug: string;
   mainImage: string | null;
   description: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   _count?: {
     products: number;
   };
@@ -20,49 +21,51 @@ export interface ProductImage {
   alt: string | null;
   sortOrder: number;
   isPrimary: boolean;
-  createdAt: Date;
+  createdAt: string;
 }
 
 export interface Product {
-  reviewCount: number;
   id: string;
   slug: string;
   productName: string;
   price: number;
+  stock: number;
   description: string | null;
   categoryId: string;
   features: string[] | null;
-  createdAt: Date;
-  updatedAt: Date;
+  status: 'ACTIVE' | 'INACTIVE';
+  featured: boolean;
+  createdAt: string;
+  updatedAt: string;
   category: Category;
   images: ProductImage[];
-  image?: string;
-  stock?: number;
-  rating?: number;
-  sold?: number;
   _count?: {
     reviews: number;
+    orderItems?: number;
   };
-  featured?: boolean;
-  status?: 'ACTIVE' | 'INACTIVE';
+  // Agregar las propiedades faltantes
+  rating?: number; // Calificación promedio del producto
+  sold?: number; // Cantidad de unidades vendidas
+  image?: string;
 }
 
 export interface User {
   id: string;
   clerkId: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  firstName: string | null;
+  lastName: string | null;
   role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
   avatar: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Order {
   id: string;
   orderNumber: string;
-  userId: string;
+  userId?: string | null;
   status:
     | 'PENDING'
     | 'CONFIRMED'
@@ -70,53 +73,122 @@ export interface Order {
     | 'SHIPPED'
     | 'DELIVERED'
     | 'CANCELLED'
-    | 'REFUNDED';
-  customerEmail: string;
-  customerName: string;
+    | 'REFUNDED'
+    | 'FAILED';
+  customerEmail?: string | null;
   subtotal: number;
   taxAmount: number;
   shippingAmount: number;
   total: number;
-  paymentStatus:
-    | 'PENDING'
-    | 'PAID'
-    | 'FAILED'
-    | 'REFUNDED'
-    | 'PARTIALLY_REFUNDED';
-  paymentMethod:
-    | 'CREDIT_CARD'
-    | 'DEBIT_CARD'
-    | 'PAYPAL'
-    | 'BANK_TRANSFER'
-    | 'CASH_ON_DELIVERY'
-    | null;
-  createdAt: Date;
-  updatedAt: Date;
-  user: User;
+  createdAt: string;
+  updatedAt: string;
+  user?: User | null;
   items: OrderItem[];
+  contactInfo?: ContactInfo | null;
+  shippingAddress?: ShippingAddress | null;
+  customerName: string; // Obligatorio
+  paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  paymentMethod?: string | null;
+}
+
+export interface ContactInfo {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  createdAt: string;
+  updatedAt: string;
+  orderId: string;
+}
+
+export interface ShippingAddress {
+  id: string;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+  createdAt: string;
+  updatedAt: string;
+  orderId: string;
 }
 
 export interface OrderItem {
   id: string;
   orderId: string;
   productId: string;
-  productName: string;
-  productSku: string;
-  price: number;
   quantity: number;
+  price: number;
   total: number;
-  createdAt: Date;
+  createdAt: string;
+  productName?: string | null;
+  productSku?: string | null;
   product: Product;
 }
 
+// Interfaz para respuestas paginadas
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+// Interfaz para la respuesta de órdenes
+export type OrdersResponse = PaginatedResponse<Order>;
+
 export interface CartItem {
   id: string;
-  userId: string;
-  productId: string;
+  productName: string;
+  price: number;
+  slug: string;
+  image: string; // Añadimos la propiedad image que se usa en el componente
   quantity: number;
-  createdAt: Date;
-  updatedAt: Date;
-  product: Product;
+}
+
+// Interfaz para la respuesta de la API de órdenes
+export interface OrderResponse {
+  success?: boolean;
+  order: {
+    id: string;
+    orderNumber: string;
+    status: string;
+    subtotal: number;
+    taxAmount: number;
+    shippingAmount: number;
+    total: number;
+    createdAt: string;
+    contactInfo?: {
+      name: string;
+      email: string;
+      phone: string;
+    } | null;
+    shippingAddress?: {
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+      country: string;
+    } | null;
+    items: Array<{
+      id: string;
+      quantity: number;
+      price: number;
+      total: number;
+      product: {
+        id: string;
+        productName: string;
+        slug: string;
+      };
+    }>;
+  };
+  emailSent: boolean;
+  emailError?: string;
+  error?: string;
+  whatsappLinks?: string[]; // Agregar esta propiedad
 }
 
 export interface Review {
@@ -124,12 +196,10 @@ export interface Review {
   userId: string;
   productId: string;
   rating: number;
-  title: string | null;
   comment: string | null;
-  isVerified: boolean;
   isApproved: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   user: User;
   product: Product;
 }
@@ -139,16 +209,6 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   message?: string;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
 }
 
 // Tipos para filtros
@@ -162,4 +222,242 @@ export interface ProductFilters {
 export interface CategoryFilters {
   page?: number;
   limit?: number;
+}
+
+// En tu archivo src/types/index.ts, modifica la interfaz ProductFull para incluir reviewCount:
+
+export interface ProductFull {
+  id: string;
+  slug: string;
+  productName: string;
+  price: number;
+  stock: number;
+  description?: string | null | undefined;
+  features: string[];
+  status: 'ACTIVE' | 'INACTIVE';
+  featured: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  categoryId: string;
+  category: {
+    id: string;
+    categoryName: string;
+    slug: string;
+    description?: string | null;
+    mainImage?: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  images: Array<{
+    id: string;
+    url: string;
+    alt?: string | null;
+    sortOrder: number;
+    isPrimary: boolean;
+    createdAt: Date;
+  }>;
+  _count?: {
+    orderItems?: number;
+    reviews?: number;
+  };
+  reviews?: Array<{
+    id: string;
+    rating: number;
+    comment?: string | null;
+    isApproved: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string;
+    productId: string;
+  }>;
+  reviewCount?: number; // Asegúrate de tener esta propiedad
+  rating?: number;
+  sold?: number;
+  image?: string; // Asegúrate de tener esta propiedad
+}
+
+export interface UserProfile {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  avatar: string | null;
+  createdAt: string;
+  updatedAt: string;
+  addresses: UserAddress[];
+}
+
+export interface UserAddress {
+  id: string;
+  type: 'HOME' | 'WORK' | 'OTHER';
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserOrder {
+  id: string;
+  orderNumber: string;
+  status:
+    | 'PENDING'
+    | 'CONFIRMED'
+    | 'PROCESSING'
+    | 'SHIPPED'
+    | 'DELIVERED'
+    | 'CANCELLED'
+    | 'REFUNDED'
+    | 'FAILED';
+  items: OrderItem[];
+  total: number;
+  shippingAddress?: ShippingAddress | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Cart {
+  items: CartItem[];
+  total: number;
+  subtotal: number;
+  taxAmount: number;
+  shippingAmount: number;
+}
+
+// Tipos específicos para el Dashboard
+export interface DashboardStats {
+  totalOrders: number;
+  pendingOrders: number;
+  totalProducts: number;
+  totalUsers: number;
+  salesByCategory: { name: string; sales: number }[];
+  ordersByStatus: { name: string; count: number }[];
+  topProducts: { productName: string; totalSold: number }[];
+  recentOrders: Order[];
+  totalRevenue: number;
+  averageOrderValue: number;
+  conversionRate: number;
+  monthlyGrowth: number;
+}
+
+export type OrderStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PROCESSING'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'CANCELLED'
+  | 'REFUNDED'
+  | 'FAILED';
+
+export interface EmailMetrics {
+  id: string;
+  timestamp: string;
+  type: string;
+  recipient: string;
+  orderId: string;
+  status: 'sent' | 'failed' | 'retry';
+  attempt: number;
+  error: string | null;
+  order: {
+    id: string;
+    orderNumber: string;
+    total: number;
+    customerEmail: string | null;
+  };
+}
+
+export interface FailedEmail {
+  id: string;
+  timestamp: string;
+  recipient: string;
+  orderNumber: string;
+  error: string;
+  attempts: number;
+  lastAttempt: string;
+  canRetry: boolean;
+}
+
+// Tipos para formularios del dashboard
+export interface ProductFormData {
+  productName: string;
+  description: string;
+  price: number;
+  stock: number;
+  categoryId: string;
+  features: string[];
+  status: 'ACTIVE' | 'INACTIVE';
+  featured: boolean;
+  images: File[];
+}
+
+export interface CategoryFormData {
+  categoryName: string;
+  description: string;
+  mainImage: File | null;
+}
+
+export interface UserFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
+  isActive: boolean;
+}
+
+// Tipos para filtros del dashboard
+export interface DashboardFilters {
+  dateRange?: {
+    from: string;
+    to: string;
+  };
+  status?: string;
+  category?: string;
+  search?: string;
+}
+
+// Tipos para respuestas de API del dashboard
+export type DashboardProductsResponse = PaginatedResponse<Product>;
+export type DashboardCategoriesResponse = PaginatedResponse<Category>;
+export type DashboardEmailsResponse = PaginatedResponse<EmailMetrics>;
+
+// Tipos para gráficas
+export interface ChartData {
+  labels: string[];
+  datasets: {
+    label: string;
+    data: number[];
+    backgroundColor?: string | string[];
+    borderColor?: string | string[];
+    borderWidth?: number;
+  }[];
+}
+
+export interface SalesChartData {
+  daily: ChartData;
+  monthly: ChartData;
+  byCategory: ChartData;
+  byStatus: ChartData;
+}
+
+// Tipos para notificaciones del dashboard
+export interface DashboardNotification {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+}
+
+// Tipos para configuración del dashboard
+export interface DashboardConfig {
+  itemsPerPage: number;
+  defaultDateRange: number; // días
+  autoRefresh: boolean;
+  refreshInterval: number; // segundos
+  theme: 'light' | 'dark' | 'system';
 }

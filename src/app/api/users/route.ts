@@ -7,19 +7,17 @@ import { NextRequest, NextResponse } from 'next/server';
 // GET /api/users - Obtener usuarios (solo admin)
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireRole(request, ['ADMIN']);
-    if (authResult instanceof NextResponse) return authResult;
-
+    await requireRole(['ADMIN']);
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
+
     const search = searchParams.get('search');
     const role = searchParams.get('role');
     const isActive = searchParams.get('isActive');
 
     const where: Record<string, unknown> = {};
-
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: 'insensitive' } },
@@ -27,11 +25,9 @@ export async function GET(request: NextRequest) {
         { email: { contains: search, mode: 'insensitive' } },
       ];
     }
-
     if (role && role !== 'all') {
       where.role = role.toUpperCase();
     }
-
     if (isActive && isActive !== 'all') {
       where.isActive = isActive === 'true';
     }
@@ -77,11 +73,7 @@ export async function GET(request: NextRequest) {
 // POST /api/users - Crear un nuevo usuario
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireRole(request, ['ADMIN']);
-    if (authResult instanceof NextResponse) return authResult;
-
     const body = await request.json();
-
     // Validar con Zod
     const result = userSchema.safeParse(body);
     if (!result.success) {
@@ -90,23 +82,19 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-
     const { clerkId, email, firstName, lastName, role, avatar } = result.data;
-
     // Verificar si el usuario ya existe
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ clerkId }, { email }],
       },
     });
-
     if (existingUser) {
       return NextResponse.json(
         { error: 'El usuario ya existe' },
         { status: 400 },
       );
     }
-
     const user = await prisma.user.create({
       data: {
         clerkId,
@@ -117,7 +105,6 @@ export async function POST(request: NextRequest) {
         avatar,
       },
     });
-
     return NextResponse.json(user, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);

@@ -1,14 +1,16 @@
 import {
   createTransporter,
   sendOrderConfirmationEmail,
-} from '@/lib/email/service';
+} from '@/lib/email/order-confirmation';
 import { validateOrder } from '@/lib/order/validator';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@clerk/nextjs/server';
+import { generateWhatsAppLinks } from '@/lib/whatsapp/service';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+
 // Asegura que este endpoint se ejecute en runtime Node.js (no Edge), necesario para Nodemailer
 export const runtime = 'nodejs';
+
 // Tipo de payload que llega desde el frontend para el checkout
 interface CheckoutItem {
   quantity: number;
@@ -64,25 +66,8 @@ const checkoutBodySchema = z.object({
 
 export async function GET() {
   try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
-
-    if (!user) {
-      return NextResponse.json({
-        error: 'Usuario no encontrado',
-        status: 404,
-      });
-    }
-
+    // Obtener todas las órdenes sin filtrar por usuario
     const orders = await prisma.order.findMany({
-      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       include: {
         items: {
@@ -180,11 +165,9 @@ export async function POST(request: NextRequest) {
         status: 400,
       });
     }
-    // Obtener usuario autenticado (si existe)
-    const { userId: clerkUserId } = await auth();
-    const user = clerkUserId
-      ? await prisma.user.findUnique({ where: { clerkId: clerkUserId } })
-      : null;
+
+    // No se verifica autenticación con Clerk
+    // La orden se crea sin usuario asociado
 
     const order = await prisma.$transaction(async tx => {
       // Decrementar stock de forma atómica para cada item
@@ -197,9 +180,12 @@ export async function POST(request: NextRequest) {
           },
           data: { stock: { decrement: item.quantity } },
         });
+
         if (updated.count === 0) {
           throw new Error(
-            `Stock insuficiente o producto no disponible para ${item.productName ?? item.name ?? item.slug}: ${item.quantity} solicitados`,
+            `Stock insuficiente o producto no disponible para ${
+              item.productName ?? item.name ?? item.slug
+            }: ${item.quantity} solicitados`,
           );
         }
       }
@@ -222,7 +208,7 @@ export async function POST(request: NextRequest) {
           ),
           orderNumber: `#${Date.now().toString().slice(-6)}`,
           customerEmail: contactInfo.email,
-          userId: user?.id ?? null,
+          userId: null, // No hay usuario autenticado
           contactInfo: {
             create: {
               name: contactInfo.name,
@@ -271,23 +257,85 @@ export async function POST(request: NextRequest) {
       itemsCount: order.items.length,
     });
 
-    // Enviar correo de confirmación al cliente (bloqueante para depurar fallos)
-    const transporter = createTransporter();
-    await sendOrderConfirmationEmail(transporter, contactInfo.email, {
-      orderId: order.id,
-      items: order.items.map(item => ({
-        productName: item.productName ?? 'Producto sin nombre',
-        quantity: item.quantity,
-        price: item.price,
-      })),
-      total: order.total,
-      shippingAddress: `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip}`,
+    // CAMBIO PRINCIPAL: Enviar correo de confirmación de forma no bloqueante
+    let emailSent = false;
+    let emailError = null;
+
+    try {
+      const transporter = createTransporter();
+      const emailResult = await sendOrderConfirmationEmail(
+        transporter,
+        contactInfo.email,
+        {
+          orderId: order.id,
+          items: order.items.map(item => ({
+            productName: item.productName ?? 'Producto sin nombre',
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          total: order.total,
+          shippingAddress: `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip}`,
+        },
+      );
+
+      emailSent = emailResult.success;
+      if (!emailResult.success) {
+        emailError = emailResult.error;
+        console.error('Error al enviar correo de confirmación:', emailError);
+      }
+    } catch (error) {
+      console.error('Excepción al enviar correo de confirmación:', error);
+      emailError = error instanceof Error ? error.message : 'Error desconocido';
+    }
+
+    console.log('📧 [orders] Estado del correo de confirmación:', {
+      emailSent,
+      emailError,
     });
-    console.log('✅ [orders] Correo de confirmación enviado exitosamente');
 
-    // WhatsApp Cloud API deshabilitado: la notificación por WhatsApp se realiza en el cliente con wa.me
+    // Generar enlaces de WhatsApp para administradores
+    // Transformamos los datos para asegurar que productName sea siempre un string
+    const orderForWhatsApp = {
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        productName: item.productName || 'Producto sin nombre',
+      })),
+    };
 
-    return NextResponse.json(order, { status: 201 });
+    const whatsappLinks = generateWhatsAppLinks(orderForWhatsApp);
+    console.log(
+      '📞 [orders] Enlaces de WhatsApp generados para admins:',
+      whatsappLinks,
+    );
+
+    // Devolver respuesta con información sobre el estado del correo y enlaces de WhatsApp
+    return NextResponse.json(
+      {
+        order: {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          customerEmail: order.customerEmail,
+          subtotal: order.subtotal,
+          taxAmount: order.taxAmount,
+          shippingAmount: order.shippingAmount,
+          total: order.total,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
+          contactInfo: order.contactInfo,
+          shippingAddress: order.shippingAddress,
+          items: order.items,
+        },
+        emailSent,
+        emailError: emailError ? emailError : undefined,
+        whatsappLinks, // Enlaces para que el cliente notifique a los admins
+        message: emailSent
+          ? 'Pedido creado y correo de confirmación enviado'
+          : 'Pedido creado pero hubo un problema al enviar el correo de confirmación',
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error('Error creando orden:', error);
     const message =

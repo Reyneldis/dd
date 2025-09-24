@@ -1,3 +1,4 @@
+// src/app/api/orders/[id]/route.ts
 import { prisma } from '@/lib/prisma';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
@@ -73,6 +74,7 @@ export async function PATCH(
         user: true, // Incluir datos del usuario
       },
     });
+
     if (!order) {
       return NextResponse.json(
         { error: 'Pedido no encontrado' },
@@ -81,8 +83,15 @@ export async function PATCH(
     }
 
     // Solo enviar email si el estado realmente cambió y tenemos los datos necesarios
-    if (order.status !== status && order.customerEmail && order.user?.firstName) {
-      const customerName = `${order.user.firstName} ${order.user.lastName || ''}`.trim();
+    if (
+      order.status !== status &&
+      order.customerEmail &&
+      order.user?.firstName
+    ) {
+      const customerName = `${order.user.firstName} ${
+        order.user.lastName || ''
+      }`.trim();
+
       await sendStatusEmail(
         order.customerEmail,
         customerName, // Usar el nombre completo construido

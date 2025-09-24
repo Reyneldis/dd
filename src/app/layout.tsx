@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import { ClientProviders } from '@/components/ClientProviders';
 import AnimatedBackground from '@/components/shared/AnimatedBackground';
 import FooterConditional from '@/components/shared/footer/FooterConditional';
@@ -5,15 +6,11 @@ import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from 'next-themes';
 import NextTopLoader from 'nextjs-toploader';
+import React from 'react';
 import { Toaster } from 'sonner';
 import ClientLayout from './ClientLayout';
 import './globals.css';
 
-// Importar CSS de Fontsource para Onest
-import '@fontsource/onest/400.css'; // Regular
-import '@fontsource/onest/700.css'; // Bold
-
-// Configuración de viewport - esto va aquí, no en metadata
 export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
@@ -25,155 +22,44 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-// Configuración de metadata - sin las propiedades que ahora van en viewport
 export const metadata: Metadata = {
-  // Título y descripción básicos
   title: {
-    default: 'Delivery Express - Tu Tienda Online de Confianza',
+    default: 'Delivery Express',
     template: '%s | Delivery Express',
   },
-  description:
-    'Delivery Express - Compra rápida y segura online. Entrega express en 24h. Productos de calidad al mejor precio. Envíos gratuitos a partir de 30€.',
-
-  // Metadatos básicos adicionales
-  keywords: [
-    'delivery express',
-    'compras online',
-    'supermercado online',
-    'entrega a domicilio',
-    'comida a domicilio',
-    'compra rápida',
-    'envío express',
-    'tienda online',
-    'supermercado digital',
-  ],
-  authors: [{ name: 'Delivery Express Team' }],
-  creator: 'Delivery Express',
-  publisher: 'Delivery Express',
+  description: 'Delivery Express - Compra rápida y segura online.',
+  metadataBase: new URL('https://delivery-express.com'),
   robots: {
     index: true,
     follow: true,
-    nocache: false,
-    googleBot: {
-      index: true,
-      follow: true,
-      noimageindex: false,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-    },
   },
-
-  // OpenGraph (Facebook, LinkedIn, etc.)
   openGraph: {
     type: 'website',
     locale: 'es_ES',
     url: 'https://delivery-express.com',
     siteName: 'Delivery Express',
-    title: 'Delivery Express - Tu Tienda Online de Confianza',
-    description:
-      'Compra rápida y segura online con entrega express. Productos frescos y de calidad a precios increíbles.',
+    title: 'Delivery Express',
+    description: 'Compra rápida y segura en Delivery Express',
     images: [
       {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Delivery Express - Tienda Online',
-      },
-      {
-        url: '/og-image-alt.jpg',
-        width: 800,
-        height: 600,
-        alt: 'Delivery Express - Entrega a domicilio',
+        alt: 'Delivery Express',
       },
     ],
   },
-
-  // Twitter Card
   twitter: {
     card: 'summary_large_image',
-    site: '@deliveryexpress',
-    creator: '@deliveryexpress',
-    title: 'Delivery Express - Tu Tienda Online de Confianza',
-    description:
-      'Compra rápida y segura online con entrega express. Productos frescos y de calidad.',
-    images: ['/twitter-image.jpg'],
+    title: 'Delivery Express',
+    description: 'Compra rápida y segura en Delivery Express',
+    images: ['/og-image.jpg'],
   },
-
-  // Iconos y manifest
   icons: {
-    icon: [
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon.ico', sizes: 'any' },
-    ],
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-      {
-        url: '/apple-touch-icon-120x120.png',
-        sizes: '120x120',
-        type: 'image/png',
-      },
-      {
-        url: '/apple-touch-icon-152x152.png',
-        sizes: '152x152',
-        type: 'image/png',
-      },
-    ],
-    other: [
-      { rel: 'mask-icon', url: '/safari-pinned-tab.svg', color: '#0066ff' },
-    ],
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
   manifest: '/manifest.json',
-
-  // Metadatos adicionales para SEO y rendimiento
-  metadataBase: new URL('https://delivery-express.com'),
-  alternates: {
-    canonical: 'https://delivery-express.com',
-    languages: {
-      'es-ES': 'https://delivery-express.com/es',
-      'en-US': 'https://delivery-express.com/en',
-    },
-  },
-
-  // Metadatos para verificación de sitios
-  verification: {
-    google: 'google-site-verification-code',
-    yandex: 'yandex-verification-code',
-    yahoo: 'yahoo-site-verification-code',
-    other: {
-      'facebook-domain-verification': 'facebook-verification-code',
-    },
-  },
-
-  // Metadatos para aplicaciones móviles
-  appleWebApp: {
-    capable: true,
-    title: 'Delivery Express',
-    statusBarStyle: 'black-translucent',
-    startupImage: [
-      {
-        url: '/apple-startup-image-750x1334.png',
-        media:
-          '(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)',
-      },
-      {
-        url: '/apple-startup-image-1242x2208.png',
-        media:
-          '(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)',
-      },
-    ],
-  },
-
-  // Metadatos adicionales
-  category: 'e-commerce',
-  classification: 'shopping',
-  referrer: 'origin-when-cross-origin',
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
 };
 
 export default function RootLayout({
@@ -183,9 +69,9 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="es" suppressHydrationWarning>
+      <html lang="es" suppressHydrationWarning data-scroll-behavior="smooth">
         <head>
-          {/* DNS Prefetch para recursos externos (si los necesitas) */}
+          {/* DNS Prefetch para recursos externos */}
           <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
 
           {/* Structured Data para SEO */}
@@ -218,7 +104,10 @@ export default function RootLayout({
             }}
           />
         </head>
-        <body className="min-h-screen relative bg-transparent antialiased font-sans">
+        <body
+          className="min-h-screen relative bg-transparent antialiased font-sans"
+          suppressHydrationWarning
+        >
           <ClientProviders>
             <ThemeProvider
               attribute="class"

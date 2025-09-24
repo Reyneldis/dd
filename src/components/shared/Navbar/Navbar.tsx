@@ -1,16 +1,15 @@
-// src/components/Navbar.tsx
+// src/components/shared/Navbar/Navbar.tsx
 'use client';
-import UserAvatar from '@/components/shared/UserAvatar'; // Importar el componente UserAvatar
 import { useAdmin } from '@/hooks/use-admin';
 import { useCart } from '@/hooks/use-cart';
 import { SignOutButton, useAuth, useUser } from '@clerk/nextjs';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  LayoutDashboard,
   LogOut,
   Menu,
   Package,
   Search,
-  Shield,
   ShoppingCart,
   User,
   X,
@@ -19,6 +18,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import CartModal from '../CartModal';
+import ClerkImage from '../ClerkImage';
 import Icon from '../Icon';
 import Logo from '../Logo/Logo';
 import { ModeToggle } from '../model-dark';
@@ -80,7 +80,7 @@ export default function Navbar() {
   const { items } = useCart();
   const { isSignedIn, isLoaded } = useAuth();
   const { user } = useUser();
-  const { isAdmin } = useAdmin();
+  const { isAdmin, loading } = useAdmin();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -143,7 +143,6 @@ export default function Navbar() {
             >
               <Icon paths={ICONS.search.paths} />
             </button>
-
             <button
               aria-label="Carrito"
               onClick={() => setIsCartOpen(true)}
@@ -157,28 +156,42 @@ export default function Navbar() {
               )}
             </button>
 
-            <Link
-              href="/orders"
-              className="p-2 rounded-xl bg-white/10 dark:bg-neutral-800/20 border border-white/20 dark:border-neutral-700/30 hover:bg-primary/10 dark:hover:bg-primary/20 transition-all"
-              aria-label="Pedidos"
-            >
-              <Package className="w-5 h-5 text-orange-500" />
-            </Link>
-
-            {isLoaded && isSignedIn && isAdmin && (
+            {/* Enlace a pedidos solo para usuarios autenticados */}
+            {isLoaded && isSignedIn && (
               <Link
-                href="/admin"
-                className="p-2 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 border border-white/20 dark:border-neutral-700/30 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-all"
-                aria-label="Admin"
+                href="/orders"
+                className="p-2 rounded-xl bg-white/10 dark:bg-neutral-800/20 border border-white/20 dark:border-neutral-700/30 hover:bg-primary/10 dark:hover:bg-primary/20 transition-all"
+                aria-label="Pedidos"
               >
-                <Icon paths={ICONS.shield.paths} />
+                <Package className="w-5 h-5 text-orange-500" />
+              </Link>
+            )}
+
+            {/* Enlace al dashboard visible solo para administradores */}
+            {!loading && isAdmin && (
+              <Link
+                href="/dashboard"
+                className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 border border-white/20 dark:border-neutral-700/30 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-all"
+                aria-label="Dashboard"
+              >
+                <LayoutDashboard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               </Link>
             )}
 
             {isLoaded && isSignedIn && user ? (
               <>
-                <Link href="/account" className="aria-label:Mi cuenta">
-                  <UserAvatar user={user} />
+                <Link
+                  href="/account"
+                  className="w-9 h-9 rounded-full overflow-hidden border border-white/20"
+                  aria-label="Mi cuenta"
+                >
+                  <ClerkImage
+                    src={user.imageUrl}
+                    alt="Avatar"
+                    width={36}
+                    height={36}
+                    className="w-full h-full object-cover"
+                  />
                 </Link>
                 <SignOutButton>
                   <button
@@ -198,7 +211,6 @@ export default function Navbar() {
                 Iniciar sesión
               </Link>
             )}
-
             <ModeToggle />
           </div>
 
@@ -211,7 +223,6 @@ export default function Navbar() {
             >
               <Search size={20} />
             </button>
-
             <button
               aria-label="Carrito"
               onClick={() => setIsCartOpen(true)}
@@ -297,7 +308,6 @@ export default function Navbar() {
                     <Search size={18} className="mr-3" />
                     Buscar
                   </button>
-
                   <button
                     onClick={() => {
                       setIsCartOpen(true);
@@ -314,14 +324,32 @@ export default function Navbar() {
                     )}
                   </button>
 
-                  <Link
-                    href="/orders"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <Package size={18} className="mr-3 text-orange-500" />
-                    Pedidos
-                  </Link>
+                  {/* Enlace a pedidos solo para usuarios autenticados */}
+                  {isLoaded && isSignedIn && (
+                    <Link
+                      href="/orders"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <Package size={18} className="mr-3 text-orange-500" />
+                      Pedidos
+                    </Link>
+                  )}
+
+                  {/* Enlace al dashboard visible solo para administradores */}
+                  {!loading && isAdmin && (
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <LayoutDashboard
+                        size={18}
+                        className="mr-3 text-indigo-600 dark:text-indigo-400"
+                      />
+                      Dashboard
+                    </Link>
+                  )}
                 </div>
 
                 {/* Cuenta de usuario */}
@@ -329,7 +357,6 @@ export default function Navbar() {
                   <h3 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider px-4 mb-2">
                     Cuenta
                   </h3>
-
                   {isLoaded && isSignedIn && user ? (
                     <>
                       <Link
@@ -337,18 +364,28 @@ export default function Navbar() {
                         onClick={() => setIsMenuOpen(false)}
                         className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                       >
-                        <UserAvatar user={user} />
-                        <span className="ml-3">Mi cuenta</span>
+                        <ClerkImage
+                          src={user.imageUrl}
+                          alt="Avatar"
+                          width={24}
+                          height={24}
+                          className="rounded-full mr-3"
+                        />
+                        Mi cuenta
                       </Link>
 
-                      {isAdmin && (
+                      {/* Enlace al dashboard en la sección de cuenta para usuarios autenticados */}
+                      {!loading && isAdmin && (
                         <Link
-                          href="/admin"
+                          href="/dashboard"
                           onClick={() => setIsMenuOpen(false)}
                           className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                         >
-                          <Shield size={18} className="mr-3 text-yellow-500" />
-                          Panel de administración
+                          <LayoutDashboard
+                            size={18}
+                            className="mr-3 text-indigo-600 dark:text-indigo-400"
+                          />
+                          Dashboard
                         </Link>
                       )}
 
