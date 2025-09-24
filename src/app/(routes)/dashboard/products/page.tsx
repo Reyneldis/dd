@@ -45,6 +45,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -414,7 +415,7 @@ export default function ProductsPage() {
                           <div className="flex items-center space-x-3">
                             {product.images && product.images.length > 0 && (
                               <div className="flex-shrink-0 h-16 w-16 rounded-md bg-gray-100 overflow-hidden">
-                                <img
+                                <Image
                                   src={product.images[0].url}
                                   alt={
                                     product.images[0].alt || product.productName
@@ -527,7 +528,7 @@ export default function ProductsPage() {
                             <div className="flex items-center space-x-3">
                               {product.images && product.images.length > 0 && (
                                 <div className="flex-shrink-0 h-10 w-10 rounded-md bg-gray-100 overflow-hidden">
-                                  <img
+                                  <Image
                                     src={product.images[0].url}
                                     alt={
                                       product.images[0].alt ||

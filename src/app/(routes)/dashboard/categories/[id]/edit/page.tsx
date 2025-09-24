@@ -102,8 +102,8 @@ export default function CategoryDetailPage() {
             {category.mainImage ? (
               <div className="rounded-md overflow-hidden">
                 <Image
-                  src={product.imageUrl}
-                  alt={product.name}
+                  src={category.mainImage}
+                  alt={category.categoryName || 'Imagen de categoría'}
                   width={300} // Ajusta según tu diseño
                   height={300}
                   className="object-cover rounded-lg"

@@ -4,6 +4,7 @@ import {
 } from '@/lib/email/order-confirmation';
 import { validateOrder } from '@/lib/order/validator';
 import { prisma } from '@/lib/prisma';
+import { generateWhatsAppLinks } from '@/lib/whatsapp/service';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -292,8 +293,23 @@ export async function POST(request: NextRequest) {
       emailError,
     });
 
-    // WhatsApp Cloud API deshabilitado: la notificación por WhatsApp se realiza en el cliente con wa.me
-    // Devolver respuesta con información sobre el estado del correo
+    // Generar enlaces de WhatsApp para administradores
+    // Transformamos los datos para asegurar que productName sea siempre un string
+    const orderForWhatsApp = {
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        productName: item.productName || 'Producto sin nombre',
+      })),
+    };
+
+    const whatsappLinks = generateWhatsAppLinks(orderForWhatsApp);
+    console.log(
+      '📞 [orders] Enlaces de WhatsApp generados para admins:',
+      whatsappLinks,
+    );
+
+    // Devolver respuesta con información sobre el estado del correo y enlaces de WhatsApp
     return NextResponse.json(
       {
         order: {
@@ -313,6 +329,7 @@ export async function POST(request: NextRequest) {
         },
         emailSent,
         emailError: emailError ? emailError : undefined,
+        whatsappLinks, // Enlaces para que el cliente notifique a los admins
         message: emailSent
           ? 'Pedido creado y correo de confirmación enviado'
           : 'Pedido creado pero hubo un problema al enviar el correo de confirmación',

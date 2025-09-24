@@ -277,9 +277,7 @@ export default function ProductCardCompact({
     );
   }
 
-  const mainImage =
-    product.images.find(img => img.isPrimary) || product.images[0];
-  const imageUrl = mainImage?.url || '/img/placeholder-category.jpg';
+  const imageUrl = product.image || '/img/placeholder-product.jpg';
 
   // Mock rating
   const rating = 4.6;

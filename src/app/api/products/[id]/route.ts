@@ -25,17 +25,20 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ slug: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  // Corregido: slug -> id
   try {
     await requireRole(['ADMIN']);
-    const { slug } = await params;
+    const { id } = await params; // Corregido: slug -> id
     const body = await request.json();
+
     // Validar con Zod
     const result = productSchema.safeParse(body);
     if (!result.success) {
       return badRequest('Datos inválidos', result.error.flatten());
     }
+
     const {
       productName,
       price,
@@ -45,23 +48,28 @@ export async function PUT(
       images,
       status,
     } = result.data;
+
     // Verificar si el producto existe
     const existingProduct = await prisma.product.findUnique({
-      where: { slug },
+      where: { id }, // Corregido: slug -> id
     });
+
     if (!existingProduct) {
       return notFound('Producto no encontrado');
     }
+
     // Verificar si la categoría existe
     const category = await prisma.category.findUnique({
       where: { id: categoryId },
     });
+
     if (!category) {
       return badRequest('La categoría especificada no existe');
     }
+
     // Actualizar el producto y sus relaciones
     const updatedProduct = await prisma.product.update({
-      where: { slug },
+      where: { id }, // Corregido: slug -> id
       data: {
         productName,
         price,
@@ -79,6 +87,7 @@ export async function PUT(
         images: true,
       },
     });
+
     return okRaw(mapProductToDTO(updatedProduct));
   } catch (error) {
     console.error('Error actualizando producto:', error);

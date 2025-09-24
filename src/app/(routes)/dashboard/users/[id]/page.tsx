@@ -16,6 +16,7 @@ import {
   Shield,
   User as UserIcon,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -151,7 +152,7 @@ export default function UserDetailPage() {
           <CardContent>
             {user.avatar ? (
               <div className="rounded-md overflow-hidden">
-                <img
+                <Image
                   src={user.avatar}
                   alt={`${user.firstName} ${user.lastName}`}
                   className="w-full h-48 object-cover"

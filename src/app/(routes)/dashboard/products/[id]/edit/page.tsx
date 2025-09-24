@@ -21,9 +21,10 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Category, ProductFull } from '@/types';
 import { ArrowLeft, Loader2, Upload, X } from 'lucide-react';
+import Image from 'next/image'; // Importar componente Image
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react'; // Importar useCallback
 import { toast } from 'sonner';
 
 export default function EditProductPage() {
@@ -50,57 +51,59 @@ export default function EditProductPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
-  // Cargar producto y categorías
+  // Corregir: envolver fetchProduct en useCallback
+  const fetchProduct = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `/api/dashboard/products/${productId}/details`,
+      );
+      const data = await response.json();
+      setProduct(data);
+
+      // Inicializar formulario con datos del producto
+      setFormData({
+        productName: data.productName,
+        slug: data.slug,
+        price: data.price.toString(),
+        stock: data.stock.toString(),
+        description: data.description || '',
+        categoryId: data.categoryId,
+        features: data.features || [],
+        status: data.status,
+        featured: data.featured,
+      });
+
+      // Cargar imágenes existentes
+      if (data.images && data.images.length > 0) {
+        // Corregir: definir tipo explícito en lugar de any
+        const previews = data.images.map((img: { url: string }) => img.url);
+        setImagePreviews(previews);
+      }
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      toast.error('Error al cargar el producto');
+    } finally {
+      setLoading(false);
+    }
+  }, [productId]);
+
+  // Corregir: envolver fetchCategories en useCallback
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await fetch('/api/dashboard/categories');
+      const data = await response.json();
+      setCategories(data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast.error('Error al cargar las categorías');
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(
-          `/api/dashboard/products/${productId}/details`,
-        );
-        const data = await response.json();
-        setProduct(data);
-
-        // Inicializar formulario con datos del producto
-        setFormData({
-          productName: data.productName,
-          slug: data.slug,
-          price: data.price.toString(),
-          stock: data.stock.toString(),
-          description: data.description || '',
-          categoryId: data.categoryId,
-          features: data.features || [],
-          status: data.status,
-          featured: data.featured,
-        });
-
-        // Cargar imágenes existentes
-        if (data.images && data.images.length > 0) {
-          const previews = data.images.map((img: any) => img.url);
-          setImagePreviews(previews);
-        }
-      } catch (error) {
-        console.error('Error fetching product:', error);
-        toast.error('Error al cargar el producto');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('/api/dashboard/categories');
-        const data = await response.json();
-        setCategories(data);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        toast.error('Error al cargar las categorías');
-      }
-    };
-
     fetchProduct();
     fetchCategories();
-  }, [productId]);
+  }, [fetchProduct, fetchCategories]); // Añadir dependencias
 
   // Manejar cambios en el formulario
   const handleInputChange = (
@@ -179,7 +182,8 @@ export default function EditProductPage() {
   };
 
   // Enviar formulario
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    // Corregir: tipar evento
     e.preventDefault();
     setSaving(true);
 
@@ -487,9 +491,12 @@ export default function EditProductPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {imagePreviews.map((preview, index) => (
                     <div key={index} className="relative group">
-                      <img
+                      {/* Corregir: usar componente Image en lugar de img */}
+                      <Image
                         src={preview}
                         alt={`Preview ${index}`}
+                        width={200}
+                        height={200}
                         className="w-full h-32 object-cover rounded-md"
                       />
                       <button

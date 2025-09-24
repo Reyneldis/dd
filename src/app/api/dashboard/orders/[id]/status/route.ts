@@ -19,6 +19,7 @@ export async function PATCH(
       include: {
         user: true,
         contactInfo: true,
+        shippingAddress: true, // Agregar esta línea
         items: {
           include: {
             product: true,

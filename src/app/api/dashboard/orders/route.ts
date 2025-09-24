@@ -1,6 +1,13 @@
-// src/app/api/dashboard/orders/route.ts
 import { getOrders } from '@/lib/dashboard-service';
+import { OrderStatus } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
+
+interface OrderFilters {
+  search?: string;
+  status?: OrderStatus;
+  page?: number;
+  limit?: number;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,11 +17,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || undefined;
 
-    const filters = {
+    const filters: OrderFilters = {
       page,
       limit,
       search,
-      status: status as any,
+      status: status as OrderStatus,
     };
 
     const result = await getOrders(filters);

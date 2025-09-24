@@ -33,6 +33,7 @@ export async function requireRole(
       lastName: true,
       role: true,
       avatar: true,
+      isActive: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -55,7 +56,20 @@ export async function requireRole(
     throw errorResponse;
   }
 
-  // 4. Retornar usuario para uso posterior
-  // Convertimos explícitamente el objeto de Prisma al tipo User
-  return user as User;
+  // 4. Transformar el objeto para que coincida con el tipo User
+  const transformedUser: User = {
+    id: user.id,
+    clerkId: user.clerkId,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+    avatar: user.avatar,
+    isActive: user.isActive,
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString(),
+  };
+
+  // 5. Retornar usuario transformado
+  return transformedUser;
 }

@@ -1,4 +1,3 @@
-// src/components/dashboard/OrdersManagement.tsx - Gestión completa de órdenes
 'use client';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -12,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { OrderStatus } from '@prisma/client';
 import {
   CheckCircle,
   Clock,
@@ -23,8 +23,20 @@ import {
   XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+
+interface OrderFromAPI {
+  id: string;
+  orderNumber: string;
+  contactInfo?: { name: string; email: string; phone: string };
+  user?: { firstName: string; lastName: string; email: string };
+  customerEmail?: string;
+  total: number;
+  status: string;
+  createdAt: string;
+  items: Array<{ productName: string; quantity: number; price: number }>;
+}
 
 interface Order {
   id: string;
@@ -32,7 +44,7 @@ interface Order {
   customerName: string;
   customerEmail?: string;
   total: number;
-  status: string;
+  status: OrderStatus;
   createdAt: string;
   items: Array<{
     productName: string;
@@ -93,21 +105,11 @@ export function OrdersManagement({
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    console.log('🚀 OrdersManagement mounted, initialOrders:', initialOrders);
-    if (initialOrders.length === 0) {
-      console.log('📞 Calling fetchOrders...');
-      fetchOrders();
-    } else {
-      console.log('📋 Using initial orders:', initialOrders);
-      setOrders(initialOrders);
-    }
-  }, []);
-
-  const fetchOrders = async () => {
+  // Envolver fetchOrders en useCallback
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       console.log('🔍 Fetching orders from API...');
@@ -124,22 +126,24 @@ export function OrdersManagement({
         console.log('📋 Orders data:', ordersData);
 
         // Transformar los datos para que coincidan con la interfaz Order
-        const transformedOrders = ordersData.map((order: any) => ({
-          id: order.id,
-          orderNumber: order.orderNumber,
-          customerName:
-            order.contactInfo?.name ||
-            order.user?.firstName ||
-            'Cliente sin nombre',
-          customerEmail:
-            order.customerEmail ||
-            order.contactInfo?.email ||
-            order.user?.email,
-          total: order.total,
-          status: order.status,
-          createdAt: order.createdAt,
-          items: order.items || [],
-        }));
+        const transformedOrders: Order[] = ordersData.map(
+          (order: OrderFromAPI) => ({
+            id: order.id,
+            orderNumber: order.orderNumber,
+            customerName:
+              order.contactInfo?.name ||
+              order.user?.firstName ||
+              'Cliente sin nombre',
+            customerEmail:
+              order.customerEmail ||
+              order.contactInfo?.email ||
+              order.user?.email,
+            total: order.total,
+            status: order.status as OrderStatus,
+            createdAt: order.createdAt,
+            items: order.items || [],
+          }),
+        );
 
         console.log('✨ Transformed orders:', transformedOrders);
         setOrders(transformedOrders);
@@ -162,9 +166,21 @@ export function OrdersManagement({
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Sin dependencias porque no usa estado o props directamente
 
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+  useEffect(() => {
+    console.log('🚀 OrdersManagement mounted, initialOrders:', initialOrders);
+    if (initialOrders.length === 0) {
+      console.log('📞 Calling fetchOrders...');
+      fetchOrders();
+    } else {
+      console.log('📋 Using initial orders:', initialOrders);
+      setOrders(initialOrders);
+    }
+  }, [initialOrders, fetchOrders]); // Añadir fetchOrders como dependencia
+
+  // Corregir el tipo de newStatus
+  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
       setUpdatingStatus(orderId);
 
@@ -177,7 +193,7 @@ export function OrdersManagement({
       });
 
       if (response.ok) {
-        const result = await response.json();
+        const _result = await response.json();
 
         // Actualizar el estado local
         setOrders(prevOrders =>
@@ -203,7 +219,7 @@ export function OrdersManagement({
     }
   };
 
-  const getStatusInfo = (status: string) => {
+  const getStatusInfo = (status: OrderStatus) => {
     const statusConfig = ORDER_STATUSES.find(s => s.value === status);
     if (!statusConfig) {
       return {
@@ -243,7 +259,7 @@ export function OrdersManagement({
     };
   };
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: OrderStatus) => {
     const statusConfig = ORDER_STATUSES.find(s => s.value === status);
     return statusConfig?.label || status;
   };
@@ -298,7 +314,12 @@ export function OrdersManagement({
             </div>
           </div>
           <div className="md:w-48">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select
+              value={statusFilter}
+              onValueChange={value =>
+                setStatusFilter(value as OrderStatus | 'all')
+              }
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Filtrar por estado" />
               </SelectTrigger>
@@ -412,7 +433,10 @@ export function OrdersManagement({
                         <Select
                           value={order.status}
                           onValueChange={newStatus =>
-                            updateOrderStatus(order.id, newStatus)
+                            updateOrderStatus(
+                              order.id,
+                              newStatus as OrderStatus,
+                            )
                           }
                           disabled={updatingStatus === order.id}
                         >

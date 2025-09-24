@@ -225,8 +225,8 @@ export default function CreateCategoryPage() {
                 <div className="flex justify-center">
                   <div className="relative group">
                     <Image
-                      src={product.imageUrl}
-                      alt={product.name}
+                      src={imagePreview}
+                      alt={formData.categoryName || "Vista previa de categoría"}
                       width={300} // Ajusta según tu diseño
                       height={300}
                       className="object-cover rounded-lg"

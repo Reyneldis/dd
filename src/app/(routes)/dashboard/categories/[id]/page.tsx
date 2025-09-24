@@ -18,6 +18,7 @@ import {
   Package,
   Tag,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -100,7 +101,7 @@ export default function CategoryDetailPage() {
           <CardContent>
             {category.mainImage ? (
               <div className="rounded-md overflow-hidden">
-                <img
+                <Image
                   src={category.mainImage}
                   alt={category.categoryName}
                   className="w-full h-48 object-cover"

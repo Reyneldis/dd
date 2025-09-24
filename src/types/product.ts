@@ -1,4 +1,4 @@
-// src/types/product.ts
+// En tu archivo src/types/index.ts, modifica la interfaz ProductFull para incluir reviewCount:
 
 export interface ProductFull {
   id: string;
@@ -30,7 +30,6 @@ export interface ProductFull {
     isPrimary: boolean;
     createdAt: Date;
   }>;
-  // Añadir la propiedad _count
   _count?: {
     orderItems?: number;
     reviews?: number;
@@ -45,4 +44,8 @@ export interface ProductFull {
     userId: string;
     productId: string;
   }>;
+  reviewCount?: number; // Asegúrate de tener esta propiedad
+  rating?: number;
+  sold?: number;
+  image?: string; // Asegúrate de tener esta propiedad
 }

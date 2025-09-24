@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-interface SystemStatus {
+interface SystemStatusData {
   categories: number;
   products: number;
   orders: number;
@@ -22,7 +22,7 @@ interface SystemStatus {
 }
 
 export default function SystemStatus() {
-  const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [status, setStatus] = useState<SystemStatusData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

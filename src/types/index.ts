@@ -7,8 +7,8 @@ export interface Category {
   slug: string;
   mainImage: string | null;
   description: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   _count?: {
     products: number;
   };
@@ -21,7 +21,7 @@ export interface ProductImage {
   alt: string | null;
   sortOrder: number;
   isPrimary: boolean;
-  createdAt: Date;
+  createdAt: string;
 }
 
 export interface Product {
@@ -29,37 +29,39 @@ export interface Product {
   slug: string;
   productName: string;
   price: number;
+  stock: number;
   description: string | null;
   categoryId: string;
   features: string[] | null;
-  createdAt: Date;
-  updatedAt: Date;
+  status: 'ACTIVE' | 'INACTIVE';
+  featured: boolean;
+  createdAt: string;
+  updatedAt: string;
   category: Category;
   images: ProductImage[];
-  image?: string;
-  stock?: number;
-  rating?: number;
-  sold?: number;
   _count?: {
     reviews: number;
+    orderItems?: number;
   };
-  featured?: boolean;
-  status?: 'ACTIVE' | 'INACTIVE';
+  // Agregar las propiedades faltantes
+  rating?: number; // Calificación promedio del producto
+  sold?: number; // Cantidad de unidades vendidas
+  image?: string;
 }
 
 export interface User {
   id: string;
   clerkId: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  firstName: string | null;
+  lastName: string | null;
   role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
   avatar: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Interfaz Order corregida para que coincida con tu schema
 export interface Order {
   id: string;
   orderNumber: string;
@@ -71,100 +73,57 @@ export interface Order {
     | 'SHIPPED'
     | 'DELIVERED'
     | 'CANCELLED'
-    | 'REFUNDED';
+    | 'REFUNDED'
+    | 'FAILED';
   customerEmail?: string | null;
   subtotal: number;
   taxAmount: number;
   shippingAmount: number;
   total: number;
-  paymentStatus:
-    | 'PENDING'
-    | 'PAID'
-    | 'FAILED'
-    | 'REFUNDED'
-    | 'PARTIALLY_REFUNDED';
-  paymentMethod:
-    | 'CREDIT_CARD'
-    | 'DEBIT_CARD'
-    | 'PAYPAL'
-    | 'BANK_TRANSFER'
-    | 'CASH_ON_DELIVERY'
-    | null;
   createdAt: string;
   updatedAt: string;
-  user?: {
-    id: string;
-    clerkId: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
-    avatar: string | null;
-    createdAt: string;
-    updatedAt: string;
-  } | null;
+  user?: User | null;
   items: OrderItem[];
-  contactInfo?: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    createdAt: string;
-    updatedAt: string;
-    orderId: string;
-  } | null;
-  shippingAddress?: {
-    id: string;
-    street: string;
-    city: string;
-    state: string;
-    zip: string;
-    country: string;
-    createdAt: string;
-    updatedAt: string;
-    orderId: string;
-  } | null;
+  contactInfo?: ContactInfo | null;
+  shippingAddress?: ShippingAddress | null;
+  customerName: string; // Obligatorio
+  paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  paymentMethod?: string | null;
+}
+
+export interface ContactInfo {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  createdAt: string;
+  updatedAt: string;
+  orderId: string;
+}
+
+export interface ShippingAddress {
+  id: string;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+  createdAt: string;
+  updatedAt: string;
+  orderId: string;
 }
 
 export interface OrderItem {
   id: string;
   orderId: string;
   productId: string;
-  productName: string;
-  productSku: string;
-  price: number;
   quantity: number;
+  price: number;
   total: number;
   createdAt: string;
-  product: {
-    id: string;
-    slug: string;
-    productName: string;
-    price: number;
-    description: string | null;
-    categoryId: string;
-    features: string[];
-    createdAt: string;
-    updatedAt: string;
-    category: {
-      id: string;
-      categoryName: string;
-      slug: string;
-      mainImage: string | null;
-      description: string | null;
-      createdAt: string;
-      updatedAt: string;
-    };
-    images: {
-      id: string;
-      productId: string;
-      url: string;
-      alt: string | null;
-      sortOrder: number;
-      isPrimary: boolean;
-      createdAt: string;
-    }[];
-  };
+  productName?: string | null;
+  productSku?: string | null;
+  product: Product;
 }
 
 // Interfaz para respuestas paginadas
@@ -179,14 +138,14 @@ export interface PaginatedResponse<T> {
 }
 
 // Interfaz para la respuesta de órdenes
-export interface OrdersResponse extends PaginatedResponse<Order> {}
+export type OrdersResponse = PaginatedResponse<Order>;
 
 export interface CartItem {
   id: string;
-  slug: string;
   productName: string;
   price: number;
-  image: string;
+  slug: string;
+  image: string; // Añadimos la propiedad image que se usa en el componente
   quantity: number;
 }
 
@@ -202,18 +161,18 @@ export interface OrderResponse {
     shippingAmount: number;
     total: number;
     createdAt: string;
-    contactInfo: {
+    contactInfo?: {
       name: string;
       email: string;
       phone: string;
-    };
-    shippingAddress: {
+    } | null;
+    shippingAddress?: {
       street: string;
       city: string;
       state: string;
       zip: string;
       country: string;
-    };
+    } | null;
     items: Array<{
       id: string;
       quantity: number;
@@ -229,6 +188,7 @@ export interface OrderResponse {
   emailSent: boolean;
   emailError?: string;
   error?: string;
+  whatsappLinks?: string[]; // Agregar esta propiedad
 }
 
 export interface Review {
@@ -236,12 +196,10 @@ export interface Review {
   userId: string;
   productId: string;
   rating: number;
-  title: string | null;
   comment: string | null;
-  isVerified: boolean;
   isApproved: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   user: User;
   product: Product;
 }
@@ -266,7 +224,8 @@ export interface CategoryFilters {
   limit?: number;
 }
 
-// INTERFAZ PRODUCTFULL CORREGIDA - Agregando reviewCount
+// En tu archivo src/types/index.ts, modifica la interfaz ProductFull para incluir reviewCount:
+
 export interface ProductFull {
   id: string;
   slug: string;
@@ -297,9 +256,6 @@ export interface ProductFull {
     isPrimary: boolean;
     createdAt: Date;
   }>;
-  // Añadir la propiedad reviewCount
-  reviewCount: number;
-  // Añadir la propiedad _count
   _count?: {
     orderItems?: number;
     reviews?: number;
@@ -314,76 +270,61 @@ export interface ProductFull {
     userId: string;
     productId: string;
   }>;
+  reviewCount?: number; // Asegúrate de tener esta propiedad
+  rating?: number;
+  sold?: number;
+  image?: string; // Asegúrate de tener esta propiedad
 }
 
 export interface UserProfile {
   id: string;
-  firstName: string;
-  lastName: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string;
-  phone?: string;
-  dateOfBirth?: string;
-  avatar?: string;
-  preferences: UserPreferences;
-  addresses: UserAddress[];
+  avatar: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface UserPreferences {
-  language: 'es' | 'en';
-  currency: 'USD' | 'EUR' | 'COP';
-  theme: 'light' | 'dark' | 'system';
-  emailNotifications: {
-    orderUpdates: boolean;
-    promotions: boolean;
-    securityAlerts: boolean;
-  };
-  pushNotifications: {
-    orderUpdates: boolean;
-    promotions: boolean;
-    securityAlerts: boolean;
-  };
+  addresses: UserAddress[];
 }
 
 export interface UserAddress {
   id: string;
-  type: 'home' | 'work' | 'other';
-  isDefault: boolean;
-  firstName: string;
-  lastName: string;
-  company?: string;
-  addressLine1: string;
-  addressLine2?: string;
+  type: 'HOME' | 'WORK' | 'OTHER';
+  street: string;
   city: string;
   state: string;
-  postalCode: string;
+  zipCode: string;
   country: string;
-  phone: string;
-  instructions?: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UserOrder {
   id: string;
   orderNumber: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status:
+    | 'PENDING'
+    | 'CONFIRMED'
+    | 'PROCESSING'
+    | 'SHIPPED'
+    | 'DELIVERED'
+    | 'CANCELLED'
+    | 'REFUNDED'
+    | 'FAILED';
   items: OrderItem[];
   total: number;
-  shippingAddress: UserAddress;
-  billingAddress: UserAddress;
-  paymentMethod: string;
+  shippingAddress?: ShippingAddress | null;
   createdAt: string;
   updatedAt: string;
-  estimatedDelivery?: string;
-  trackingNumber?: string;
 }
 
 export interface Cart {
   items: CartItem[];
   total: number;
   subtotal: number;
-  tax: number;
-  shipping: number;
+  taxAmount: number;
+  shippingAmount: number;
 }
 
 // Tipos específicos para el Dashboard
@@ -395,26 +336,11 @@ export interface DashboardStats {
   salesByCategory: { name: string; sales: number }[];
   ordersByStatus: { name: string; count: number }[];
   topProducts: { productName: string; totalSold: number }[];
-  recentOrders: RecentOrder[];
+  recentOrders: Order[];
   totalRevenue: number;
   averageOrderValue: number;
   conversionRate: number;
   monthlyGrowth: number;
-}
-
-export interface RecentOrder {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  customerEmail: string;
-  total: number;
-  status: OrderStatus;
-  createdAt: string;
-  items: {
-    productName: string;
-    quantity: number;
-    price: number;
-  }[];
 }
 
 export type OrderStatus =
@@ -494,13 +420,9 @@ export interface DashboardFilters {
 }
 
 // Tipos para respuestas de API del dashboard
-export interface DashboardProductsResponse extends PaginatedResponse<Product> {}
-export interface DashboardCategoriesResponse
-  extends PaginatedResponse<Category> {}
-export interface DashboardUsersResponse extends PaginatedResponse<User> {}
-export interface DashboardOrdersResponse extends PaginatedResponse<Order> {}
-export interface DashboardEmailsResponse
-  extends PaginatedResponse<EmailMetrics> {}
+export type DashboardProductsResponse = PaginatedResponse<Product>;
+export type DashboardCategoriesResponse = PaginatedResponse<Category>;
+export type DashboardEmailsResponse = PaginatedResponse<EmailMetrics>;
 
 // Tipos para gráficas
 export interface ChartData {

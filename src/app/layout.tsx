@@ -69,7 +69,7 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="es" suppressHydrationWarning>
+      <html lang="es" suppressHydrationWarning data-scroll-behavior="smooth">
         <head>
           {/* DNS Prefetch para recursos externos */}
           <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
@@ -104,7 +104,10 @@ export default function RootLayout({
             }}
           />
         </head>
-        <body className="min-h-screen relative bg-transparent antialiased font-sans">
+        <body
+          className="min-h-screen relative bg-transparent antialiased font-sans"
+          suppressHydrationWarning
+        >
           <ClientProviders>
             <ThemeProvider
               attribute="class"

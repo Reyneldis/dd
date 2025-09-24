@@ -173,9 +173,24 @@ export default function ProductsPage() {
     setTimeout(() => setIsFiltering(false), 500);
   }, [resetFilters]);
 
-  // Transformar el producto a ProductFull (ahora con todas las propiedades necesarias)
+  // En tu archivo src/app/(routes)/products/page.tsx, modifica la función transformToProductFull:
+
+  // src/app/(routes)/products/page.tsx
+
   const transformToProductFull = useCallback(
     (product: ProductWithCategory): ProductFull => {
+      const reviewCount = 0; // Por defecto 0
+      const orderItemsCount = 0; // Por defecto 0
+
+      // Obtener la imagen primaria o la primera imagen como fallback
+      const primaryImage =
+        product.images.find(img => img.isPrimary) || product.images[0];
+
+      // Usar directamente la URL de la imagen primaria o la imagen por defecto
+      const imageUrl = primaryImage?.url || '/img/placeholder-product.jpg';
+
+      console.log('Producto:', product.productName, 'URL de imagen:', imageUrl);
+
       return {
         id: product.id,
         slug: product.slug,
@@ -204,10 +219,15 @@ export default function ProductsPage() {
           alt: img.alt || null,
           sortOrder: img.sortOrder || index,
           isPrimary: img.isPrimary || index === 0,
-          createdAt: new Date(), // Añadir createdAt para las imágenes
+          createdAt: new Date(),
         })),
-        reviews: [], // Array vacío por ahora
-        reviewCount: 0,
+        reviews: [],
+        _count: {
+          reviews: reviewCount,
+          orderItems: orderItemsCount,
+        },
+        reviewCount, // Añadir explícitamente la propiedad
+        image: imageUrl, // Usar directamente la URL de la imagen primaria
       };
     },
     [],

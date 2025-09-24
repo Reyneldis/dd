@@ -3,6 +3,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+
 import {
   Card,
   CardContent,
@@ -18,6 +19,7 @@ import {
   Package,
   Tag,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -104,7 +106,7 @@ export default function ProductDetailPage() {
               <div className="space-y-4">
                 {product.images.map(image => (
                   <div key={image.id} className="rounded-md overflow-hidden">
-                    <img
+                    <Image
                       src={image.url}
                       alt={image.alt || product.productName}
                       className="w-full h-48 object-cover"

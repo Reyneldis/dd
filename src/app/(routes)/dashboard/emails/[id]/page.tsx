@@ -1,4 +1,3 @@
-// src/app/(routes)/dashboard/emails/[id]/page.tsx
 'use client';
 
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react'; // Importar useCallback
 import { toast } from 'sonner';
 
 interface FailedEmail {
@@ -41,11 +40,8 @@ export default function EmailDetailPage() {
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
 
-  useEffect(() => {
-    fetchEmailDetail();
-  }, [emailId]);
-
-  const fetchEmailDetail = async () => {
+  // Corregir: envolver fetchEmailDetail en useCallback
+  const fetchEmailDetail = useCallback(async () => {
     try {
       setLoading(true);
       // Obtenemos todos los emails y filtramos por ID
@@ -63,7 +59,11 @@ export default function EmailDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [emailId]); // Añadir dependencia
+
+  useEffect(() => {
+    fetchEmailDetail();
+  }, [fetchEmailDetail]); // Añadir dependencia
 
   const retryEmail = async () => {
     if (!email) return;

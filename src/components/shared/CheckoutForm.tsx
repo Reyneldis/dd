@@ -53,15 +53,15 @@ export default function CheckoutForm() {
 
   // Construye el mensaje de WhatsApp con los datos actuales del formulario y carrito
   const buildWhatsappMessage = (): string => {
-    return `Nuevo Pedido:\n\nNombre: ${
+    return `Nuevo Pedido:\n\nNombre: ${ 
       formData.contactInfo?.name || ''
-    }\nTeléfono: ${formData.contactInfo?.phone || ''}\nEmail: ${
+    }\nTeléfono: ${formData.contactInfo?.phone || ''}\nEmail: ${ 
       formData.contactInfo?.email || ''
-    }\nDirección: ${formData.shippingAddress?.street || ''}, ${
+    }\nDirección: ${formData.shippingAddress?.street || ''}, ${ 
       formData.shippingAddress?.city || ''
     }\n\nProductos:\n${items
       .map(item => `${item.quantity}x ${item.productName} - $${item.price}`)
-      .join('\n')}\n\nTotal: $${total.toFixed(2)}\n\nNotas: ${
+      .join('\n')}\n\nTotal: $${total.toFixed(2)}\n\nNotas: ${ 
       formData.notes || ''
     }`;
   };
@@ -163,41 +163,10 @@ export default function CheckoutForm() {
 
       // Notificación por WhatsApp (cliente) a admins vía wa.me si está configurado
       try {
-        const adminNumbersEnv = process.env.NEXT_PUBLIC_WHATSAPP_ADMINS || '';
-        const adminNumbers = adminNumbersEnv
-          .split(',')
-          .map(n => n.trim())
-          .filter(n => n.length > 0);
-
-        if (adminNumbers.length > 0) {
-          const orderTotal = items.reduce(
-            (acc, item) => acc + item.price * item.quantity,
-            0,
-          );
-          const message =
-            `🛒 NUEVO PEDIDO ${orderNumber}\n\n` +
-            `👤 Cliente: ${contactInfo.name}\n` +
-            `📞 Tel: ${contactInfo.phone}\n` +
-            `✉️ Email: ${contactInfo.email}\n` +
-            `📍 Dirección: ${shippingAddress.street}, ${
-              shippingAddress.city
-            }, ${shippingAddress.state} ${shippingAddress.zip || ''}\n\n` +
-            `🧾 Productos:\n${items
-              .map(
-                it =>
-                  `• ${it.productName} x${it.quantity} - $${(
-                    it.price * it.quantity
-                  ).toFixed(2)}`,
-              )
-              .join('\n')}\n\n` +
-            `💰 Total: $${orderTotal.toFixed(2)}`;
-
-          adminNumbers.forEach((num, idx) => {
-            const url = `https://wa.me/${num.replace(
-              /\D/g,
-              '',
-            )}?text=${encodeURIComponent(message)}`;
-            setTimeout(() => window.open(url, '_blank'), idx * 400);
+        const whatsappLinks = result.whatsappLinks || [];
+        if (whatsappLinks.length > 0) {
+          whatsappLinks.forEach((link, idx) => {
+            setTimeout(() => window.open(link, '_blank'), idx * 400);
           });
         }
       } catch (error) {

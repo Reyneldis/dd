@@ -1,3 +1,4 @@
+// src/components/shared/Navbar/Navbar.tsx
 'use client';
 import { useAdmin } from '@/hooks/use-admin';
 import { useCart } from '@/hooks/use-cart';
@@ -79,7 +80,7 @@ export default function Navbar() {
   const { items } = useCart();
   const { isSignedIn, isLoaded } = useAuth();
   const { user } = useUser();
-  const { isAdmin } = useAdmin();
+  const { isAdmin, loading } = useAdmin();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -166,14 +167,16 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* Enlace al dashboard visible para todos */}
-            <Link
-              href="/dashboard"
-              className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 border border-white/20 dark:border-neutral-700/30 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-all"
-              aria-label="Dashboard"
-            >
-              <LayoutDashboard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </Link>
+            {/* Enlace al dashboard visible solo para administradores */}
+            {!loading && isAdmin && (
+              <Link
+                href="/dashboard"
+                className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 border border-white/20 dark:border-neutral-700/30 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-all"
+                aria-label="Dashboard"
+              >
+                <LayoutDashboard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              </Link>
+            )}
 
             {isLoaded && isSignedIn && user ? (
               <>
@@ -333,18 +336,20 @@ export default function Navbar() {
                     </Link>
                   )}
 
-                  {/* Enlace al dashboard visible para todos */}
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <LayoutDashboard
-                      size={18}
-                      className="mr-3 text-indigo-600 dark:text-indigo-400"
-                    />
-                    Dashboard
-                  </Link>
+                  {/* Enlace al dashboard visible solo para administradores */}
+                  {!loading && isAdmin && (
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <LayoutDashboard
+                        size={18}
+                        className="mr-3 text-indigo-600 dark:text-indigo-400"
+                      />
+                      Dashboard
+                    </Link>
+                  )}
                 </div>
 
                 {/* Cuenta de usuario */}
@@ -370,17 +375,19 @@ export default function Navbar() {
                       </Link>
 
                       {/* Enlace al dashboard en la sección de cuenta para usuarios autenticados */}
-                      <Link
-                        href="/dashboard"
-                        onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                      >
-                        <LayoutDashboard
-                          size={18}
-                          className="mr-3 text-indigo-600 dark:text-indigo-400"
-                        />
-                        Dashboard
-                      </Link>
+                      {!loading && isAdmin && (
+                        <Link
+                          href="/dashboard"
+                          onClick={() => setIsMenuOpen(false)}
+                          className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                        >
+                          <LayoutDashboard
+                            size={18}
+                            className="mr-3 text-indigo-600 dark:text-indigo-400"
+                          />
+                          Dashboard
+                        </Link>
+                      )}
 
                       <SignOutButton>
                         <button className="flex items-center w-full px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">

@@ -1,3 +1,5 @@
+// src/lib/dashboard-service.ts
+
 import { Category, Order, OrdersResponse, Product, User } from '@/types';
 import { OrderStatus, PrismaClient, Role, Status } from '@prisma/client';
 import { mkdir, writeFile } from 'fs/promises';
@@ -107,6 +109,10 @@ interface PaginatedResponse<T> {
 // FUNCIONES DE PRODUCTOS
 // ============================================================================
 
+// src/lib/dashboard-service.ts
+
+// ... código anterior ...
+
 export async function getProducts(
   filters: ProductFilters = {},
 ): Promise<PaginatedResponse<Product>> {
@@ -179,16 +185,16 @@ export async function getProducts(
       features: product.features,
       status: product.status as 'ACTIVE' | 'INACTIVE',
       featured: product.featured,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
+      createdAt: product.createdAt.toISOString(), // Convertir Date a string
+      updatedAt: product.updatedAt.toISOString(), // Convertir Date a string
       category: {
         id: product.category.id,
         categoryName: product.category.categoryName,
         slug: product.category.slug,
         description: product.category.description,
         mainImage: product.category.mainImage,
-        createdAt: product.category.createdAt,
-        updatedAt: product.category.updatedAt,
+        createdAt: product.category.createdAt.toISOString(), // Convertir Date a string
+        updatedAt: product.category.updatedAt.toISOString(), // Convertir Date a string
       },
       images: product.images.map(img => ({
         id: img.id,
@@ -197,7 +203,7 @@ export async function getProducts(
         alt: img.alt,
         sortOrder: img.sortOrder,
         isPrimary: img.isPrimary,
-        createdAt: img.createdAt,
+        createdAt: img.createdAt.toISOString(), // Convertir Date a string
       })),
       reviewCount: 0,
       _count: {
@@ -220,6 +226,8 @@ export async function getProducts(
     throw new Error('Error al obtener los productos');
   }
 }
+
+// ... código posterior ...
 
 // Función para guardar imágenes localmente
 async function saveImageLocally(
@@ -247,6 +255,10 @@ async function saveImageLocally(
   // Retornar URL pública
   return `/uploads/products/${fileName}`;
 }
+
+// src/lib/dashboard-service.ts
+
+// ... código anterior ...
 
 export async function createProduct(
   productData: CreateProductData,
@@ -321,9 +333,48 @@ export async function createProduct(
       },
     });
 
+    // Serializar el producto para que coincida con el tipo Product
+    const serializedProduct: Product = {
+      id: updatedProduct!.id,
+      slug: updatedProduct!.slug,
+      productName: updatedProduct!.productName,
+      price: updatedProduct!.price,
+      stock: updatedProduct!.stock,
+      description: updatedProduct!.description,
+      categoryId: updatedProduct!.categoryId,
+      features: updatedProduct!.features,
+      status: updatedProduct!.status as 'ACTIVE' | 'INACTIVE',
+      featured: updatedProduct!.featured,
+      createdAt: updatedProduct!.createdAt.toISOString(), // Convertir Date a string
+      updatedAt: updatedProduct!.updatedAt.toISOString(), // Convertir Date a string
+      category: {
+        id: updatedProduct!.category.id,
+        categoryName: updatedProduct!.category.categoryName,
+        slug: updatedProduct!.category.slug,
+        description: updatedProduct!.category.description,
+        mainImage: updatedProduct!.category.mainImage,
+        createdAt: updatedProduct!.category.createdAt.toISOString(), // Convertir Date a string
+        updatedAt: updatedProduct!.category.updatedAt.toISOString(), // Convertir Date a string
+      },
+      images: updatedProduct!.images.map(img => ({
+        id: img.id,
+        productId: img.productId,
+        url: img.url,
+        alt: img.alt,
+        sortOrder: img.sortOrder,
+        isPrimary: img.isPrimary,
+        createdAt: img.createdAt.toISOString(), // Convertir Date a string
+      })),
+      reviewCount: 0,
+      _count: {
+        reviews: 0,
+        orderItems: 0,
+      },
+    };
+
     return {
       success: true,
-      data: updatedProduct as Product,
+      data: serializedProduct,
     };
   } catch (error) {
     console.error('Error creating product:', error);
@@ -334,6 +385,8 @@ export async function createProduct(
     };
   }
 }
+
+// ... código posterior ...
 
 export async function updateProduct(
   productId: string,
@@ -375,9 +428,48 @@ export async function updateProduct(
       },
     });
 
+    // Serializar el producto para que coincida con el tipo Product
+    const serializedProduct: Product = {
+      id: product.id,
+      slug: product.slug,
+      productName: product.productName,
+      price: product.price,
+      stock: product.stock,
+      description: product.description,
+      categoryId: product.categoryId,
+      features: product.features,
+      status: product.status as 'ACTIVE' | 'INACTIVE',
+      featured: product.featured,
+      createdAt: product.createdAt.toISOString(), // Convertir Date a string
+      updatedAt: product.updatedAt.toISOString(), // Convertir Date a string
+      category: {
+        id: product.category.id,
+        categoryName: product.category.categoryName,
+        slug: product.category.slug,
+        description: product.category.description,
+        mainImage: product.category.mainImage,
+        createdAt: product.category.createdAt.toISOString(), // Convertir Date a string
+        updatedAt: product.category.updatedAt.toISOString(), // Convertir Date a string
+      },
+      images: product.images.map(img => ({
+        id: img.id,
+        productId: img.productId,
+        url: img.url,
+        alt: img.alt,
+        sortOrder: img.sortOrder,
+        isPrimary: img.isPrimary,
+        createdAt: img.createdAt.toISOString(), // Convertir Date a string
+      })),
+      reviewCount: 0,
+      _count: {
+        reviews: 0,
+        orderItems: 0,
+      },
+    };
+
     return {
       success: true,
-      data: product as Product,
+      data: serializedProduct,
     };
   } catch (error) {
     console.error('Error updating product:', error);
@@ -561,9 +653,23 @@ export async function createCategory(
       where: { id: category.id },
     });
 
+    // Serializar la categoría para que coincida con el tipo Category
+    const serializedCategory: Category = {
+      id: updatedCategory!.id,
+      categoryName: updatedCategory!.categoryName,
+      slug: updatedCategory!.slug,
+      description: updatedCategory!.description,
+      mainImage: updatedCategory!.mainImage,
+      createdAt: updatedCategory!.createdAt.toISOString(), // Convertir Date a string
+      updatedAt: updatedCategory!.updatedAt.toISOString(), // Convertir Date a string
+      _count: {
+        products: 0,
+      },
+    };
+
     return {
       success: true,
-      data: updatedCategory as Category,
+      data: serializedCategory,
     };
   } catch (error) {
     console.error('Error creating category:', error);
@@ -607,7 +713,14 @@ export async function updateCategory(
     }
 
     // Preparar datos para la actualización
-    const updateData: any = {
+    type CategoryUpdateData = {
+      categoryName?: string;
+      slug?: string;
+      description?: string;
+      mainImage?: string | null;
+    };
+
+    const updateData: CategoryUpdateData = {
       categoryName: categoryData.categoryName,
       slug: categoryData.slug,
       description: categoryData.description,
@@ -650,8 +763,6 @@ export async function updateCategory(
     };
   }
 }
-
-// src/lib/dashboard-service.ts
 
 export async function deleteCategory(
   categoryId: string,
@@ -722,8 +833,12 @@ export async function deleteCategory(
 
     // Si el error es de Prisma, intentar obtener más información
     if (error && typeof error === 'object' && 'code' in error) {
-      console.error('Prisma error code:', (error as any).code);
-      console.error('Prisma error meta:', (error as any).meta);
+      const prismaError = error as {
+        code: string;
+        meta?: Record<string, unknown>;
+      };
+      console.error('Prisma error code:', prismaError.code);
+      console.error('Prisma error meta:', prismaError.meta);
     }
 
     return {
@@ -735,6 +850,7 @@ export async function deleteCategory(
     };
   }
 }
+
 export async function getUserById(userId: string): Promise<ApiResponse<User>> {
   try {
     const user = await prisma.user.findUnique({
@@ -779,6 +895,7 @@ export async function getUserById(userId: string): Promise<ApiResponse<User>> {
     };
   }
 }
+
 // ============================================================================
 // FUNCIONES DE ÓRDENES
 // ============================================================================
@@ -966,6 +1083,12 @@ export async function getOrders(
             orderId: order.shippingAddress.orderId,
           }
         : null,
+      // Agregar customerName para compatibilidad con RecentOrdersTable
+      customerName:
+        order.contactInfo?.name ||
+        (order.user
+          ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim()
+          : 'Cliente sin nombre'),
     }));
 
     return {
@@ -1184,8 +1307,6 @@ export async function toggleUserActive(
 // FUNCIONES DE EMAILS FALLIDOS
 // ============================================================================
 
-// src/lib/dashboard-service.ts
-
 export async function getFailedEmails() {
   try {
     console.log('Consultando emails fallidos en la base de datos...');
@@ -1317,18 +1438,60 @@ export async function getDashboardStats() {
       LIMIT 5
     `) as { productName: string; totalSold: number }[];
 
-    // Pedidos recientes
+    // Pedidos recientes - Ahora obtenemos los datos completos de Order
     const recentOrders = await prisma.order.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: {
         contactInfo: true,
+        shippingAddress: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            avatar: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         items: {
           include: {
             product: {
               select: {
-                productName: true,
+                id: true,
                 slug: true,
+                productName: true,
+                price: true,
+                description: true,
+                categoryId: true,
+                features: true,
+                createdAt: true,
+                updatedAt: true,
+                category: {
+                  select: {
+                    id: true,
+                    categoryName: true,
+                    slug: true,
+                    mainImage: true,
+                    description: true,
+                    createdAt: true,
+                    updatedAt: true,
+                  },
+                },
+                images: {
+                  select: {
+                    id: true,
+                    productId: true,
+                    url: true,
+                    alt: true,
+                    sortOrder: true,
+                    isPrimary: true,
+                    createdAt: true,
+                  },
+                },
               },
             },
           },
@@ -1336,20 +1499,104 @@ export async function getDashboardStats() {
       },
     });
 
-    const formattedOrders = recentOrders.map(order => ({
+    // Serializar las órdenes al formato Order[]
+    const serializedOrders: Order[] = recentOrders.map(order => ({
       id: order.id,
       orderNumber: order.orderNumber,
-      customerName: order.contactInfo?.name || 'Cliente sin nombre',
+      status: order.status as Order['status'],
+      customerEmail: order.customerEmail || undefined,
+      subtotal: order.subtotal,
+      taxAmount: order.taxAmount,
+      shippingAmount: order.shippingAmount,
       total: order.total,
-      status: order.status,
+      paymentStatus: 'PENDING' as const,
+      paymentMethod: null,
       createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString(),
+      userId: order.userId || undefined,
+      user: order.user
+        ? {
+            id: order.user.id,
+            clerkId: '', // No disponible en la consulta actual
+            email: order.user.email,
+            firstName: order.user.firstName || '',
+            lastName: order.user.lastName || '',
+            role: order.user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+            avatar: order.user.avatar,
+            createdAt: order.user.createdAt.toISOString(),
+            updatedAt: order.user.updatedAt.toISOString(),
+          }
+        : null,
       items: order.items.map(item => ({
         id: item.id,
-        quantity: item.quantity,
+        orderId: item.orderId,
+        productId: item.productId,
+        productName: item.productName || 'Producto sin nombre',
+        productSku: item.productSku || '',
         price: item.price,
-        productName: item.product?.productName || 'Producto desconocido',
-        productSku: item.product?.slug || '',
+        quantity: item.quantity,
+        total: item.total,
+        createdAt: item.createdAt.toISOString(),
+        product: {
+          id: item.product.id,
+          slug: item.product.slug,
+          productName: item.product.productName,
+          price: item.product.price,
+          description: item.product.description,
+          categoryId: item.product.categoryId,
+          features: item.product.features,
+          createdAt: item.product.createdAt.toISOString(),
+          updatedAt: item.product.updatedAt.toISOString(),
+          category: {
+            id: item.product.category.id,
+            categoryName: item.product.category.categoryName,
+            slug: item.product.category.slug,
+            mainImage: item.product.category.mainImage,
+            description: item.product.category.description,
+            createdAt: item.product.category.createdAt.toISOString(),
+            updatedAt: item.product.category.updatedAt.toISOString(),
+          },
+          images: item.product.images.map(img => ({
+            id: img.id,
+            productId: img.productId,
+            url: img.url,
+            alt: img.alt,
+            sortOrder: img.sortOrder,
+            isPrimary: img.isPrimary,
+            createdAt: img.createdAt.toISOString(),
+          })),
+        },
       })),
+      contactInfo: order.contactInfo
+        ? {
+            id: order.contactInfo.id,
+            name: order.contactInfo.name,
+            email: order.contactInfo.email,
+            phone: order.contactInfo.phone,
+            createdAt: order.contactInfo.createdAt.toISOString(),
+            updatedAt: order.contactInfo.updatedAt.toISOString(),
+            orderId: order.contactInfo.orderId,
+          }
+        : null,
+      shippingAddress: order.shippingAddress
+        ? {
+            id: order.shippingAddress.id,
+            street: order.shippingAddress.street,
+            city: order.shippingAddress.city,
+            state: order.shippingAddress.state,
+            zip: order.shippingAddress.zip,
+            country: order.shippingAddress.country,
+            createdAt: order.shippingAddress.createdAt.toISOString(),
+            updatedAt: order.shippingAddress.updatedAt.toISOString(),
+            orderId: order.shippingAddress.orderId,
+          }
+        : null,
+      // Agregar customerName para compatibilidad con RecentOrdersTable
+      customerName:
+        order.contactInfo?.name ||
+        (order.user
+          ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim()
+          : 'Cliente sin nombre'),
     }));
 
     return {
@@ -1360,7 +1607,11 @@ export async function getDashboardStats() {
       salesByCategory,
       ordersByStatus,
       topProducts,
-      recentOrders: formattedOrders,
+      recentOrders: serializedOrders, // Ahora devuelve Order[] con customerName
+      totalRevenue: 0, // Calcular si es necesario
+      averageOrderValue: 0, // Calcular si es necesario
+      conversionRate: 0, // Calcular si es necesario
+      monthlyGrowth: 0, // Calcular si es necesario
     };
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
@@ -1494,6 +1745,12 @@ export async function getOrderById(
             orderId: order.shippingAddress.orderId,
           }
         : null,
+      // Agregar customerName para compatibilidad con RecentOrdersTable
+      customerName:
+        order.contactInfo?.name ||
+        (order.user
+          ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim()
+          : 'Cliente sin nombre'),
     };
 
     return {

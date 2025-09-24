@@ -21,9 +21,11 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Category } from '@/types';
 import { ArrowLeft, Loader2, Upload, X } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+
 import { toast } from 'sonner';
 
 export default function CreateProductPage() {
@@ -449,7 +451,7 @@ export default function CreateProductPage() {
                     {imagePreviews.map((preview, index) => (
                       <div key={index} className="relative group">
                         <div className="aspect-square w-full overflow-hidden rounded-md border">
-                          <img
+                          <Image
                             src={preview}
                             alt={`Preview ${index}`}
                             className="w-full h-full object-cover"

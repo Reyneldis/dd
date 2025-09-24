@@ -1,5 +1,3 @@
-// src/app/(routes)/categories/[id]/page.tsx
-
 import ProductCardCompact from '@/components/shared/ProductCard/ProductCardCompact';
 import { prisma } from '@/lib/prisma';
 import { ProductFull } from '@/types/product';
@@ -71,7 +69,9 @@ function transformToProductFull(product: ProductWithRelations): ProductFull {
       userId: review.userId,
       productId: review.productId,
     })),
-    reviewCount: reviews.length, // Ahora usamos el array que sabemos que existe
+    _count: {
+      reviews: reviews.length, // Usamos _count en lugar de reviewCount
+    },
   };
 }
 

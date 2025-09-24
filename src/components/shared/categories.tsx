@@ -85,7 +85,7 @@ export default function Categories() {
   });
 
   // Función para construir URL de imagen (reutilizable)
-  const getImageUrl = (mainImage: string | null): string => {
+  const _getImageUrl = (mainImage: string | null): string => {
     if (!mainImage) return '/img/placeholder-category.jpg';
 
     if (
@@ -183,8 +183,10 @@ export default function Categories() {
           {categories
             .filter(category => category.slug)
             .map((category, index) => {
-              const imageUrl = getImageUrl(category.mainImage);
-
+              // Eliminar estas líneas con error
+              // const imageUrl = ...
+              // Por:
+              // const _imageUrl = ...
               return (
                 <Link
                   key={category.id}
@@ -206,10 +208,12 @@ export default function Categories() {
                         category.mainImage || '/img/placeholder-category.jpg'
                       }
                       alt={category.categoryName}
-                      fill
+                      layout="fill"
+                      objectFit="cover"
                       className="transition-transform duration-700 group-hover:scale-110"
                       loading="lazy" // Lazy loading para optimizar
                     />
+
                     <div className="absolute inset-0 bg-gradient-to-t from-background/30 via-transparent to-transparent"></div>
                   </div>
                   {/* Info inferior glassmorphism */}

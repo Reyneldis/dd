@@ -79,12 +79,61 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         category: true,
-        images: true, // Incluir todas las imágenes con la propiedad isPrimary
+        images: {
+          orderBy: {
+            sortOrder: 'asc',
+          },
+        },
       },
       orderBy,
       take: 50, // Limitar resultados para mejor rendimiento
     });
-    return NextResponse.json(products);
+
+    // Procesar productos para asegurar que al menos una imagen esté marcada como primaria
+    const processedProducts = products.map(product => {
+      // Si no hay imágenes, devolver el producto tal cual
+      if (!product.images || product.images.length === 0) {
+        return product;
+      }
+
+      // Verificar si hay al menos una imagen marcada como primaria
+      const hasPrimaryImage = product.images.some(img => img.isPrimary);
+
+      // Si no hay imagen primaria, marcar la primera como primaria
+      if (!hasPrimaryImage) {
+        product.images[0].isPrimary = true;
+      }
+
+      // Asegurar que todas las imágenes tengan una URL válida
+      product.images = product.images.map(img => {
+        // Si la URL no comienza con /, http:// o https://, agregar /uploads/
+        if (
+          img.url &&
+          !img.url.startsWith('/') &&
+          !img.url.startsWith('http')
+        ) {
+          img.url = `/uploads/${img.url}`;
+        }
+        return img;
+      });
+
+      return product;
+    });
+
+    // Agregar logs para depuración
+    console.log(
+      'Productos procesados:',
+      processedProducts.map(p => ({
+        id: p.id,
+        name: p.productName,
+        images: p.images.map(img => ({
+          url: img.url,
+          isPrimary: img.isPrimary,
+        })),
+      })),
+    );
+
+    return NextResponse.json(processedProducts);
   } catch (error) {
     console.error('Error searching products:', error);
     return NextResponse.json(
