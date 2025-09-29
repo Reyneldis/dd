@@ -1,3 +1,4 @@
+// components/shared/CartModal.tsx
 'use client';
 import { useCart } from '@/hooks/use-cart';
 import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
@@ -11,23 +12,14 @@ interface CartModalProps {
 }
 
 export default function CartModal({ isOpen, onClose }: CartModalProps) {
-  const { items, removeItem, updateQuantity, clearCart } = useCart();
+  const { items, removeItem, updateQuantity, clearCart, loading: cartLoading } =
+    useCart();
   const [isCheckoutOpen, setCheckoutOpen] = useState(false);
 
   const total = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
-
-  // Función simplificada para actualizar la cantidad sin verificar stock
-  const handleQuantityChange = (slug: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeItem(slug);
-    } else {
-      // Actualización directa sin ninguna verificación de stock
-      updateQuantity(slug, newQuantity);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -65,14 +57,15 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
             <X className="h-4 w-4" />
           </button>
         </div>
+
         {/* Content */}
         <div className="max-h-96 overflow-y-auto">
           {items.length === 0 ? (
             <div className="p-8 text-center">
-              <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">
-                Tu carrito está vacío
-              </h3>
+              <ShoppingBag
+                className="h-12 w-12 text-muted-foreground mx-auto mb-4"
+              />
+              <h3 className="text-lg font-medium mb-2">Tu carrito está vacío</h3>
               <p className="text-muted-foreground mb-4">
                 Añade algunos productos para verlos aquí
               </p>
@@ -81,7 +74,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
             <div className="p-4 space-y-4">
               {items.map(item => (
                 <div
-                  key={item.slug}
+                  key={item.id}
                   className="flex gap-3 p-3 bg-muted/20 rounded-lg"
                 >
                   <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted">
@@ -94,7 +87,9 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                       />
                     ) : (
                       <div className="h-full w-full flex items-center justify-center">
-                        <ShoppingBag className="h-8 w-8 text-muted-foreground" />
+                        <ShoppingBag
+                          className="h-8 w-8 text-muted-foreground"
+                        />
                       </div>
                     )}
                   </div>
@@ -105,32 +100,44 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                     <p className="text-sm font-medium text-primary">
                       ${Number(item.price).toFixed(2)}
                     </p>
+
                     {/* Controles de cantidad */}
                     <div className="flex items-center gap-2 mt-2">
                       <button
                         onClick={() =>
-                          handleQuantityChange(item.slug, item.quantity - 1)
+                          updateQuantity(item.id, item.quantity - 1)
                         }
-                        className="p-1 hover:bg-muted rounded-md transition-colors"
+                        disabled={cartLoading}
+                        className="p-1 hover:bg-muted rounded-md transition-colors disabled:opacity-50"
                       >
                         <Minus className="h-3 w-3" />
                       </button>
-                      <span className="text-sm font-medium min-w-[20px] text-center">
-                        {item.quantity}
-                      </span>
+
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-medium min-w-[20px] text-center">
+                          {item.quantity}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({item.quantity > 1 ? 'unidades' : 'unidad'})
+                        </span>
+                      </div>
+
                       <button
                         onClick={() =>
-                          handleQuantityChange(item.slug, item.quantity + 1)
+                          updateQuantity(item.id, item.quantity + 1)
                         }
-                        className="p-1 hover:bg-muted rounded-md transition-colors"
+                        disabled={cartLoading}
+                        className="p-1 hover:bg-muted rounded-md transition-colors disabled:opacity-50"
                       >
                         <Plus className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
+
                   <button
-                    onClick={() => removeItem(item.slug)}
-                    className="p-1 hover:bg-muted rounded-md transition-colors text-muted-foreground hover:text-destructive"
+                    onClick={() => removeItem(item.id)}
+                    disabled={cartLoading}
+                    className="p-1 hover:bg-muted rounded-md transition-colors text-muted-foreground hover:text-destructive disabled:opacity-50"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -139,6 +146,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
             </div>
           )}
         </div>
+
         {/* Footer */}
         {items.length > 0 && (
           <div className="p-4 border-t space-y-3">

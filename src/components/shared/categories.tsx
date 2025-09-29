@@ -208,7 +208,7 @@ export default function Categories() {
                         category.mainImage || '/img/placeholder-category.jpg'
                       }
                       alt={category.categoryName}
-                      layout="fill"
+                      fill
                       objectFit="cover"
                       className="transition-transform duration-700 group-hover:scale-110"
                       loading="lazy" // Lazy loading para optimizar

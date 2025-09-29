@@ -1,19 +1,16 @@
-// Servicio para enviar mensajes por WhatsApp (WhatsApp Cloud API)
-// Usa configuración centralizada desde config.ts
+/**
+ * Servicio simplificado de WhatsApp usando enlaces wa.me
+ */
 
-import {
-  formatPhoneForWhatsApp,
-  getWhatsAppConfig,
-  isWhatsAppCloudAPIConfigured,
-} from './config';
-
-type OrderItemSummary = {
+export interface OrderItemSummary {
   productName: string;
   quantity: number;
   price: number;
-};
+  imageUrl?: string;
+  productUrl?: string;
+}
 
-type OrderForWhatsApp = {
+export interface OrderForWhatsApp {
   id: string;
   orderNumber: string;
   total: number;
@@ -29,52 +26,35 @@ type OrderForWhatsApp = {
     zip: string | null;
     country?: string | null;
   } | null;
-  items: Array<OrderItemSummary>;
-};
-
-export async function sendWhatsAppMessage(toNumber: string, message: string) {
-  const config = getWhatsAppConfig();
-
-  if (!isWhatsAppCloudAPIConfigured()) {
-    console.warn(
-      '[whatsapp] WhatsApp Cloud API no configurado. Omitiendo envío automático.',
-      {
-        hasToken: Boolean(config.accessToken),
-        hasPhoneNumberId: Boolean(config.phoneNumberId),
-        hasAdminNumbers: config.adminNumbers.length > 0,
-      },
-    );
-    return;
-  }
-
-  const apiUrl = `https://graph.facebook.com/v17.0/${config.phoneNumberId}/messages`;
-
-  const payload = {
-    messaging_product: 'whatsapp',
-    to: formatPhoneForWhatsApp(toNumber),
-    type: 'text',
-    text: { body: message.slice(0, 4000) }, // Límite de WhatsApp
-  } as const;
-
-  const res = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.accessToken}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => '');
-    throw new Error(`WhatsApp API error ${res.status}: ${errorText}`);
-  }
+  items: OrderItemSummary[];
 }
 
+/**
+ * Normalizar número de teléfono para WhatsApp
+ */
+function normalizePhoneNumber(phone: string): string {
+  return phone.replace(/\D/g, '');
+}
+
+/**
+ * Formatear número para enlace wa.me
+ */
+function formatPhoneForWhatsApp(phone: string): string {
+  const normalized = normalizePhoneNumber(phone);
+  if (normalized.length === 8) {
+    return `53${normalized}`;
+  }
+  return normalized;
+}
+
+/**
+ * Construir mensaje detallado para WhatsApp
+ */
 export function buildOrderMessage(order: OrderForWhatsApp): string {
-  const customerName = order.contactInfo?.name ?? 'Cliente';
-  const customerPhone = order.contactInfo?.phone ?? '';
-  const customerEmail = order.contactInfo?.email ?? '';
+  const customerName = order.contactInfo?.name || 'Cliente';
+  const customerPhone = order.contactInfo?.phone || 'No proporcionado';
+  const customerEmail = order.contactInfo?.email || 'No proporcionado';
+
   const addressParts = [
     order.shippingAddress?.street,
     order.shippingAddress?.city,
@@ -83,71 +63,77 @@ export function buildOrderMessage(order: OrderForWhatsApp): string {
     order.shippingAddress?.country,
   ].filter(Boolean);
 
-  const lines = [
-    `🛒 NUEVO PEDIDO ${order.orderNumber || '#' + order.id.slice(-6)}`,
-    '',
-    `👤 Cliente: ${customerName}`,
-    customerPhone ? `📞 Tel: ${customerPhone}` : '',
-    customerEmail ? `✉️ Email: ${customerEmail}` : '',
-    addressParts.length ? `📍 Dirección: ${addressParts.join(', ')}` : '',
-    '',
-    '🧾 Productos:',
-    ...order.items.map(
-      it =>
-        `• ${it.productName} x${it.quantity} - $${(
-          it.price * it.quantity
-        ).toFixed(2)}`,
-    ),
-    '',
-    `💰 Total: $${order.total.toFixed(2)}`,
-    '',
-    '— Enviado automáticamente —',
-  ].filter(Boolean);
+  const itemsSummary = order.items
+    .map(
+      item =>
+        `• ${item.productName} x${item.quantity} - $${(
+          item.price * item.quantity
+        ).toFixed(2)}${
+          item.imageUrl ? `\n   📸 Imagen: ${item.imageUrl}` : ''
+        }${item.productUrl ? `\n   🔗 Ver: ${item.productUrl}` : ''}`,
+    )
+    .join('\n\n');
 
-  return lines.join('\n');
+  const message = `🛒 *NUEVO PEDIDO* ${order.orderNumber}
+
+👤 *Cliente:* ${customerName}
+📞 *Teléfono:* ${customerPhone}
+📧 *Email:* ${customerEmail}
+
+📍 *Dirección de entrega:*
+ ${addressParts.length > 0 ? addressParts.join(', ') : 'No proporcionada'}
+
+📦 *Productos:*
+ ${itemsSummary}
+
+💰 *Total del pedido:* $${order.total.toFixed(2)}
+
+⏰ *Fecha:* ${new Date().toLocaleString('es-ES')}
+
+_— Pedido generado automáticamente desde la tienda online —_`;
+
+  return message;
 }
 
-export async function notifyAdminsNewOrder(order: OrderForWhatsApp) {
-  const config = getWhatsAppConfig();
+/**
+ * Generar enlaces wa.me para todos los administradores
+ */
+export function generateWhatsAppLinks(order: OrderForWhatsApp): string[] {
+  const adminNumbersEnv =
+    process.env.NEXT_PUBLIC_WHATSAPP_ADMINS || '5358134753,5359597421';
 
-  if (config.adminNumbers.length === 0) {
-    console.warn(
-      '[whatsapp] No hay números de administradores configurados. No se enviará notificación.',
-    );
-    return;
-  }
-
-  const message = buildOrderMessage(order);
-  const errors: Array<{ to: string; error: string }> = [];
-
-  await Promise.all(
-    config.adminNumbers.map(async to => {
-      try {
-        await sendWhatsAppMessage(to, message);
-      } catch (err) {
-        errors.push({
-          to,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }),
+  console.log(
+    '📞 [WhatsApp] Números de administradores configurados:',
+    adminNumbersEnv,
   );
 
-  if (errors.length > 0) {
-    throw new Error(
-      '[whatsapp] Algunos envíos fallaron: ' + JSON.stringify(errors),
-    );
-  }
-}
+  const adminNumbers = adminNumbersEnv
+    .split(',')
+    .map(n => n.trim())
+    .filter(n => n.length > 0);
 
-// Función para generar enlaces wa.me (fallback cuando no hay Cloud API)
-export function generateWhatsAppLinks(order: OrderForWhatsApp): string[] {
-  const config = getWhatsAppConfig();
+  if (adminNumbers.length === 0) {
+    console.error(
+      '❌ [WhatsApp] No hay números de administradores configurados',
+    );
+    return [];
+  }
+
   const message = buildOrderMessage(order);
   const encodedMessage = encodeURIComponent(message);
 
-  return config.publicAdminNumbers.map(
-    phone =>
-      `https://wa.me/${formatPhoneForWhatsApp(phone)}?text=${encodedMessage}`,
+  console.log(
+    '📝 [WhatsApp] Mensaje generado:',
+    message.substring(0, 100) + '...',
   );
+
+  const links = adminNumbers.map(phone => {
+    const formattedPhone = formatPhoneForWhatsApp(phone);
+    const link = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+    console.log(`🔗 [WhatsApp] Enlace generado para ${phone}: ${link}`);
+    return link;
+  });
+
+  console.log(`✅ [WhatsApp] Se generaron ${links.length} enlaces`);
+  return links;
 }

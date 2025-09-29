@@ -1,9 +1,9 @@
+// src/components/shared/FeaturedProducts/FeaturedProductCard.tsx
 'use client';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ProductFull } from '@/types/product';
 import { motion, useAnimation, useInView } from 'framer-motion';
 import { ShoppingCart, Star } from 'lucide-react';
-import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import AddToCartButton from './AddToCartButton';
 
@@ -42,9 +42,6 @@ export default function FeaturedProductCard({
         : (product.images[0] as { url: string }).url
       : '/img/placeholder-product.jpg';
 
-  // Debugging log for main image URL
-  console.log('🖼️ Imagen principal del producto:', mainImage);
-
   // Animación de precio
   const animatedPrice = useAnimatedNumber(Number(product?.price || 0));
 
@@ -57,6 +54,11 @@ export default function FeaturedProductCard({
       controls.start({ opacity: 1, y: 0, scale: 1 });
     }
   }, [inView, controls]);
+
+  // Hide if out of stock
+  if (!loading && (!product || product.stock <= 0)) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -87,6 +89,7 @@ export default function FeaturedProductCard({
       <span className="absolute top-4 right-4 z-20 px-3 py-1 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold shadow flex items-center gap-1">
         <Star className="w-4 h-4 fill-yellow-300 text-yellow-700" /> Destacado
       </span>
+
       {/* Imagen protagonista */}
       <motion.div
         className="w-full flex justify-center items-center pt-4 pb-2"
@@ -94,29 +97,34 @@ export default function FeaturedProductCard({
         transition={{ type: 'spring', stiffness: 300 }}
       >
         <div className="rounded-2xl shadow-lg overflow-hidden border-4 border-white dark:border-slate-800 bg-white dark:bg-slate-900">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={mainImage}
             alt={product.productName || 'Producto destacado'}
-            width={320}
-            height={320}
+            width="320"
+            height="320"
             className="rounded-2xl object-cover"
+            loading="lazy"
           />
         </div>
       </motion.div>
+
       {/* Parte inferior sólida */}
       <div className="w-full flex-1 flex flex-col items-center justify-center px-4 pb-4 pt-2 bg-white dark:bg-slate-900 rounded-b-3xl">
         <h3 className="text-lg sm:text-xl font-extrabold text-center text-blue-900 dark:text-blue-200 mb-1">
           {product.productName}
         </h3>
+
         <p className="text-xs text-muted-foreground mb-2 text-center">
           {typeof product.category === 'string'
             ? product.category
             : product.category &&
-                typeof product.category === 'object' &&
-                'categoryName' in product.category
-              ? (product.category as { categoryName: string }).categoryName
-              : ''}
+              typeof product.category === 'object' &&
+              'categoryName' in product.category
+            ? (product.category as { categoryName: string }).categoryName
+            : ''}
         </p>
+
         <div className="flex items-center justify-center gap-2 mb-2">
           <span className="text-lg font-bold text-primary flex items-end gap-1">
             <span className="text-base align-bottom">$</span>
@@ -132,7 +140,19 @@ export default function FeaturedProductCard({
             </motion.span>
           </span>
         </div>
-        {/* Botón premium */}
+
+        {/* Indicador de stock */}
+        <div className="flex items-center justify-center gap-1 mb-3">
+          <span
+            className={`text-xs font-medium ${
+              product.stock > 0 ? 'text-green-600' : 'text-red-600'
+            }`}
+          >
+            {product.stock > 0 ? `${product.stock} disponibles` : 'Agotado'}
+          </span>
+        </div>
+
+        {/* Botón premium usando el componente que realmente agrega */}
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.97 }}

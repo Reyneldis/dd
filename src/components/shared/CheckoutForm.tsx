@@ -1,15 +1,14 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/hooks/use-cart';
-import { OrderResponse } from '@/types/index'; // Importar los tipos necesarios
+import { OrderResponse } from '@/types/index';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
-// Esquema de validación con Zod para los datos del formulario
 const checkoutFormSchema = z.object({
   contactInfo: z.object({
     name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
@@ -28,6 +27,13 @@ const checkoutFormSchema = z.object({
 
 type CheckoutFormData = z.infer<typeof checkoutFormSchema>;
 
+interface CheckoutItem {
+  slug: string;
+  quantity: number;
+  price: number;
+  name: string;
+}
+
 export default function CheckoutForm() {
   const { items, clearCart } = useCart();
   const total = items.reduce(
@@ -36,10 +42,14 @@ export default function CheckoutForm() {
   );
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [whatsappLinks, setWhatsappLinks] = useState<string[]>([]);
+  const [currentLinkIndex, setCurrentLinkIndex] = useState(0);
+  const [orderNumber, setOrderNumber] = useState('');
+
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutFormSchema),
@@ -49,53 +59,90 @@ export default function CheckoutForm() {
       },
     },
   });
-  const formData = watch();
 
-  // Construye el mensaje de WhatsApp con los datos actuales del formulario y carrito
-  const buildWhatsappMessage = (): string => {
-    return `Nuevo Pedido:\n\nNombre: ${ 
-      formData.contactInfo?.name || ''
-    }\nTeléfono: ${formData.contactInfo?.phone || ''}\nEmail: ${ 
-      formData.contactInfo?.email || ''
-    }\nDirección: ${formData.shippingAddress?.street || ''}, ${ 
-      formData.shippingAddress?.city || ''
-    }\n\nProductos:\n${items
-      .map(item => `${item.quantity}x ${item.productName} - $${item.price}`)
-      .join('\n')}\n\nTotal: $${total.toFixed(2)}\n\nNotas: ${ 
-      formData.notes || ''
-    }`;
+  // Función para abrir enlaces de WhatsApp
+  const openWhatsAppLinks = () => {
+    if (whatsappLinks.length === 0) return;
+
+    // Abrir el primer enlace inmediatamente
+    if (currentLinkIndex < whatsappLinks.length) {
+      const link = whatsappLinks[currentLinkIndex];
+      console.log(`Abriendo enlace ${currentLinkIndex + 1}: ${link}`);
+
+      // Intentar abrir en una nueva pestaña
+      const newWindow = window.open(link, '_blank', 'noopener,noreferrer');
+
+      // Si el navegador bloquea la ventana, mostrar mensaje
+      if (
+        !newWindow ||
+        newWindow.closed ||
+        typeof newWindow.closed === 'boolean'
+      ) {
+        console.warn(`El navegador bloqueó la ventana emergente para: ${link}`);
+        toast.error(
+          `Por favor, permite las ventanas emergentes para enviar el pedido por WhatsApp`,
+          {
+            duration: 8000,
+            action: {
+              label: 'Abrir manualmente',
+              onClick: () => window.open(link, '_blank'),
+            },
+          },
+        );
+      }
+
+      // Programar el siguiente enlace
+      setCurrentLinkIndex(prev => prev + 1);
+    }
   };
 
-  // Enlace del botón manual de WhatsApp: apunta al primer admin si está configurado
-  const adminButtonHref = (): string => {
-    const adminNumbersEnv = process.env.NEXT_PUBLIC_WHATSAPP_ADMINS || '';
-    const adminNumbers = adminNumbersEnv
-      .split(',')
-      .map(n => n.trim())
-      .filter(n => n.length > 0);
-    const firstAdmin = adminNumbers[0] || '+535358134753'; // Fallback
-    const base = `https://wa.me/${firstAdmin.replace(/\D/g, '')}`;
-    const message = buildWhatsappMessage();
-    return `${base}?text=${encodeURIComponent(message)}`;
-  };
+  // Efecto para abrir enlaces secuencialmente
+  useEffect(() => {
+    if (whatsappLinks.length > 0 && currentLinkIndex < whatsappLinks.length) {
+      const timer = setTimeout(
+        () => {
+          openWhatsAppLinks();
+        },
+        currentLinkIndex === 0 ? 500 : 2000,
+      ); // Primero con 500ms, luego 2s entre cada uno
+
+      return () => clearTimeout(timer);
+    } else if (
+      whatsappLinks.length > 0 &&
+      currentLinkIndex >= whatsappLinks.length
+    ) {
+      // Todos los enlaces han sido procesados
+      setTimeout(() => {
+        clearCart();
+        router.push(`/orden-exitosa?order=${orderNumber}`);
+      }, 1000);
+    }
+  }, [whatsappLinks, currentLinkIndex]);
 
   const onSubmit = async (data: CheckoutFormData) => {
-    const { contactInfo, shippingAddress } = data;
+    if (items.length === 0) {
+      toast.error('Tu carrito está vacío');
+      return;
+    }
+
     setIsSubmitting(true);
-    toast.loading('Procesando tu pedido...');
+    const loadingToast = toast.loading('Procesando tu pedido...');
 
     const payload = {
-      contactInfo,
+      contactInfo: data.contactInfo,
       shippingAddress: {
-        ...shippingAddress,
-        country: shippingAddress.country || 'Cuba',
+        ...data.shippingAddress,
+        country: data.shippingAddress.country || 'Cuba',
       },
-      items: items.map(item => ({
-        slug: item.slug,
-        quantity: Number(item.quantity),
-        price: Number(item.price),
-        name: item.productName,
-      })),
+      items: items.map(
+        (item): CheckoutItem => ({
+          slug: item.slug,
+          quantity: Number(item.quantity),
+          price: Number(item.price),
+          name: item.productName,
+        }),
+      ),
+      notes: data.notes,
     };
 
     try {
@@ -107,93 +154,126 @@ export default function CheckoutForm() {
         body: JSON.stringify(payload),
       });
 
-      // Verificar si la respuesta es JSON
-      const contentType = response.headers.get('content-type');
-      let result: OrderResponse;
-
-      if (contentType && contentType.includes('application/json')) {
-        result = (await response.json()) as OrderResponse;
-      } else {
-        // Si no es JSON, obtener como texto
-        const text = await response.text();
-        throw new Error(`Respuesta no válida: ${text}`);
-      }
-
       if (!response.ok) {
-        throw new Error(result.error || 'Hubo un problema al crear tu pedido.');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || 'Hubo un problema al crear tu pedido.',
+        );
       }
 
-      toast.dismiss();
+      const result: OrderResponse = await response.json();
+      toast.dismiss(loadingToast);
 
-      // MANEJO DE LA INFORMACIÓN DEL ESTADO DEL CORREO
-      const emailSent = result.emailSent || false;
-      const emailError = result.emailError || null;
-      const orderNumber = result.order?.orderNumber || '';
+      // Verificar si hay enlaces de WhatsApp
+      if (result.whatsappLinks && result.whatsappLinks.length > 0) {
+        console.log('Enlaces de WhatsApp generados:', result.whatsappLinks);
+        setWhatsappLinks(result.whatsappLinks);
+        setOrderNumber(result.order?.orderNumber || '');
+        setIsRedirecting(true);
+        setIsSubmitting(false);
+        toast.success('¡Pedido creado! Enviando a los administradores...');
 
-      if (emailSent) {
-        toast.success(
-          `¡Pedido realizado con éxito! Revisa tu correo para la confirmación. Número de pedido: ${orderNumber}`,
-        );
-      } else {
-        toast.success(
-          `¡Pedido realizado con éxito! Número de pedido: ${orderNumber}`,
+        // Mostrar mensaje informativo
+        toast.info(
+          `Se enviará tu pedido a ${result.whatsappLinks.length} administradores por WhatsApp. Por favor, permite las ventanas emergentes.`,
           {
-            duration: 6000,
+            duration: 8000,
           },
         );
-
-        // Mostrar una notificación adicional sobre el error del correo
-        if (emailError) {
-          console.error('Error de correo:', emailError);
-          toast.error(
-            `No se pudo enviar el correo de confirmación: ${emailError}`,
-            {
-              duration: 8000, // Mostrar por más tiempo
-            },
-          );
-        } else {
-          toast.error(
-            'No se pudo enviar el correo de confirmación. Por favor, contacta con soporte.',
-            {
-              duration: 8000,
-            },
-          );
-        }
+      } else {
+        // Manejo de error si no se generaron enlaces
+        setIsSubmitting(false);
+        toast.error(
+          'No se pudieron generar los enlaces de WhatsApp. Contacta al administrador.',
+        );
+        clearCart();
+        router.push(`/orden-exitosa?order=${result.order?.orderNumber || ''}`);
       }
 
-      // Notificación por WhatsApp (cliente) a admins vía wa.me si está configurado
-      try {
-        const whatsappLinks = result.whatsappLinks || [];
-        if (whatsappLinks.length > 0) {
-          whatsappLinks.forEach((link, idx) => {
-            setTimeout(() => window.open(link, '_blank'), idx * 400);
-          });
-        }
-      } catch (error) {
-        console.error('Error al abrir WhatsApp:', error);
-        // Ignorar errores de apertura de ventanas
+      // Manejo de email
+      if (!result.emailSent) {
+        toast.error(
+          'No se pudo enviar el correo de confirmación. Tu pedido ha sido recibido correctamente.',
+          {
+            duration: 8000,
+          },
+        );
+      } else {
+        toast.success('Correo de confirmación enviado correctamente');
       }
-
-      clearCart();
-
-      // Redirigir al usuario después de un breve retraso para que pueda ver las notificaciones
-      setTimeout(() => {
-        router.push('/');
-      }, 3000);
     } catch (error) {
       console.error('Error al enviar el formulario:', error);
-      toast.dismiss();
+      toast.dismiss(loadingToast);
       toast.error(
         error instanceof Error
           ? error.message
           : 'No se pudo completar el pedido.',
       );
-    } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Mensaje manual ya integrado en adminButtonHref a través de buildWhatsappMessage()
+  if (isRedirecting) {
+    return (
+      <div className="text-center py-12">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-8 max-w-md mx-auto">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-green-800 mb-2">
+            Enviando pedido a los administradores...
+          </h2>
+
+          <div className="mb-4">
+            <p className="text-green-700 mb-2">
+              {currentLinkIndex < whatsappLinks.length
+                ? `Enviando a administrador ${currentLinkIndex + 1} de ${
+                    whatsappLinks.length
+                  }...`
+                : '¡Todos los administradores han sido notificados!'}
+            </p>
+
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-green-600 h-2.5 rounded-full transition-all duration-1000"
+                style={{
+                  width: `${
+                    (currentLinkIndex / Math.max(whatsappLinks.length, 1)) * 100
+                  }%`,
+                }}
+              ></div>
+            </div>
+          </div>
+
+          {whatsappLinks.length > 0 && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-blue-800 font-medium mb-2">
+                Si las ventanas no se abren automáticamente, haz clic en los
+                enlaces:
+              </p>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {whatsappLinks.map((link, index) => (
+                  <a
+                    key={index}
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-blue-600 hover:text-blue-800 truncate text-sm"
+                  >
+                    Administrador {index + 1}: {link}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="text-sm text-green-600 mt-4">
+            Por favor, espera a que se completen todos los envíos. No cierres
+            esta página.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <div className="text-center py-12">
@@ -206,12 +286,16 @@ export default function CheckoutForm() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* Resumen del Pedido */}
       <div>
         <h2 className="text-2xl font-bold mb-6">Resumen del Pedido</h2>
         <div className="space-y-4">
           {items.map(item => (
-            <div key={item.id} className="flex justify-between items-center">
+            <div
+              key={item.id}
+              className="flex justify-between items-center border-b pb-4"
+            >
               <div>
                 <p className="font-semibold">{item.productName}</p>
                 <p className="text-sm text-gray-500">
@@ -231,21 +315,19 @@ export default function CheckoutForm() {
           </div>
         </div>
       </div>
+
+      {/* Formulario de Envío */}
       <div>
         <h2 className="text-2xl font-bold mb-6">Información de Envío</h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1">
-            <label
-              htmlFor="contactInfo.name"
-              className="block text-sm font-medium text-gray-700"
-            >
+          <div>
+            <label className="block text-sm font-medium mb-1">
               Nombre Completo
             </label>
             <input
-              id="contactInfo.name"
               {...register('contactInfo.name')}
-              placeholder="Ana Martínez"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="Tu nombre completo"
             />
             {errors.contactInfo?.name && (
               <p className="text-red-500 text-sm mt-1">
@@ -253,19 +335,16 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-          <div className="space-y-1">
-            <label
-              htmlFor="contactInfo.email"
-              className="block text-sm font-medium text-gray-700"
-            >
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
               Correo Electrónico
             </label>
             <input
-              id="contactInfo.email"
               type="email"
               {...register('contactInfo.email')}
-              placeholder="ana.martinez@correo.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="tu@email.com"
             />
             {errors.contactInfo?.email && (
               <p className="text-red-500 text-sm mt-1">
@@ -273,19 +352,14 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-          <div className="space-y-1">
-            <label
-              htmlFor="contactInfo.phone"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Teléfono
-            </label>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Teléfono</label>
             <input
-              id="contactInfo.phone"
               type="tel"
               {...register('contactInfo.phone')}
-              placeholder="55551234"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="12345678"
             />
             {errors.contactInfo?.phone && (
               <p className="text-red-500 text-sm mt-1">
@@ -293,18 +367,13 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-          <div className="space-y-1">
-            <label
-              htmlFor="shippingAddress.street"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Dirección (Calle y Número)
-            </label>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Dirección</label>
             <input
-              id="shippingAddress.street"
               {...register('shippingAddress.street')}
-              placeholder="Avenida de la Independencia #456"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="Calle y número"
             />
             {errors.shippingAddress?.street && (
               <p className="text-red-500 text-sm mt-1">
@@ -312,18 +381,13 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-          <div className="space-y-1">
-            <label
-              htmlFor="shippingAddress.city"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Ciudad
-            </label>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Ciudad</label>
             <input
-              id="shippingAddress.city"
               {...register('shippingAddress.city')}
-              placeholder="La Habana"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="Tu ciudad"
             />
             {errors.shippingAddress?.city && (
               <p className="text-red-500 text-sm mt-1">
@@ -331,18 +395,15 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-          <div className="space-y-1">
-            <label
-              htmlFor="shippingAddress.state"
-              className="block text-sm font-medium text-gray-700"
-            >
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
               Estado/Provincia
             </label>
             <input
-              id="shippingAddress.state"
               {...register('shippingAddress.state')}
-              placeholder="Plaza de la Revolución"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="Tu estado/provincia"
             />
             {errors.shippingAddress?.state && (
               <p className="text-red-500 text-sm mt-1">
@@ -350,18 +411,15 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-          <div className="space-y-1">
-            <label
-              htmlFor="shippingAddress.zip"
-              className="block text-sm font-medium text-gray-700"
-            >
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
               Código Postal
             </label>
             <input
-              id="shippingAddress.zip"
               {...register('shippingAddress.zip')}
-              placeholder="10600"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="Código postal"
             />
             {errors.shippingAddress?.zip && (
               <p className="text-red-500 text-sm mt-1">
@@ -369,41 +427,35 @@ export default function CheckoutForm() {
               </p>
             )}
           </div>
-          <div className="space-y-1">
-            <label
-              htmlFor="notes"
-              className="block text-sm font-medium text-gray-700"
-            >
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
               Notas Adicionales (Opcional)
             </label>
             <textarea
-              id="notes"
               {...register('notes')}
-              placeholder="Entregar después de las 2 PM, por favor."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="Instrucciones especiales de entrega..."
             />
           </div>
+
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-semibold transition-colors disabled:bg-gray-400"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
           >
-            {isSubmitting ? 'Procesando...' : 'Finalizar Compra'}
+            {isSubmitting ? 'Procesando...' : 'Finalizar el Pedido'}
           </Button>
-          <a
-            href={adminButtonHref()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block w-full"
-          >
-            {/* <Button
-              type="button"
-              className="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-md font-semibold transition-colors"
-            >
-              O Enviar por WhatsApp
-            </Button> */}
-          </a>
+
+          <div className="text-sm text-gray-500 mt-2 p-3 bg-gray-50 rounded-md">
+            <p className="font-medium">Importante:</p>
+            <p>
+              Al finalizar tu pedido, se abrirán automáticamente varias ventanas
+              de WhatsApp para notificar a los administradores. Por favor,
+              permite las ventanas emergentes en tu navegador.
+            </p>
+          </div>
         </form>
       </div>
     </div>

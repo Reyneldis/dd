@@ -1,6 +1,7 @@
 // src/app/layout.tsx
 import { ClientProviders } from '@/components/ClientProviders';
 import AnimatedBackground from '@/components/shared/AnimatedBackground';
+
 import FooterConditional from '@/components/shared/footer/FooterConditional';
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata, Viewport } from 'next';
@@ -128,6 +129,7 @@ export default function RootLayout({
                 shadow="0 0 10px #2563eb,0 0 5px #2563eb"
               />
               <ClientLayout>{children}</ClientLayout>
+
               <Toaster
                 position="bottom-right"
                 richColors

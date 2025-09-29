@@ -256,10 +256,6 @@ async function saveImageLocally(
   return `/uploads/products/${fileName}`;
 }
 
-// src/lib/dashboard-service.ts
-
-// ... código anterior ...
-
 export async function createProduct(
   productData: CreateProductData,
 ): Promise<ApiResponse<Product>> {
@@ -333,48 +329,9 @@ export async function createProduct(
       },
     });
 
-    // Serializar el producto para que coincida con el tipo Product
-    const serializedProduct: Product = {
-      id: updatedProduct!.id,
-      slug: updatedProduct!.slug,
-      productName: updatedProduct!.productName,
-      price: updatedProduct!.price,
-      stock: updatedProduct!.stock,
-      description: updatedProduct!.description,
-      categoryId: updatedProduct!.categoryId,
-      features: updatedProduct!.features,
-      status: updatedProduct!.status as 'ACTIVE' | 'INACTIVE',
-      featured: updatedProduct!.featured,
-      createdAt: updatedProduct!.createdAt.toISOString(), // Convertir Date a string
-      updatedAt: updatedProduct!.updatedAt.toISOString(), // Convertir Date a string
-      category: {
-        id: updatedProduct!.category.id,
-        categoryName: updatedProduct!.category.categoryName,
-        slug: updatedProduct!.category.slug,
-        description: updatedProduct!.category.description,
-        mainImage: updatedProduct!.category.mainImage,
-        createdAt: updatedProduct!.category.createdAt.toISOString(), // Convertir Date a string
-        updatedAt: updatedProduct!.category.updatedAt.toISOString(), // Convertir Date a string
-      },
-      images: updatedProduct!.images.map(img => ({
-        id: img.id,
-        productId: img.productId,
-        url: img.url,
-        alt: img.alt,
-        sortOrder: img.sortOrder,
-        isPrimary: img.isPrimary,
-        createdAt: img.createdAt.toISOString(), // Convertir Date a string
-      })),
-      reviewCount: 0,
-      _count: {
-        reviews: 0,
-        orderItems: 0,
-      },
-    };
-
     return {
       success: true,
-      data: serializedProduct,
+      data: updatedProduct as Product,
     };
   } catch (error) {
     console.error('Error creating product:', error);
@@ -385,8 +342,6 @@ export async function createProduct(
     };
   }
 }
-
-// ... código posterior ...
 
 export async function updateProduct(
   productId: string,
@@ -428,48 +383,9 @@ export async function updateProduct(
       },
     });
 
-    // Serializar el producto para que coincida con el tipo Product
-    const serializedProduct: Product = {
-      id: product.id,
-      slug: product.slug,
-      productName: product.productName,
-      price: product.price,
-      stock: product.stock,
-      description: product.description,
-      categoryId: product.categoryId,
-      features: product.features,
-      status: product.status as 'ACTIVE' | 'INACTIVE',
-      featured: product.featured,
-      createdAt: product.createdAt.toISOString(), // Convertir Date a string
-      updatedAt: product.updatedAt.toISOString(), // Convertir Date a string
-      category: {
-        id: product.category.id,
-        categoryName: product.category.categoryName,
-        slug: product.category.slug,
-        description: product.category.description,
-        mainImage: product.category.mainImage,
-        createdAt: product.category.createdAt.toISOString(), // Convertir Date a string
-        updatedAt: product.category.updatedAt.toISOString(), // Convertir Date a string
-      },
-      images: product.images.map(img => ({
-        id: img.id,
-        productId: img.productId,
-        url: img.url,
-        alt: img.alt,
-        sortOrder: img.sortOrder,
-        isPrimary: img.isPrimary,
-        createdAt: img.createdAt.toISOString(), // Convertir Date a string
-      })),
-      reviewCount: 0,
-      _count: {
-        reviews: 0,
-        orderItems: 0,
-      },
-    };
-
     return {
       success: true,
-      data: serializedProduct,
+      data: product as Product,
     };
   } catch (error) {
     console.error('Error updating product:', error);
@@ -653,23 +569,9 @@ export async function createCategory(
       where: { id: category.id },
     });
 
-    // Serializar la categoría para que coincida con el tipo Category
-    const serializedCategory: Category = {
-      id: updatedCategory!.id,
-      categoryName: updatedCategory!.categoryName,
-      slug: updatedCategory!.slug,
-      description: updatedCategory!.description,
-      mainImage: updatedCategory!.mainImage,
-      createdAt: updatedCategory!.createdAt.toISOString(), // Convertir Date a string
-      updatedAt: updatedCategory!.updatedAt.toISOString(), // Convertir Date a string
-      _count: {
-        products: 0,
-      },
-    };
-
     return {
       success: true,
-      data: serializedCategory,
+      data: updatedCategory as Category,
     };
   } catch (error) {
     console.error('Error creating category:', error);

@@ -1,28 +1,125 @@
 // hooks/use-cart.ts
 'use client';
 import { useCartStore } from '@/store/cart-store';
-import { CartItem } from '@/types'; // Importar el tipo CartItem
+import { CartItem } from '@/types';
 import { useUser } from '@clerk/nextjs';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 export function useCart() {
   const {
     items,
-    addItem,
-    removeItem,
-    updateQuantity,
+    addItem: addItemToStore,
+    removeItem: removeItemFromStore,
+    updateQuantity: updateQuantityInStore,
     clearCart,
     setCart,
     getTotalItems,
     getTotalPrice,
-    isInCart,
+    isInCart: isInCartBySlug, // Renombrado para claridad
   } = useCartStore();
   const { user, isSignedIn } = useUser();
   const isSyncing = useRef(false);
   const lastSyncTime = useRef(0);
+  const [loading, setLoading] = useState(false);
 
-  // Sincronizar carrito del backend con el estado local
+  const checkProductStock = useCallback(async (productId: string) => {
+    try {
+      const response = await fetch(`/api/products/${productId}/stock`);
+      if (!response.ok) {
+        console.error(
+          'Error en respuesta de stock:',
+          response.status,
+          response.statusText,
+        );
+        return 0;
+      }
+      const data = await response.json();
+      return data.stock || 0;
+    } catch (error) {
+      console.error('Error al verificar stock:', error);
+      return 0;
+    }
+  }, []);
+
+  const addItem = useCallback(
+    async (item: Omit<CartItem, 'quantity'>) => {
+      setLoading(true);
+      try {
+        const existingItem = items.find(i => i.id === item.id);
+        if (existingItem) {
+          toast.warning(`${item.productName} ya está en tu carrito`);
+          return;
+        }
+
+        const availableStock = await checkProductStock(item.id);
+        if (1 > availableStock) {
+          toast.error(
+            `Solo hay ${availableStock} unidades disponibles de este producto`,
+          );
+          return;
+        }
+
+        addItemToStore(item);
+        toast.success(`${item.productName} agregado al carrito`);
+      } catch (error) {
+        console.error('Error al agregar producto:', error);
+        toast.error('Error al agregar el producto al carrito');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [addItemToStore, checkProductStock, items],
+  );
+
+  const removeItem = useCallback(
+    (productId: string) => {
+      const item = items.find(i => i.id === productId);
+      if (item) {
+        removeItemFromStore(item.slug);
+        toast.info(`${item.productName} eliminado del carrito`);
+      }
+    },
+    [items, removeItemFromStore],
+  );
+
+  const updateQuantity = useCallback(
+    async (productId: string, newQuantity: number) => {
+      const item = items.find(i => i.id === productId);
+      if (!item) return;
+
+      if (newQuantity <= 0) {
+        removeItem(productId);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const availableStock = await checkProductStock(productId);
+        if (newQuantity > availableStock) {
+          toast.error(`Solo hay ${availableStock} unidades disponibles`);
+          return;
+        }
+        updateQuantityInStore(item.slug, newQuantity);
+      } catch (error) {
+        console.error('Error al actualizar cantidad:', error);
+        toast.error('Error al actualizar la cantidad');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [items, checkProductStock, updateQuantityInStore, removeItem],
+  );
+
+  // Nueva función `isInCart` que usa productId
+  const isInCart = useCallback(
+    (productId: string) => {
+      const item = items.find(i => i.id === productId);
+      return item ? isInCartBySlug(item.slug) : false;
+    },
+    [items, isInCartBySlug],
+  );
+
   const syncFromBackend = useCallback(async () => {
     if (!isSignedIn || !user || isSyncing.current) return;
     const now = Date.now();
@@ -67,7 +164,6 @@ export function useCart() {
     }
   }, [isSignedIn, user, setCart]);
 
-  // Sincronizar cuando el usuario inicia sesión
   useEffect(() => {
     if (isSignedIn) {
       syncFromBackend();
@@ -75,7 +171,7 @@ export function useCart() {
   }, [isSignedIn, syncFromBackend]);
 
   return {
-    items: items as CartItem[], // Asegurar que los items sean del tipo CartItem
+    items,
     addItem,
     removeItem,
     updateQuantity,
@@ -85,54 +181,6 @@ export function useCart() {
     getTotalPrice,
     isInCart,
     syncFromBackend,
+    loading,
   };
-}
-
-export function useSyncCartWithBackend() {
-  const { items } = useCartStore();
-  const { user, isSignedIn } = useUser();
-  const syncTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!isSignedIn || !user || items.length === 0) return;
-    if (syncTimeout.current) {
-      clearTimeout(syncTimeout.current);
-    }
-    syncTimeout.current = setTimeout(async () => {
-      try {
-        const response = await fetch('/api/cart/sync', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            items: items.map(item => ({
-              slug: item.slug,
-              quantity: item.quantity,
-            })),
-          }),
-        });
-        if (!response.ok) {
-          throw new Error('Error al sincronizar');
-        }
-        toast.success('Carrito sincronizado');
-      } catch (error) {
-        console.error('Error sincronizando carrito con backend:', error);
-        toast.error('Error al guardar los cambios del carrito');
-      }
-    }, 2000);
-    return () => {
-      if (syncTimeout.current) {
-        clearTimeout(syncTimeout.current);
-      }
-    };
-  }, [items, isSignedIn, user]);
-
-  useEffect(() => {
-    return () => {
-      if (syncTimeout.current) {
-        clearTimeout(syncTimeout.current);
-      }
-    };
-  }, []);
 }

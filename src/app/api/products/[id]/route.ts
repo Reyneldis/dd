@@ -1,43 +1,60 @@
-import { badRequest, notFound, okRaw, serverError } from '@/lib/api/responses';
-import { requireRole } from '@/lib/auth-guard';
+// app/api/products/[id]/route.ts
 import { prisma } from '@/lib/prisma';
-import { mapProductToDTO } from '@/lib/product/serializer';
-import { productSchema } from '@/schemas/productSchema';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
-      images: true,
-      category: true,
-    },
-  });
+  try {
+    // CORRECCIÓN: Añadir await para resolver la promesa de params
+    const { id } = await params;
 
-  if (!product) {
-    return notFound('Producto no encontrado');
+    console.log('Buscando producto con ID:', id);
+
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        images: true,
+        category: true,
+      },
+    });
+
+    if (!product) {
+      console.log('Producto no encontrado:', id);
+      return NextResponse.json(
+        { error: 'Producto no encontrado' },
+        { status: 404 },
+      );
+    }
+
+    console.log('Producto encontrado:', {
+      id: product.id,
+      name: product.productName,
+      stock: product.stock,
+      status: product.status,
+    });
+
+    return NextResponse.json(product);
+  } catch (error) {
+    console.error('Error al obtener producto:', error);
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 },
+    );
   }
-  return okRaw(mapProductToDTO(product));
 }
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  // Corregido: slug -> id
   try {
-    await requireRole(['ADMIN']);
-    const { id } = await params; // Corregido: slug -> id
+    // CORRECCIÓN: Añadir await para resolver la promesa de params
+    const { id } = await params;
     const body = await request.json();
 
-    // Validar con Zod
-    const result = productSchema.safeParse(body);
-    if (!result.success) {
-      return badRequest('Datos inválidos', result.error.flatten());
-    }
+    console.log('Actualizando producto:', id, 'con datos:', body);
 
     const {
       productName,
@@ -47,40 +64,52 @@ export async function PUT(
       features,
       images,
       status,
-    } = result.data;
+      stock,
+    } = body;
 
     // Verificar si el producto existe
     const existingProduct = await prisma.product.findUnique({
-      where: { id }, // Corregido: slug -> id
+      where: { id },
     });
 
     if (!existingProduct) {
-      return notFound('Producto no encontrado');
+      return NextResponse.json(
+        { error: 'Producto no encontrado' },
+        { status: 404 },
+      );
     }
 
-    // Verificar si la categoría existe
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
-    });
+    // Verificar si la categoría existe (si se proporciona)
+    if (categoryId) {
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+      });
 
-    if (!category) {
-      return badRequest('La categoría especificada no existe');
+      if (!category) {
+        return NextResponse.json(
+          { error: 'La categoría especificada no existe' },
+          { status: 400 },
+        );
+      }
     }
 
-    // Actualizar el producto y sus relaciones
+    // Actualizar el producto
     const updatedProduct = await prisma.product.update({
-      where: { id }, // Corregido: slug -> id
+      where: { id },
       data: {
-        productName,
-        price,
-        description,
-        categoryId,
-        features,
-        status,
-        images: {
-          deleteMany: {},
-          create: images || [],
-        },
+        ...(productName && { productName }),
+        ...(price !== undefined && { price }),
+        ...(description !== undefined && { description }),
+        ...(categoryId && { categoryId }),
+        ...(features !== undefined && { features }),
+        ...(status !== undefined && { status }),
+        ...(stock !== undefined && { stock }),
+        ...(images && {
+          images: {
+            deleteMany: {},
+            create: images,
+          },
+        }),
       },
       include: {
         category: true,
@@ -88,9 +117,18 @@ export async function PUT(
       },
     });
 
-    return okRaw(mapProductToDTO(updatedProduct));
+    console.log('Producto actualizado:', {
+      id: updatedProduct.id,
+      name: updatedProduct.productName,
+      newStock: updatedProduct.stock,
+    });
+
+    return NextResponse.json(updatedProduct);
   } catch (error) {
     console.error('Error actualizando producto:', error);
-    return serverError('Error al actualizar el producto');
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 },
+    );
   }
 }
