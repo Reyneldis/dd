@@ -1,4 +1,3 @@
-// app/api/products/[id]/stock/route.ts
 import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -7,7 +6,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // CORRECCIÓN: Añadir await para resolver la promesa de params
     const { id } = await params;
 
     console.log('Buscando stock para producto con ID:', id);
@@ -56,25 +54,42 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // CORRECCIÓN: Añadir await para resolver la promesa de params
     const { id } = await params;
-
     const body = await request.json();
+    const { stock: stockChange } = body;
 
-    console.log('Actualizando stock para producto:', id, 'con datos:', body);
-
-    const { stock } = body;
-
-    if (typeof stock !== 'number' || stock < 0) {
+    if (typeof stockChange !== 'number') {
       return NextResponse.json(
-        { error: 'El stock debe ser un número entero no negativo' },
+        { error: 'El cambio de stock debe ser un número' },
+        { status: 400 },
+      );
+    }
+
+    // Obtener el producto actual
+    const currentProduct = await prisma.product.findUnique({
+      where: { id },
+      select: { stock: true },
+    });
+
+    if (!currentProduct) {
+      return NextResponse.json(
+        { error: 'Producto no encontrado' },
+        { status: 404 },
+      );
+    }
+
+    const newStock = currentProduct.stock + stockChange;
+
+    if (newStock < 0) {
+      return NextResponse.json(
+        { error: 'Stock insuficiente' },
         { status: 400 },
       );
     }
 
     const updatedProduct = await prisma.product.update({
       where: { id },
-      data: { stock },
+      data: { stock: newStock },
       select: {
         id: true,
         productName: true,

@@ -1,4 +1,3 @@
-// hooks/use-cart.ts
 'use client';
 import { useCartStore } from '@/store/cart-store';
 import { CartItem } from '@/types';
@@ -12,11 +11,11 @@ export function useCart() {
     addItem: addItemToStore,
     removeItem: removeItemFromStore,
     updateQuantity: updateQuantityInStore,
-    clearCart,
+    clearCart: clearCartFromStore,
     setCart,
     getTotalItems,
     getTotalPrice,
-    isInCart: isInCartBySlug, // Renombrado para claridad
+    isInCart: isInCartBySlug,
   } = useCartStore();
   const { user, isSignedIn } = useUser();
   const isSyncing = useRef(false);
@@ -42,6 +41,28 @@ export function useCart() {
     }
   }, []);
 
+  const updateProductStock = useCallback(
+    async (productId: string, quantityChange: number) => {
+      try {
+        const response = await fetch(`/api/products/${productId}/stock`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stock: quantityChange }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al actualizar stock');
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('Error updating stock:', error);
+        throw error;
+      }
+    },
+    [],
+  );
+
   const addItem = useCallback(
     async (item: Omit<CartItem, 'quantity'>) => {
       setLoading(true);
@@ -60,6 +81,9 @@ export function useCart() {
           return;
         }
 
+        // Actualizar stock en la base de datos
+        await updateProductStock(item.id, -1);
+
         addItemToStore(item);
         toast.success(`${item.productName} agregado al carrito`);
       } catch (error) {
@@ -69,18 +93,28 @@ export function useCart() {
         setLoading(false);
       }
     },
-    [addItemToStore, checkProductStock, items],
+    [addItemToStore, checkProductStock, items, updateProductStock],
   );
 
   const removeItem = useCallback(
-    (productId: string) => {
+    async (productId: string) => {
       const item = items.find(i => i.id === productId);
       if (item) {
-        removeItemFromStore(item.slug);
-        toast.info(`${item.productName} eliminado del carrito`);
+        setLoading(true);
+        try {
+          // Devolver stock a la base de datos
+          await updateProductStock(productId, item.quantity);
+          removeItemFromStore(item.slug);
+          toast.info(`${item.productName} eliminado del carrito`);
+        } catch (error) {
+          console.error('Error al eliminar producto:', error);
+          toast.error('Error al eliminar el producto del carrito');
+        } finally {
+          setLoading(false);
+        }
       }
     },
-    [items, removeItemFromStore],
+    [items, removeItemFromStore, updateProductStock],
   );
 
   const updateQuantity = useCallback(
@@ -96,10 +130,16 @@ export function useCart() {
       setLoading(true);
       try {
         const availableStock = await checkProductStock(productId);
-        if (newQuantity > availableStock) {
+        const currentQuantity = item.quantity;
+        const quantityDiff = newQuantity - currentQuantity;
+
+        if (quantityDiff > availableStock) {
           toast.error(`Solo hay ${availableStock} unidades disponibles`);
           return;
         }
+
+        // Actualizar stock en la base de datos
+        await updateProductStock(productId, -quantityDiff);
         updateQuantityInStore(item.slug, newQuantity);
       } catch (error) {
         console.error('Error al actualizar cantidad:', error);
@@ -108,10 +148,33 @@ export function useCart() {
         setLoading(false);
       }
     },
-    [items, checkProductStock, updateQuantityInStore, removeItem],
+    [
+      items,
+      checkProductStock,
+      updateQuantityInStore,
+      removeItem,
+      updateProductStock,
+    ],
   );
 
-  // Nueva función `isInCart` que usa productId
+  const clearCart = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Devolver todo el stock a la base de datos
+      for (const item of items) {
+        await updateProductStock(item.id, item.quantity);
+      }
+
+      clearCartFromStore();
+      toast.success('Carrito vaciado');
+    } catch (error) {
+      console.error('Error al vaciar carrito:', error);
+      toast.error('Error al vaciar el carrito');
+    } finally {
+      setLoading(false);
+    }
+  }, [items, clearCartFromStore, updateProductStock]);
+
   const isInCart = useCallback(
     (productId: string) => {
       const item = items.find(i => i.id === productId);

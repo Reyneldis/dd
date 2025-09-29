@@ -2,7 +2,7 @@
 'use client';
 import { useCart } from '@/hooks/use-cart';
 import { ProductFull } from '@/types/product';
-import { Eye, ShoppingCart, Star } from 'lucide-react';
+import { Eye, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -79,9 +79,9 @@ export default function ProductCardCompact({
 
   const imageUrl = mainImage?.url || '/img/placeholder-product.jpg';
 
-  const rating = 4.6;
-  const maxStars = 5;
-  const filledStars = Math.floor(rating);
+  // const rating = 4.6;
+  // const maxStars = 5;
+  // const filledStars = Math.floor(rating);
   const isLowStock = stock > 0 && stock < 5;
 
   // Producto con stock normal
@@ -124,13 +124,13 @@ export default function ProductCardCompact({
             href={product.id ? `/products/${product.id}` : '#'}
             className="block"
           >
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+            <h3 className="text-shadow-muted font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
               {product.productName || 'Producto sin nombre'}
             </h3>
           </Link>
 
           {/* Rating compacto */}
-          <div className="flex items-center gap-1">
+          {/* <div className="flex items-center gap-1">
             <div className="flex items-center gap-0.5">
               {[...Array(filledStars)].map((_, i) => (
                 <Star
@@ -145,12 +145,12 @@ export default function ProductCardCompact({
             <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">
               {rating}
             </span>
-          </div>
+          </div> */}
         </div>
 
         {/* Categoría */}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="text-sm text-slate-500 dark:text-slate-400">
             {product.category?.categoryName || 'Sin categoría'}
           </span>
         </div>
