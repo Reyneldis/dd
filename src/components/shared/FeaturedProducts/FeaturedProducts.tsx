@@ -1,5 +1,5 @@
-// src/components/shared/FeaturedProducts/FeaturedProducts.tsx
 'use client';
+import { stockUpdateEmitter } from '@/lib/events';
 import type { ProductFull } from '@/types/product';
 import { useEffect, useState } from 'react';
 import FeaturedProductsGrid from './FeaturedProductsGrid';
@@ -35,77 +35,97 @@ export default function FeaturedProducts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const getFeaturedProducts = async () => {
-      try {
-        const baseUrl =
-          process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-        console.log(
-          '🔍 Fetching featured products from:',
-          `${baseUrl}/api/products/featured`,
-        );
-        const res = await fetch(`${baseUrl}/api/products/featured`, {
-          next: { revalidate: 60 },
-        });
-        console.log('📡 Response status:', res.status);
-        if (!res.ok) {
-          throw new Error(`Error ${res.status}: ${res.statusText}`);
-        }
-        const data = (await res.json()) as { products: ApiResponseProduct[] };
-        console.log('📦 Featured products data:', data);
-
-        // Transforma los datos para que coincidan con ProductFull
-        const transformedProducts: ProductFull[] = (data.products || []).map(
-          (product: ApiResponseProduct) => {
-            // Procesamiento de imágenes - como solo viene una imagen, la convertimos al formato completo
-            const processedImages = product.images.map(img => ({
-              id: img.id,
-              url: img.url,
-              alt: img.alt || null,
-              sortOrder: 0, // Solo hay una imagen, así que sortOrder es 0
-              isPrimary: true, // La única imagen es primaria
-              createdAt: new Date(), // No viene en la respuesta, usamos fecha actual
-            }));
-
-            // Completamos la categoría con los campos que faltan
-            const category = {
-              ...product.category,
-              description: null, // No viene en la respuesta
-              mainImage: null, // No viene en la respuesta
-              createdAt: new Date(), // No viene en la respuesta
-              updatedAt: new Date(), // No viene en la respuesta
-            };
-
-            return {
-              id: product.id,
-              slug: product.slug,
-              productName: product.productName,
-              price: product.price,
-              stock: product.stock,
-              description: product.description || null,
-              features: product.features,
-              status: product.status,
-              featured: product.featured,
-              createdAt: product.createdAt,
-              updatedAt: product.updatedAt,
-              categoryId: product.categoryId,
-              category,
-              images: processedImages,
-              reviewCount: 0, // No viene en la respuesta, lo ponemos en 0
-              reviews: [], // No vienen reseñas en la respuesta
-            };
-          },
-        );
-        setFeatured(transformedProducts);
-      } catch (err) {
-        console.error('❌ Error fetching featured products:', err);
-        setError(err instanceof Error ? err.message : 'Error desconocido');
-      } finally {
-        setLoading(false);
+  // Extraemos la lógica de fetch a su propia función para poder reutilizarla
+  const getFeaturedProducts = async () => {
+    try {
+      // Evitar múltiples cargas si ya está cargando
+      setLoading(true);
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const res = await fetch(`${baseUrl}/api/products/featured`, {
+        // Añadimos un cache-buster para evitar que el navegador cachee la respuesta vieja
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`);
       }
-    };
+      const data = (await res.json()) as { products: ApiResponseProduct[] };
+
+      // Transforma los datos para que coincidan con ProductFull
+      const transformedProducts: ProductFull[] = (data.products || []).map(
+        (product: ApiResponseProduct) => {
+          // Procesamiento de imágenes - como solo viene una imagen, la convertimos al formato completo
+          const processedImages = product.images.map(img => ({
+            id: img.id,
+            url: img.url,
+            alt: img.alt || null,
+            sortOrder: 0, // Solo hay una imagen, así que sortOrder es 0
+            isPrimary: true, // La única imagen es primaria
+            createdAt: new Date(), // No viene en la respuesta, usamos fecha actual
+          }));
+
+          // Completamos la categoría con los campos que faltan
+          const category = {
+            ...product.category,
+            description: null, // No viene en la respuesta
+            mainImage: null, // No viene en la respuesta
+            createdAt: new Date(), // No viene en la respuesta
+            updatedAt: new Date(), // No viene en la respuesta
+          };
+
+          return {
+            id: product.id,
+            slug: product.slug,
+            productName: product.productName,
+            price: product.price,
+            stock: product.stock,
+            description: product.description || null,
+            features: product.features,
+            status: product.status,
+            featured: product.featured,
+            createdAt: product.createdAt,
+            updatedAt: product.updatedAt,
+            categoryId: product.categoryId,
+            category,
+            images: processedImages,
+            reviewCount: 0, // No viene en la respuesta, lo ponemos en 0
+            reviews: [], // No vienen reseñas en la respuesta
+          };
+        },
+      );
+      setFeatured(transformedProducts);
+    } catch (err) {
+      console.error('❌ Error fetching featured products:', err);
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Efecto para cargar los datos al montar el componente
+  useEffect(() => {
     getFeaturedProducts();
   }, []);
+
+  // Efecto para escuchar los cambios de stock
+  useEffect(() => {
+    // Esta función se ejecutará cada vez que se reciba el evento 'update'
+    const handleStockUpdate = () => {
+      console.log(
+        '📢 Evento de actualización de stock recibido. Recargando productos destacados...',
+      );
+      getFeaturedProducts();
+    };
+
+    // Registramos el "escuchador" del evento
+    stockUpdateEmitter.addEventListener('update', handleStockUpdate);
+
+    // Función de limpieza: es crucial para evitar fugas de memoria.
+    // Se ejecuta cuando el componente se desmonta.
+    return () => {
+      stockUpdateEmitter.removeEventListener('update', handleStockUpdate);
+    };
+  }, []); // Las dependencias vacías aseguran que esto se monte y desmonte solo una vez.
 
   // Estados de carga y error
   if (loading) {

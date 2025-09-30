@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 
+// ... (las interfaces y funciones de fetch que ya tenías)
 interface ReviewUser {
   firstName?: string;
   lastName?: string;
@@ -35,6 +36,7 @@ async function fetchProduct(id: string): Promise<Product | null> {
 }
 
 import CheckoutModal from '@/components/shared/checkout/CheckoutModal';
+import AddToCartButton from '@/components/shared/FeaturedProducts/AddToCartButton';
 
 function formatUSD(price: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -46,13 +48,14 @@ function formatUSD(price: number): string {
 }
 
 export default function ProductPage() {
-  const { addItem, items, updateQuantity } = useCart();
+  const { addItem, updateQuantity, items } = useCart();
   const { isSignedIn, userId } = useAuth();
   const params = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const stock = typeof product?.stock === 'number' ? product.stock : 99;
+  const [originalStock, setOriginalStock] = useState(0);
+  const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
 
   const {
     openCartModal,
@@ -60,12 +63,16 @@ export default function ProductPage() {
     isOpen: isCartModalOpen,
   } = useCartModal();
 
+  // ... (el resto del estado para reviews se mantiene igual)
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState('');
   const [reviewError, setReviewError] = useState('');
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
 
+  // ... (las funciones de manejo de reviews se mantienen igual)
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setReviewLoading(true);
@@ -98,9 +105,6 @@ export default function ProductPage() {
     }
   };
 
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
-
   useEffect(() => {
     async function loadProduct() {
       if (!params.id) return;
@@ -109,6 +113,10 @@ export default function ProductPage() {
       try {
         const prod = await fetchProduct(params.id);
         setProduct(prod);
+        if (prod) {
+          setOriginalStock(prod.stock);
+          setQuantity(1);
+        }
       } catch (error) {
         console.error('Error loading product:', error);
       } finally {
@@ -138,92 +146,55 @@ export default function ProductPage() {
     }
   }, [product?.id]);
 
+  // 'isInCart' es un booleano, no una función.
   const isInCart = items.some(item => item.id === product?.id);
 
-  const handleAddToCart = async () => {
+  // ¡IMPORTANTE! Revisa esta función. Aquí estaba el error potencial.
+  const handleBuyNow = async () => {
     if (!product) return;
+    if (isBuyNowLoading) return;
 
-    if (isInCart) {
-      toast.info('Este producto ya está en el carrito');
-      return;
-    }
-
-    const maxQty = typeof product.stock === 'number' ? product.stock : 99;
-
-    if (quantity > maxQty) {
-      toast.error(
-        `No puedes agregar más de ${maxQty} unidades de este producto.`,
-      );
-      return;
-    }
-
+    setIsBuyNowLoading(true);
     try {
-      const cartItem = {
-        id: product.id,
-        productName: product.productName,
-        price: product.price,
-        image: product.images?.[0]?.url || '/img/placeholder-category.jpg',
-        slug: product.slug || '',
-        quantity,
-      };
-
-      await addItem(cartItem);
-
-      // Actualizar el estado local del producto
-      setProduct(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          stock: prev.stock - quantity,
+      // Usamos el booleano 'isInCart', no lo llamamos como función.
+      if (isInCart) {
+        await updateQuantity(product.id, quantity);
+        toast.success(
+          `Cantidad de ${product.productName} actualizada a ${quantity}`,
+        );
+      } else {
+        const cartItem = {
+          id: product.id,
+          productName: product.productName,
+          price: product.price,
+          image: product.images?.[0]?.url || '/img/placeholder-category.jpg',
+          slug: product.slug || '',
+          quantity,
         };
-      });
-
-      toast.success('Producto agregado al carrito');
+        await addItem(cartItem);
+        toast.success(`${product.productName} agregado al carrito`);
+      }
+      openCartModal();
     } catch (error) {
-      console.error('Error al agregar al carrito:', error);
+      console.error('Error al procesar "Pedir ahora":', error);
       toast.error('Error al agregar el producto al carrito');
+    } finally {
+      setIsBuyNowLoading(false);
     }
   };
 
-  const handleBuyNow = () => {
-    handleAddToCart();
-    openCartModal();
-  };
-
-  const handleQuantityChange = async (newQuantity: number) => {
-    if (!product) return;
-
+  const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) {
       setQuantity(1);
       return;
     }
 
-    if (newQuantity > stock) {
-      toast.error(`No puedes agregar más de ${stock} unidades`);
+    if (newQuantity > originalStock) {
+      toast.error(`No puedes solicitar más de ${originalStock} unidades`);
       return;
     }
 
     setQuantity(newQuantity);
-
-    // Si el producto ya está en el carrito, actualizar la cantidad
-    if (isInCart) {
-      try {
-        await updateQuantity(product.id, newQuantity);
-
-        // Actualizar el estado local del producto
-        setProduct(prev => {
-          if (!prev) return null;
-          const difference = newQuantity - quantity;
-          return {
-            ...prev,
-            stock: prev.stock - difference,
-          };
-        });
-      } catch (error) {
-        console.error('Error al actualizar cantidad:', error);
-        toast.error('Error al actualizar la cantidad');
-      }
-    }
   };
 
   if (loading) {
@@ -362,10 +333,9 @@ export default function ProductPage() {
                     Stock disponible:
                   </span>
                   <span className="font-semibold text-neutral-800 dark:text-neutral-100">
-                    {stock}
+                    {originalStock}
                   </span>
                 </div>
-
                 <div className="flex items-center justify-between px-2 py-2 shadow-sm bg-neutral-100 dark:bg-neutral-800 rounded-xl">
                   <button
                     className="flex items-center justify-center w-8 h-8 text-xl font-bold transition bg-transparent border border-blue-400 rounded-lg shadow-none dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -382,7 +352,7 @@ export default function ProductPage() {
                   <button
                     className="flex items-center justify-center w-8 h-8 text-xl font-bold transition bg-transparent border border-blue-400 rounded-lg shadow-none dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-60 disabled:cursor-not-allowed"
                     onClick={() => handleQuantityChange(quantity + 1)}
-                    disabled={quantity >= stock}
+                    disabled={quantity >= originalStock}
                     type="button"
                     aria-label="Aumentar cantidad"
                   >
@@ -394,25 +364,21 @@ export default function ProductPage() {
                   <button
                     className="flex items-center justify-center flex-1 gap-2 px-4 py-4 text-lg font-bold text-yellow-900 transition-all duration-200 shadow-xl cursor-pointer rounded-xl bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 hover:scale-105 active:scale-95 disabled:opacity-60"
                     type="button"
-                    disabled={stock === 0}
+                    disabled={originalStock === 0 || isBuyNowLoading}
                     onClick={handleBuyNow}
                   >
-                    Pedir ahora
+                    {isBuyNowLoading ? 'Procesando...' : 'Pedir ahora'}
                   </button>
 
-                  <button
-                    className={`flex items-center justify-center flex-1 gap-2 px-4 py-4 text-lg font-bold transition-all duration-200 shadow-xl cursor-pointer rounded-xl ${
-                      isInCart
-                        ? 'bg-gray-400 text-white cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-400 to-purple-400 hover:from-blue-500 hover:to-purple-500 text-white'
-                    }`}
-                    type="button"
-                    disabled={stock === 0 || isInCart}
-                    onClick={handleAddToCart}
+                  <AddToCartButton
+                    product={product}
+                    quantity={quantity}
+                    openModalOnSuccess={false}
+                    buttonClassName="flex items-center justify-center flex-1 gap-2 px-4 py-4 text-lg font-bold transition-all duration-200 shadow-xl cursor-pointer rounded-xl bg-gradient-to-r from-blue-400 to-purple-400 hover:from-blue-500 hover:to-purple-500 text-white disabled:opacity-60"
+                    icon={<ShoppingCart className="w-5 h-5" />}
                   >
-                    <ShoppingCart className="w-5 h-5" />
                     {isInCart ? 'En el carrito' : 'Añadir'}
-                  </button>
+                  </AddToCartButton>
                 </div>
 
                 <div className="flex items-center justify-center gap-4 mt-2">

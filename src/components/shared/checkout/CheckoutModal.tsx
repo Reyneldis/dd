@@ -25,10 +25,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-background rounded-lg shadow-xl border m-4">
+      <div className="relative w-full  max-w-2xl max-h-[80vh] overflow-y-auto bg-background rounded-lg shadow-xl border m-4">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-background z-10">
-          <h2 id="checkout-modal-title" className="text-xl font-semibold">
+          <h2
+            id="checkout-modal-title"
+            className="text-xl font-semibold text-orange-600"
+          >
             Finalizar Pedido
           </h2>
           <button

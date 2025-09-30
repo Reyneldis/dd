@@ -1,4 +1,5 @@
 'use client';
+import { stockUpdateEmitter } from '@/lib/events'; // <-- NUEVO: Importar el emisor de eventos
 import { useCartStore } from '@/store/cart-store';
 import { CartItem } from '@/types';
 import { useUser } from '@clerk/nextjs';
@@ -64,28 +65,43 @@ export function useCart() {
   );
 
   const addItem = useCallback(
-    async (item: Omit<CartItem, 'quantity'>) => {
+    async (item: CartItem) => {
       setLoading(true);
       try {
         const existingItem = items.find(i => i.id === item.id);
+
         if (existingItem) {
-          toast.warning(`${item.productName} ya está en tu carrito`);
-          return;
-        }
+          const newQuantity = existingItem.quantity + item.quantity;
+          const availableStock = await checkProductStock(item.id);
 
-        const availableStock = await checkProductStock(item.id);
-        if (1 > availableStock) {
-          toast.error(
-            `Solo hay ${availableStock} unidades disponibles de este producto`,
+          if (item.quantity > availableStock) {
+            toast.error(
+              `Solo hay ${availableStock} unidades disponibles de este producto`,
+            );
+            return;
+          }
+
+          await updateProductStock(item.id, -item.quantity);
+          updateQuantityInStore(item.slug, newQuantity);
+          toast.success(
+            `Cantidad de ${item.productName} actualizada en el carrito`,
           );
-          return;
+        } else {
+          const availableStock = await checkProductStock(item.id);
+          if (item.quantity > availableStock) {
+            toast.error(
+              `Solo hay ${availableStock} unidades disponibles de este producto`,
+            );
+            return;
+          }
+
+          await updateProductStock(item.id, -item.quantity);
+          addItemToStore(item);
+          toast.success(`${item.productName} agregado al carrito`);
         }
 
-        // Actualizar stock en la base de datos
-        await updateProductStock(item.id, -1);
-
-        addItemToStore(item);
-        toast.success(`${item.productName} agregado al carrito`);
+        // <-- NUEVO: Emitir evento de actualización después de agregar
+        stockUpdateEmitter.dispatchEvent(new Event('update'));
       } catch (error) {
         console.error('Error al agregar producto:', error);
         toast.error('Error al agregar el producto al carrito');
@@ -93,7 +109,13 @@ export function useCart() {
         setLoading(false);
       }
     },
-    [addItemToStore, checkProductStock, items, updateProductStock],
+    [
+      addItemToStore,
+      checkProductStock,
+      items,
+      updateProductStock,
+      updateQuantityInStore,
+    ],
   );
 
   const removeItem = useCallback(
@@ -102,10 +124,12 @@ export function useCart() {
       if (item) {
         setLoading(true);
         try {
-          // Devolver stock a la base de datos
           await updateProductStock(productId, item.quantity);
           removeItemFromStore(item.slug);
           toast.info(`${item.productName} eliminado del carrito`);
+
+          // <-- NUEVO: Emitir evento de actualización después de eliminar
+          stockUpdateEmitter.dispatchEvent(new Event('update'));
         } catch (error) {
           console.error('Error al eliminar producto:', error);
           toast.error('Error al eliminar el producto del carrito');
@@ -138,9 +162,11 @@ export function useCart() {
           return;
         }
 
-        // Actualizar stock en la base de datos
         await updateProductStock(productId, -quantityDiff);
         updateQuantityInStore(item.slug, newQuantity);
+
+        // <-- NUEVO: Emitir evento de actualización después de modificar cantidad
+        stockUpdateEmitter.dispatchEvent(new Event('update'));
       } catch (error) {
         console.error('Error al actualizar cantidad:', error);
         toast.error('Error al actualizar la cantidad');
@@ -159,20 +185,36 @@ export function useCart() {
 
   const clearCart = useCallback(async () => {
     setLoading(true);
-    try {
-      // Devolver todo el stock a la base de datos
-      for (const item of items) {
-        await updateProductStock(item.id, item.quantity);
-      }
+    const errors: string[] = [];
 
-      clearCartFromStore();
-      toast.success('Carrito vaciado');
-    } catch (error) {
-      console.error('Error al vaciar carrito:', error);
-      toast.error('Error al vaciar el carrito');
-    } finally {
-      setLoading(false);
+    for (const item of items) {
+      try {
+        console.log(
+          `[clearCart] Devolviendo ${item.quantity} unidades del producto ${item.productName} (ID: ${item.id}) al stock.`,
+        );
+        await updateProductStock(item.id, item.quantity);
+      } catch (error) {
+        console.error(
+          `[clearCart] Error al devolver stock de ${item.productName}:`,
+          error,
+        );
+        errors.push(`Error al devolver stock de ${item.productName}`);
+      }
     }
+
+    if (errors.length > 0) {
+      toast.error(
+        `Hubo problemas al actualizar el stock: ${errors.join(', ')}`,
+      );
+    }
+
+    clearCartFromStore();
+    toast.success('Carrito vaciado');
+
+    // <-- NUEVO: Emitir evento de actualización después de vaciar el carrito
+    stockUpdateEmitter.dispatchEvent(new Event('update'));
+
+    setLoading(false);
   }, [items, clearCartFromStore, updateProductStock]);
 
   const isInCart = useCallback(
