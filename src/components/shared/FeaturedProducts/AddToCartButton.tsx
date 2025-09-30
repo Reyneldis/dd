@@ -35,17 +35,10 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
     },
     ref,
   ) => {
-    // Obtenemos la función isInCart del hook
-    const {
-      addItem,
-      updateQuantity,
-      isInCart: isInCartHook,
-      loading,
-    } = useCart();
+    const { addItem, isInCart: isInCartHook, loading } = useCart();
     const { openCartModal } = useCartModal();
     const [isAdding, setIsAdding] = useState(false);
 
-    // Usamos la función para determinar el estado DENTRO de este componente
     const alreadyInCart = isInCartHook(product.id);
 
     const handleAdd = async () => {
@@ -54,37 +47,41 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
         return;
       }
 
+      // CAMBIO CLAVE: Si ya está en el carrito, notificamos y salimos de la función.
+      if (alreadyInCart) {
+        toast.info('Este producto ya está en tu carrito');
+        // Opcional: podemos abrir el modal para que el usuario lo vea.
+        if (openModalOnSuccess) {
+          openCartModal();
+        }
+        return; // Detenemos la ejecución aquí.
+      }
+
       setIsAdding(true);
       try {
-        if (alreadyInCart) {
-          await updateQuantity(product.id, quantity);
-          toast.success(
-            `Cantidad de ${product.productName} actualizada a ${quantity}`,
-          );
-        } else {
-          const cartItem = {
-            id: product.id,
-            productName: product.productName,
-            price:
-              typeof product.price === 'string'
-                ? parseFloat(product.price)
-                : product.price,
-            image:
-              product.images && product.images.length > 0
-                ? typeof product.images[0] === 'string'
-                  ? product.images[0]
-                  : (
-                      product.images.find(
-                        img => typeof img !== 'string' && img.isPrimary,
-                      ) as { url: string } | undefined
-                    )?.url || (product.images[0] as { url: string }).url
-                : '/img/placeholder-product.jpg',
-            slug: product.slug,
-            quantity,
-          };
-          await addItem(cartItem);
-          toast.success(`${product.productName} agregado al carrito`);
-        }
+        // Si no está en el carrito, lo agregamos.
+        const cartItem = {
+          id: product.id,
+          productName: product.productName,
+          price:
+            typeof product.price === 'string'
+              ? parseFloat(product.price)
+              : product.price,
+          image:
+            product.images && product.images.length > 0
+              ? typeof product.images[0] === 'string'
+                ? product.images[0]
+                : (
+                    product.images.find(
+                      img => typeof img !== 'string' && img.isPrimary,
+                    ) as { url: string } | undefined
+                  )?.url || (product.images[0] as { url: string }).url
+              : '/img/placeholder-product.jpg',
+          slug: product.slug,
+          quantity,
+        };
+        await addItem(cartItem);
+        toast.success(`${product.productName} agregado al carrito`);
 
         if (openModalOnSuccess) {
           openCartModal();
@@ -101,20 +98,20 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
       <button
         ref={ref}
         onClick={handleAdd}
-        disabled={isAdding || loading || product.stock === 0}
+        // CAMBIO: Deshabilitamos el botón si ya está en el carrito para evitar clics.
+        disabled={isAdding || loading || product.stock === 0 || alreadyInCart}
         className={
           buttonClassName ||
           'w-full mt-2 bg-gradient-to-r from-primary to-secondary text-white text-sm font-semibold py-2 rounded-md hover:brightness-110 shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
         }
       >
         {icon && <span className="mr-2">{icon}</span>}
-        {/* Si se pasan "children", los usamos. Si no, usamos la lógica por defecto. */}
         {children || (
           <>
             {isAdding
               ? 'Agregando...'
               : alreadyInCart
-              ? 'Actualizar cantidad'
+              ? 'Ya en el carrito' // Texto más claro
               : 'Añadir al carrito'}
           </>
         )}

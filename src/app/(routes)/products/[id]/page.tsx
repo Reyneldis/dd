@@ -149,14 +149,16 @@ export default function ProductPage() {
   // 'isInCart' es un booleano, no una función.
   const isInCart = items.some(item => item.id === product?.id);
 
-  // ¡IMPORTANTE! Revisa esta función. Aquí estaba el error potencial.
+  // src/app/products/[id]/page.tsx
+
+  // ... dentro de tu componente ProductPage
+
   const handleBuyNow = async () => {
     if (!product) return;
     if (isBuyNowLoading) return;
 
     setIsBuyNowLoading(true);
     try {
-      // Usamos el booleano 'isInCart', no lo llamamos como función.
       if (isInCart) {
         await updateQuantity(product.id, quantity);
         toast.success(
@@ -174,7 +176,13 @@ export default function ProductPage() {
         await addItem(cartItem);
         toast.success(`${product.productName} agregado al carrito`);
       }
-      openCartModal();
+
+      // --- SOLUCIÓN CLAVE ---
+      // Añadimos un pequeño retraso para garantizar que el estado del carrito
+      // se actualice en la UI antes de abrir el modal.
+      setTimeout(() => {
+        openCartModal();
+      }, 300); // Aumentado a 300ms para mayor seguridad
     } catch (error) {
       console.error('Error al procesar "Pedir ahora":', error);
       toast.error('Error al agregar el producto al carrito');
