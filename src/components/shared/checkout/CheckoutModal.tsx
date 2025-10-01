@@ -38,7 +38,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             onClick={onClose}
             className="p-1 hover:bg-muted rounded-md transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="h-6 w-6" />
           </button>
         </div>
 

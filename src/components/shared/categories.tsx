@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 // src/components/shared/categories.tsx
 'use client';
 
 import { ArrowRight, Sparkles } from 'lucide-react';
-import Image from 'next/image';
+// import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -203,14 +204,14 @@ export default function Categories() {
                   </div>
                   {/* Imagen protagonista (65% de la altura) */}
                   <div className="relative w-full h-[240px] rounded-t-3xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
-                    <Image
+                    <img
                       src={
                         category.mainImage || '/img/placeholder-category.jpg'
                       }
                       alt={category.categoryName}
-                      fill
-                      objectFit="cover"
-                      className="transition-transform duration-700 group-hover:scale-110"
+                      width="420"
+                      height="420"
+                      className="transition-transform duration-700 group-hover:scale-110 rounded-2xl object-cover"
                       loading="lazy" // Lazy loading para optimizar
                     />
 
