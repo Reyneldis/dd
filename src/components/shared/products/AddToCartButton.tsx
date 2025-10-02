@@ -1,4 +1,5 @@
-// src/components/products/AddToCartButton.tsx
+// src/components/shared/products/AddToCartButton.tsx
+
 'use client';
 import { useCart } from '@/hooks/use-cart';
 import { useCartStore } from '@/store/cart-store';
@@ -69,6 +70,7 @@ export default function AddToCartButton({
               )?.url || (product.images[0] as { url: string }).url
           : '/img/placeholder-product.jpg',
       slug: product.slug,
+      quantity: 1, // <-- ¡SOLUCIÓN! Añadimos la cantidad por defecto.
     });
   };
 

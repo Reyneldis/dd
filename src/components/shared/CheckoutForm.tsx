@@ -4,7 +4,7 @@ import { useCart } from '@/hooks/use-cart';
 import { OrderResponse } from '@/types/index';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react'; // Añadimos useCallback
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -60,8 +60,8 @@ export default function CheckoutForm() {
     },
   });
 
-  // Función para abrir enlaces de WhatsApp
-  const openWhatsAppLinks = () => {
+  // Función para abrir enlaces de WhatsApp - Envuelta en useCallback
+  const openWhatsAppLinks = useCallback(() => {
     if (whatsappLinks.length === 0) return;
 
     // Abrir el primer enlace inmediatamente
@@ -94,9 +94,9 @@ export default function CheckoutForm() {
       // Programar el siguiente enlace
       setCurrentLinkIndex(prev => prev + 1);
     }
-  };
+  }, [whatsappLinks, currentLinkIndex]); // Dependencias añadidas
 
-  // Efecto para abrir enlaces secuencialmente
+  // Efecto para abrir enlaces secuencialmente - Con todas las dependencias
   useEffect(() => {
     if (whatsappLinks.length > 0 && currentLinkIndex < whatsappLinks.length) {
       const timer = setTimeout(
@@ -117,7 +117,14 @@ export default function CheckoutForm() {
         router.push(`/orden-exitosa?order=${orderNumber}`);
       }, 1000);
     }
-  }, [whatsappLinks, currentLinkIndex]);
+  }, [
+    whatsappLinks,
+    currentLinkIndex,
+    openWhatsAppLinks,
+    clearCart,
+    router,
+    orderNumber,
+  ]); // Todas las dependencias añadidas
 
   const onSubmit = async (data: CheckoutFormData) => {
     if (items.length === 0) {

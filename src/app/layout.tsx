@@ -1,13 +1,12 @@
 // src/app/layout.tsx
-import { ClientProviders } from '@/components/ClientProviders';
-import AnimatedBackground from '@/components/shared/AnimatedBackground';
 
+import { ClientProviders } from '@/components/ClientProviders';
 import FooterConditional from '@/components/shared/footer/FooterConditional';
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from 'next-themes';
 import NextTopLoader from 'nextjs-toploader';
-import React from 'react';
+import React, { Suspense } from 'react'; // <-- CAMBIO 1: Importa Suspense
 import { Toaster } from 'sonner';
 import ClientLayout from './ClientLayout';
 import './globals.css';
@@ -116,7 +115,6 @@ export default function RootLayout({
               enableSystem
               disableTransitionOnChange
             >
-              <AnimatedBackground />
               <NextTopLoader
                 color="#2563eb"
                 initialPosition={0.08}
@@ -128,7 +126,11 @@ export default function RootLayout({
                 speed={200}
                 shadow="0 0 10px #2563eb,0 0 5px #2563eb"
               />
-              <ClientLayout>{children}</ClientLayout>
+
+              {/* CAMBIO 2: Envuelve ClientLayout en Suspense */}
+              <Suspense fallback={<div>Cargando interfaz...</div>}>
+                <ClientLayout>{children}</ClientLayout>
+              </Suspense>
 
               <Toaster
                 position="bottom-right"

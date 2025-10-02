@@ -109,10 +109,6 @@ interface PaginatedResponse<T> {
 // FUNCIONES DE PRODUCTOS
 // ============================================================================
 
-// src/lib/dashboard-service.ts
-
-// ... código anterior ...
-
 export async function getProducts(
   filters: ProductFilters = {},
 ): Promise<PaginatedResponse<Product>> {
@@ -227,8 +223,6 @@ export async function getProducts(
   }
 }
 
-// ... código posterior ...
-
 // Función para guardar imágenes localmente
 async function saveImageLocally(
   image: File,
@@ -326,13 +320,60 @@ export async function createProduct(
         images: {
           orderBy: { sortOrder: 'asc' },
         },
+        _count: { select: { orderItems: true, reviews: true } },
       },
     });
 
+    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
+    if (!updatedProduct) {
+      return {
+        success: false,
+        error: 'No se pudo recuperar el producto después de crearlo.',
+      };
+    }
+
+    const serializedProduct: Product = {
+      id: updatedProduct.id,
+      slug: updatedProduct.slug,
+      productName: updatedProduct.productName,
+      price: updatedProduct.price,
+      stock: updatedProduct.stock,
+      description: updatedProduct.description,
+      categoryId: updatedProduct.categoryId,
+      features: updatedProduct.features,
+      status: updatedProduct.status,
+      featured: updatedProduct.featured,
+      createdAt: updatedProduct.createdAt.toISOString(),
+      updatedAt: updatedProduct.updatedAt.toISOString(),
+      category: {
+        id: updatedProduct.category.id,
+        categoryName: updatedProduct.category.categoryName,
+        slug: updatedProduct.category.slug,
+        description: updatedProduct.category.description,
+        mainImage: updatedProduct.category.mainImage,
+        createdAt: updatedProduct.category.createdAt.toISOString(),
+        updatedAt: updatedProduct.category.updatedAt.toISOString(),
+      },
+      images: updatedProduct.images.map(img => ({
+        id: img.id,
+        productId: img.productId,
+        url: img.url,
+        alt: img.alt,
+        sortOrder: img.sortOrder,
+        isPrimary: img.isPrimary,
+        createdAt: img.createdAt.toISOString(),
+      })),
+      _count: {
+        reviews: updatedProduct._count.reviews,
+        orderItems: updatedProduct._count.orderItems,
+      },
+    };
+
     return {
       success: true,
-      data: updatedProduct as Product,
+      data: serializedProduct, // <-- Devolvemos el objeto serializado
     };
+    // *** FIN DE LA SOLUCIÓN ***
   } catch (error) {
     console.error('Error creating product:', error);
     return {
@@ -379,14 +420,56 @@ export async function updateProduct(
       data: productData,
       include: {
         category: true,
-        images: true,
+        images: {
+          orderBy: { sortOrder: 'asc' },
+        },
+        _count: { select: { orderItems: true, reviews: true } },
       },
     });
 
+    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
+    const serializedProduct: Product = {
+      id: product.id,
+      slug: product.slug,
+      productName: product.productName,
+      price: product.price,
+      stock: product.stock,
+      description: product.description,
+      categoryId: product.categoryId,
+      features: product.features,
+      status: product.status,
+      featured: product.featured,
+      createdAt: product.createdAt.toISOString(),
+      updatedAt: product.updatedAt.toISOString(),
+      category: {
+        id: product.category.id,
+        categoryName: product.category.categoryName,
+        slug: product.category.slug,
+        description: product.category.description,
+        mainImage: product.category.mainImage,
+        createdAt: product.category.createdAt.toISOString(),
+        updatedAt: product.category.updatedAt.toISOString(),
+      },
+      images: product.images.map(img => ({
+        id: img.id,
+        productId: img.productId,
+        url: img.url,
+        alt: img.alt,
+        sortOrder: img.sortOrder,
+        isPrimary: img.isPrimary,
+        createdAt: img.createdAt.toISOString(),
+      })),
+      _count: {
+        reviews: product._count.reviews,
+        orderItems: product._count.orderItems,
+      },
+    };
+
     return {
       success: true,
-      data: product as Product,
+      data: serializedProduct, // <-- Devolvemos el objeto serializado
     };
+    // *** FIN DE LA SOLUCIÓN ***
   } catch (error) {
     console.error('Error updating product:', error);
     return {
@@ -475,8 +558,8 @@ export async function getCategories(
       slug: category.slug,
       description: category.description,
       mainImage: category.mainImage,
-      createdAt: category.createdAt,
-      updatedAt: category.updatedAt,
+      createdAt: category.createdAt.toISOString(),
+      updatedAt: category.updatedAt.toISOString(),
       _count: category._count,
     }));
   } catch (error) {
@@ -490,25 +573,20 @@ async function saveCategoryImageLocally(
   image: File,
   categoryId: string,
 ): Promise<string> {
-  // Crear directorio si no existe
   const uploadDir = join(process.cwd(), 'public', 'uploads', 'categories');
   try {
     await mkdir(uploadDir, { recursive: true });
   } catch (error) {
-    // El directorio ya existe, ignorar error
     console.log(error);
   }
 
-  // Generar nombre de archivo único
   const fileName = `${categoryId}-${Date.now()}-${image.name}`;
   const filePath = join(uploadDir, fileName);
 
-  // Guardar archivo
   const bytes = await image.arrayBuffer();
   const buffer = Buffer.from(bytes);
   await writeFile(filePath, buffer);
 
-  // Retornar URL pública
   return `/uploads/categories/${fileName}`;
 }
 
@@ -516,7 +594,6 @@ export async function createCategory(
   categoryData: CreateCategoryData,
 ): Promise<ApiResponse<Category>> {
   try {
-    // Generar slug si no se proporciona
     const slug =
       categoryData.slug ||
       categoryData.categoryName
@@ -524,7 +601,6 @@ export async function createCategory(
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-    // Verificar que el slug no existe
     const existingCategory = await prisma.category.findUnique({
       where: { slug },
     });
@@ -536,7 +612,6 @@ export async function createCategory(
       };
     }
 
-    // Crear la categoría primero sin imagen
     const category = await prisma.category.create({
       data: {
         categoryName: categoryData.categoryName,
@@ -545,7 +620,6 @@ export async function createCategory(
       },
     });
 
-    // Procesar imagen si existe
     if (categoryData.mainImage) {
       let imageUrl: string;
 
@@ -555,7 +629,7 @@ export async function createCategory(
           category.id,
         );
       } else {
-        imageUrl = categoryData.mainImage; // Es una URL existente
+        imageUrl = categoryData.mainImage;
       }
 
       await prisma.category.update({
@@ -564,15 +638,35 @@ export async function createCategory(
       });
     }
 
-    // Recuperar la categoría con la imagen actualizada
     const updatedCategory = await prisma.category.findUnique({
       where: { id: category.id },
+      include: { _count: { select: { products: true } } },
     });
+
+    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
+    if (!updatedCategory) {
+      return {
+        success: false,
+        error: 'No se pudo recuperar la categoría después de crearla.',
+      };
+    }
+
+    const serializedCategory: Category = {
+      id: updatedCategory.id,
+      categoryName: updatedCategory.categoryName,
+      slug: updatedCategory.slug,
+      description: updatedCategory.description,
+      mainImage: updatedCategory.mainImage,
+      createdAt: updatedCategory.createdAt.toISOString(),
+      updatedAt: updatedCategory.updatedAt.toISOString(),
+      _count: updatedCategory._count,
+    };
 
     return {
       success: true,
-      data: updatedCategory as Category,
+      data: serializedCategory, // <-- Devolvemos el objeto serializado
     };
+    // *** FIN DE LA SOLUCIÓN ***
   } catch (error) {
     console.error('Error creating category:', error);
     return {
@@ -588,7 +682,6 @@ export async function updateCategory(
   categoryData: UpdateCategoryData,
 ): Promise<ApiResponse<Category>> {
   try {
-    // Verificar que la categoría existe
     const existingCategory = await prisma.category.findUnique({
       where: { id: categoryId },
     });
@@ -600,7 +693,6 @@ export async function updateCategory(
       };
     }
 
-    // Si se actualiza el slug, verificar que no existe
     if (categoryData.slug && categoryData.slug !== existingCategory.slug) {
       const slugExists = await prisma.category.findUnique({
         where: { slug: categoryData.slug },
@@ -614,7 +706,6 @@ export async function updateCategory(
       }
     }
 
-    // Preparar datos para la actualización
     type CategoryUpdateData = {
       categoryName?: string;
       slug?: string;
@@ -628,19 +719,15 @@ export async function updateCategory(
       description: categoryData.description,
     };
 
-    // Procesar imagen si existe
     if (categoryData.mainImage !== undefined) {
       if (categoryData.mainImage instanceof File) {
-        // Es un nuevo archivo de imagen
         updateData.mainImage = await saveCategoryImageLocally(
           categoryData.mainImage,
           categoryId,
         );
       } else if (categoryData.mainImage === null) {
-        // Se quiere eliminar la imagen
         updateData.mainImage = null;
       } else {
-        // Es una URL existente
         updateData.mainImage = categoryData.mainImage;
       }
     }
@@ -648,12 +735,26 @@ export async function updateCategory(
     const category = await prisma.category.update({
       where: { id: categoryId },
       data: updateData,
+      include: { _count: { select: { products: true } } },
     });
+
+    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
+    const serializedCategory: Category = {
+      id: category.id,
+      categoryName: category.categoryName,
+      slug: category.slug,
+      description: category.description,
+      mainImage: category.mainImage,
+      createdAt: category.createdAt.toISOString(),
+      updatedAt: category.updatedAt.toISOString(),
+      _count: category._count,
+    };
 
     return {
       success: true,
-      data: category as Category,
+      data: serializedCategory, // <-- Devolvemos el objeto serializado
     };
+    // *** FIN DE LA SOLUCIÓN ***
   } catch (error) {
     console.error('Error updating category:', error);
     return {
@@ -672,7 +773,6 @@ export async function deleteCategory(
   try {
     console.log('Deleting category with ID:', categoryId);
 
-    // Verificar que la categoría existe
     const existingCategory = await prisma.category.findUnique({
       where: { id: categoryId },
       include: {
@@ -694,7 +794,6 @@ export async function deleteCategory(
       };
     }
 
-    // Verificar que no tiene productos asociados
     console.log('Product count:', existingCategory._count.products);
     if (existingCategory._count.products > 0) {
       console.error('Category has associated products');
@@ -718,7 +817,6 @@ export async function deleteCategory(
   } catch (error) {
     console.error('Error in deleteCategory service:', error);
 
-    // Capturar error específico de Prisma para restricción de clave foránea
     if (error instanceof Error) {
       console.error('Error message:', error.message);
       console.error('Error name:', error.name);
@@ -733,7 +831,6 @@ export async function deleteCategory(
       }
     }
 
-    // Si el error es de Prisma, intentar obtener más información
     if (error && typeof error === 'object' && 'code' in error) {
       const prismaError = error as {
         code: string;
@@ -781,8 +878,9 @@ export async function getUserById(userId: string): Promise<ApiResponse<User>> {
       lastName: user.lastName || '',
       role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
       avatar: user.avatar,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      isActive: user.isActive,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
     };
 
     return {
@@ -810,7 +908,6 @@ export async function getOrders(
 
     const skip = (page - 1) * limit;
 
-    // Construir condiciones de búsqueda
     const whereConditions: Record<string, unknown> = {};
 
     if (status) {
@@ -845,6 +942,7 @@ export async function getOrders(
               lastName: true,
               role: true,
               avatar: true,
+              isActive: true,
               createdAt: true,
               updatedAt: true,
             },
@@ -860,6 +958,9 @@ export async function getOrders(
                   description: true,
                   categoryId: true,
                   features: true,
+                  stock: true, // <-- CAMBIO: Añadido
+                  status: true, // <-- CAMBIO: Añadido
+                  featured: true, // <-- CAMBIO: Añadido
                   createdAt: true,
                   updatedAt: true,
                   category: {
@@ -893,7 +994,6 @@ export async function getOrders(
       prisma.order.count({ where: whereConditions }),
     ]);
 
-    // Serializar las órdenes
     const serializedOrders: Order[] = orders.map(order => ({
       id: order.id,
       orderNumber: order.orderNumber,
@@ -917,6 +1017,7 @@ export async function getOrders(
             lastName: order.user.lastName || '',
             role: order.user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
             avatar: order.user.avatar,
+            isActive: order.user.isActive,
             createdAt: order.user.createdAt.toISOString(),
             updatedAt: order.user.updatedAt.toISOString(),
           }
@@ -936,6 +1037,9 @@ export async function getOrders(
           slug: item.product.slug,
           productName: item.product.productName,
           price: item.product.price,
+          stock: item.product.stock,
+          status: item.product.status as 'ACTIVE' | 'INACTIVE',
+          featured: item.product.featured,
           description: item.product.description,
           categoryId: item.product.categoryId,
           features: item.product.features,
@@ -985,7 +1089,6 @@ export async function getOrders(
             orderId: order.shippingAddress.orderId,
           }
         : null,
-      // Agregar customerName para compatibilidad con RecentOrdersTable
       customerName:
         order.contactInfo?.name ||
         (order.user
@@ -1013,7 +1116,6 @@ export async function updateOrderStatus(
   status: OrderStatus,
 ): Promise<ApiResponse<{ success: boolean }>> {
   try {
-    // Validar que el status sea válido
     const validStatuses: OrderStatus[] = [
       'PENDING',
       'CONFIRMED',
@@ -1066,7 +1168,6 @@ export async function getUsers(
 
     const skip = (page - 1) * limit;
 
-    // Construir condiciones de búsqueda
     const whereConditions: Record<string, unknown> = {};
 
     if (role) {
@@ -1102,7 +1203,6 @@ export async function getUsers(
       prisma.user.count({ where: whereConditions }),
     ]);
 
-    // Serializar usuarios
     const serializedUsers: User[] = users.map(user => ({
       id: user.id,
       clerkId: user.clerkId,
@@ -1111,8 +1211,9 @@ export async function getUsers(
       lastName: user.lastName || '',
       role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
       avatar: user.avatar,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      isActive: user.isActive,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
     }));
 
     return {
@@ -1135,7 +1236,6 @@ export async function updateUser(
   userData: UpdateUserData,
 ): Promise<ApiResponse<User>> {
   try {
-    // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
     });
@@ -1152,10 +1252,25 @@ export async function updateUser(
       data: userData,
     });
 
+    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
+    const serializedUser: User = {
+      id: user.id,
+      clerkId: user.clerkId,
+      email: user.email,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+      avatar: user.avatar,
+      isActive: user.isActive,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+    };
+
     return {
       success: true,
-      data: user as User,
+      data: serializedUser, // <-- Devolvemos el objeto serializado
     };
+    // *** FIN DE LA SOLUCIÓN ***
   } catch (error) {
     console.error('Error updating user:', error);
     return {
@@ -1172,7 +1287,6 @@ export async function toggleUserActive(
   userId: string,
 ): Promise<ApiResponse<{ success: boolean }>> {
   try {
-    // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
     });
@@ -1213,7 +1327,6 @@ export async function getFailedEmails() {
   try {
     console.log('Consultando emails fallidos en la base de datos...');
 
-    // Verificar si la tabla EmailMetrics existe
     const emails = await prisma.emailMetrics.findMany({
       where: { status: 'failed' },
       orderBy: { timestamp: 'desc' },
@@ -1244,7 +1357,6 @@ export async function getFailedEmails() {
   } catch (error) {
     console.error('Error en getFailedEmails:', error);
 
-    // Si el error es que la tabla no existe, lo mostramos claramente
     if (
       error instanceof Error &&
       error.message.includes('relation "EmailMetrics" does not exist')
@@ -1291,7 +1403,6 @@ export async function retryEmail(
 
 export async function getDashboardStats() {
   try {
-    // Estadísticas básicas
     const [totalOrders, pendingOrders, totalProducts, totalUsers] =
       await Promise.all([
         prisma.order.count(),
@@ -1300,7 +1411,6 @@ export async function getDashboardStats() {
         prisma.user.count(),
       ]);
 
-    // Ventas por categoría
     const salesByCategory = (await prisma.$queryRaw`
       SELECT c."categoryName" as name, COALESCE(SUM(oi.quantity * oi.price), 0) as sales
       FROM "categories" c
@@ -1310,7 +1420,6 @@ export async function getDashboardStats() {
       ORDER BY sales DESC
     `) as { name: string; sales: number }[];
 
-    // Pedidos por estado
     const ordersByStatus = (await prisma.$queryRaw`
       SELECT 
         CASE 
@@ -1330,7 +1439,6 @@ export async function getDashboardStats() {
       ORDER BY count DESC
     `) as { name: string; count: number }[];
 
-    // Productos más vendidos
     const topProducts = (await prisma.$queryRaw`
       SELECT p."productName", COALESCE(SUM(oi.quantity), 0)::integer as "totalSold"
       FROM "products" p
@@ -1340,7 +1448,6 @@ export async function getDashboardStats() {
       LIMIT 5
     `) as { productName: string; totalSold: number }[];
 
-    // Pedidos recientes - Ahora obtenemos los datos completos de Order
     const recentOrders = await prisma.order.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
@@ -1355,6 +1462,7 @@ export async function getDashboardStats() {
             lastName: true,
             role: true,
             avatar: true,
+            isActive: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -1370,6 +1478,9 @@ export async function getDashboardStats() {
                 description: true,
                 categoryId: true,
                 features: true,
+                stock: true, // <-- CAMBIO: Añadido
+                status: true, // <-- CAMBIO: Añadido
+                featured: true, // <-- CAMBIO: Añadido
                 createdAt: true,
                 updatedAt: true,
                 category: {
@@ -1401,7 +1512,6 @@ export async function getDashboardStats() {
       },
     });
 
-    // Serializar las órdenes al formato Order[]
     const serializedOrders: Order[] = recentOrders.map(order => ({
       id: order.id,
       orderNumber: order.orderNumber,
@@ -1419,12 +1529,13 @@ export async function getDashboardStats() {
       user: order.user
         ? {
             id: order.user.id,
-            clerkId: '', // No disponible en la consulta actual
+            clerkId: '',
             email: order.user.email,
             firstName: order.user.firstName || '',
             lastName: order.user.lastName || '',
             role: order.user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
             avatar: order.user.avatar,
+            isActive: order.user.isActive,
             createdAt: order.user.createdAt.toISOString(),
             updatedAt: order.user.updatedAt.toISOString(),
           }
@@ -1444,6 +1555,9 @@ export async function getDashboardStats() {
           slug: item.product.slug,
           productName: item.product.productName,
           price: item.product.price,
+          stock: item.product.stock,
+          status: item.product.status as 'ACTIVE' | 'INACTIVE',
+          featured: item.product.featured,
           description: item.product.description,
           categoryId: item.product.categoryId,
           features: item.product.features,
@@ -1493,7 +1607,6 @@ export async function getDashboardStats() {
             orderId: order.shippingAddress.orderId,
           }
         : null,
-      // Agregar customerName para compatibilidad con RecentOrdersTable
       customerName:
         order.contactInfo?.name ||
         (order.user
@@ -1509,11 +1622,11 @@ export async function getDashboardStats() {
       salesByCategory,
       ordersByStatus,
       topProducts,
-      recentOrders: serializedOrders, // Ahora devuelve Order[] con customerName
-      totalRevenue: 0, // Calcular si es necesario
-      averageOrderValue: 0, // Calcular si es necesario
-      conversionRate: 0, // Calcular si es necesario
-      monthlyGrowth: 0, // Calcular si es necesario
+      recentOrders: serializedOrders,
+      totalRevenue: 0,
+      averageOrderValue: 0,
+      conversionRate: 0,
+      monthlyGrowth: 0,
     };
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
@@ -1555,7 +1668,6 @@ export async function getOrderById(
       };
     }
 
-    // Serializar la orden (similar a getOrders)
     const serializedOrder: Order = {
       id: order.id,
       orderNumber: order.orderNumber,
@@ -1579,6 +1691,7 @@ export async function getOrderById(
             lastName: order.user.lastName || '',
             role: order.user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
             avatar: order.user.avatar,
+            isActive: order.user.isActive,
             createdAt: order.user.createdAt.toISOString(),
             updatedAt: order.user.updatedAt.toISOString(),
           }
@@ -1598,6 +1711,9 @@ export async function getOrderById(
           slug: item.product.slug,
           productName: item.product.productName,
           price: item.product.price,
+          stock: item.product.stock,
+          status: item.product.status as 'ACTIVE' | 'INACTIVE',
+          featured: item.product.featured,
           description: item.product.description,
           categoryId: item.product.categoryId,
           features: item.product.features,
@@ -1647,7 +1763,6 @@ export async function getOrderById(
             orderId: order.shippingAddress.orderId,
           }
         : null,
-      // Agregar customerName para compatibilidad con RecentOrdersTable
       customerName:
         order.contactInfo?.name ||
         (order.user
