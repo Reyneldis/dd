@@ -1,10 +1,12 @@
 'use client';
+
+import { Skeleton } from '@/components/ui/skeleton'; // Importamos el componente Skeleton
 import { stockUpdateEmitter } from '@/lib/events';
 import type { ProductFull } from '@/types/product';
 import { useEffect, useState } from 'react';
 import FeaturedProductsGrid from './FeaturedProductsGrid';
 
-// Interfaz para la respuesta de la API basada en tu endpoint
+// Interfaz para la respuesta de la API (sin cambios)
 interface ApiResponseProduct {
   id: string;
   slug: string;
@@ -30,20 +32,50 @@ interface ApiResponseProduct {
   }>;
 }
 
+// *** NUEVO COMPONENTE SKELETON ***
+// Muestra una estructura visual de lo que se está cargando para evitar saltos de layout.
+function FeaturedProductsSkeleton() {
+  return (
+    <section className="py-16">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Skeleton para el Título */}
+        <div className="text-center mb-8">
+          <Skeleton className="h-12 w-3/4 mx-auto rounded-lg" />
+        </div>
+        {/* Skeleton para el Subtítulo */}
+        <div className="text-center mb-12">
+          <Skeleton className="h-6 w-1/2 mx-auto rounded-md" />
+        </div>
+        {/* Skeleton para la Cuadrícula de Productos */}
+        {/* Ajusta el grid al número de columnas que usa tu FeaturedProductsGrid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex flex-col space-y-3">
+              {/* Skeleton para la imagen del producto */}
+              <Skeleton className="h-64 w-full rounded-xl" />
+              {/* Skeleton para el nombre del producto */}
+              <Skeleton className="h-4 w-3/4 rounded-md" />
+              {/* Skeleton para el precio */}
+              <Skeleton className="h-4 w-1/2 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function FeaturedProducts() {
   const [featured, setFeatured] = useState<ProductFull[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Extraemos la lógica de fetch a su propia función para poder reutilizarla
   const getFeaturedProducts = async () => {
     try {
-      // Evitar múltiples cargas si ya está cargando
       setLoading(true);
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
       const res = await fetch(`${baseUrl}/api/products/featured`, {
-        // Añadimos un cache-buster para evitar que el navegador cachee la respuesta vieja
         cache: 'no-store',
       });
       if (!res.ok) {
@@ -51,26 +83,23 @@ export default function FeaturedProducts() {
       }
       const data = (await res.json()) as { products: ApiResponseProduct[] };
 
-      // Transforma los datos para que coincidan con ProductFull
       const transformedProducts: ProductFull[] = (data.products || []).map(
         (product: ApiResponseProduct) => {
-          // Procesamiento de imágenes - como solo viene una imagen, la convertimos al formato completo
           const processedImages = product.images.map(img => ({
             id: img.id,
             url: img.url,
             alt: img.alt || null,
-            sortOrder: 0, // Solo hay una imagen, así que sortOrder es 0
-            isPrimary: true, // La única imagen es primaria
-            createdAt: new Date(), // No viene en la respuesta, usamos fecha actual
+            sortOrder: 0,
+            isPrimary: true,
+            createdAt: new Date(),
           }));
 
-          // Completamos la categoría con los campos que faltan
           const category = {
             ...product.category,
-            description: null, // No viene en la respuesta
-            mainImage: null, // No viene en la respuesta
-            createdAt: new Date(), // No viene en la respuesta
-            updatedAt: new Date(), // No viene en la respuesta
+            description: null,
+            mainImage: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           };
 
           return {
@@ -88,8 +117,8 @@ export default function FeaturedProducts() {
             categoryId: product.categoryId,
             category,
             images: processedImages,
-            reviewCount: 0, // No viene en la respuesta, lo ponemos en 0
-            reviews: [], // No vienen reseñas en la respuesta
+            reviewCount: 0,
+            reviews: [],
           };
         },
       );
@@ -102,14 +131,11 @@ export default function FeaturedProducts() {
     }
   };
 
-  // Efecto para cargar los datos al montar el componente
   useEffect(() => {
     getFeaturedProducts();
   }, []);
 
-  // Efecto para escuchar los cambios de stock
   useEffect(() => {
-    // Esta función se ejecutará cada vez que se reciba el evento 'update'
     const handleStockUpdate = () => {
       console.log(
         '📢 Evento de actualización de stock recibido. Recargando productos destacados...',
@@ -117,27 +143,17 @@ export default function FeaturedProducts() {
       getFeaturedProducts();
     };
 
-    // Registramos el "escuchador" del evento
     stockUpdateEmitter.addEventListener('update', handleStockUpdate);
 
-    // Función de limpieza: es crucial para evitar fugas de memoria.
-    // Se ejecuta cuando el componente se desmonta.
     return () => {
       stockUpdateEmitter.removeEventListener('update', handleStockUpdate);
     };
-  }, []); // Las dependencias vacías aseguran que esto se monte y desmonte solo una vez.
+  }, []);
 
-  // Estados de carga y error
+  // *** ESTADO DE CARGA MEJORADO ***
+  // Ahora mostramos el componente Skeleton en lugar de un simple texto.
   if (loading) {
-    return (
-      <section className="py-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <p>Cargando productos destacados...</p>
-          </div>
-        </div>
-      </section>
-    );
+    return <FeaturedProductsSkeleton />;
   }
 
   if (error) {
