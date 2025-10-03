@@ -16,22 +16,22 @@ import {
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-// *** INTERFAZ CORREGIDA: 'name' CAMBIADO A 'categoryName' ***
-interface ApiCategory {
-  id: string;
-  categoryName: string; // <-- CORREGIDO
-  slug?: string;
-  mainImage?: string;
-  description?: string;
-  productCount?: number;
-}
-
+// ... (Interfaces y CategoriesSkeleton sin cambios) ...
 interface Category {
   id: string;
   categoryName: string;
   slug: string;
   mainImage: string | null;
   description: string | null;
+  productCount?: number;
+}
+
+interface ApiCategory {
+  id: string;
+  categoryName: string;
+  slug?: string;
+  mainImage?: string;
+  description?: string;
   productCount?: number;
 }
 
@@ -91,7 +91,6 @@ export default function Categories() {
     fetchCategories();
   }, []);
 
-  // *** FUNCIÓN AHORA FUNCIONARÁ SIN ERRORES GRACIAS A LA CORRECCIÓN DE LA INTERFAZ ***
   const transformCategory = (category: ApiCategory): Category => ({
     id: category.id,
     categoryName: category.categoryName,
@@ -134,43 +133,43 @@ export default function Categories() {
   };
 
   return (
+    // *** SECCIÓN CON ESTILO UNIFICADO ***
     <section
       id="categorias"
-      className="relative py-24 lg:py-32 overflow-hidden"
+      className="relative py-16 lg:py-24 overflow-hidden"
     >
-      {/* Asegúrate de tener estos estilos en tu globals.css */
-      /*
-        @keyframes shimmer {
-          0% { background-position: -1000px 0; }
-          100% { background-position: 1000px 0; }
-        }
-        .shimmer {
-          animation: shimmer 4s ease-in-out infinite;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-          background-size: 1000px 100%;
-        }
-      */}
+      {/* Fondo decorativo del componente StatsCounter */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-secondary/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
+      </div>
 
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+      {/* Contenedor principal */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* *** HEADER CON ESTILO UNIFICADO *** */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          transition={{ duration: 0.8 }}
+          className="text-center mb-12"
         >
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 text-sm font-semibold text-primary bg-primary/10 rounded-full backdrop-blur-sm">
-            <Sparkles className="h-4 w-4" /> Explora por categorías
+          <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-primary/10 to-secondary/10 text-primary text-base font-semibold mb-4 shadow-md">
+            <Sparkles className="h-5 w-5 animate-bounce" />
+            Explora por categorías
           </span>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground mb-6">
+          {/* *** TÍTULO CON EL GRADIENTE DE STATS COUNTER *** */}
+          <h2 className="text-3xl sm:text-5xl md:text-7xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 via-amber-500 to-emerald-700 mb-8 text-center">
             Nuestras Categorías
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Encuentra productos exclusivos y de alta calidad en cada categoría.
+          {/* *** SUBTÍTULO CON EL ESTILO DE STATS COUNTER *** */}
+          <p className="text-lg sm:text-2xl text-center text-muted-foreground mb-12 max-w-3xl mx-auto font-medium">
+            Encuentra productos exclusivos y de alta calidad en cada categoría
           </p>
         </motion.div>
 
+        {/* Grid de Categorías (sin cambios en la lógica) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Tarjeta Grande: Botón Mejorado */}
+          {/* Tarjeta Grande */}
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -221,7 +220,6 @@ export default function Categories() {
                     {featuredCategory.description ||
                       'Explora una selección curada...'}
                   </p>
-                  {/* *** BOTÓN MEJORADO: ESTILO CAMALEÓN Y ANIMACIÓN *** */}
                   <span className="inline-flex items-center gap-3 px-8 py-4 font-bold rounded-full transition-all duration-300 border-2 border-white/50 bg-white/10 backdrop-blur-sm text-white shadow-lg group-hover:border-white group-hover:bg-white/20 group-hover:scale-105 group-hover:shadow-xl">
                     <ArrowRight className="h-5 w-5" /> Ver Productos
                   </span>
@@ -230,7 +228,7 @@ export default function Categories() {
             </Link>
           </motion.div>
 
-          {/* Tarjetas Pequeñas: Botón Mejorado */}
+          {/* Tarjetas Pequeñas */}
           {restOfCategories.map((category, index) => {
             const name = category.categoryName?.toLowerCase() || '';
             let gradientClass = 'bg-gradient-to-br from-gray-400 to-gray-600';
@@ -295,7 +293,6 @@ export default function Categories() {
                       <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                         {category.description || 'Explora nuestra selección...'}
                       </p>
-                      {/* *** BOTÓN MEJORADO: ESTILO CAMALEÓN Y ANIMACIÓN *** */}
                       <span className="inline-flex items-center gap-3 px-6 py-3 font-bold rounded-full transition-all duration-300 border-2 border-primary/50 bg-primary/10 backdrop-blur-sm text-primary shadow-md group-hover:border-primary group-hover:bg-primary/20 group-hover:scale-105 group-hover:shadow-lg">
                         <ArrowRight className="h-4 w-4" /> Ver Productos
                       </span>
