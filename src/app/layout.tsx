@@ -2,6 +2,7 @@
 
 import { ClientProviders } from '@/components/ClientProviders';
 import FooterConditional from '@/components/shared/footer/FooterConditional';
+import ScrollToTopButton from '@/components/shared/ScrollToTopButton';
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from 'next-themes';
@@ -139,6 +140,7 @@ export default function RootLayout({
                 duration={4000}
               />
               <FooterConditional />
+              <ScrollToTopButton />
             </ThemeProvider>
           </ClientProviders>
         </body>
