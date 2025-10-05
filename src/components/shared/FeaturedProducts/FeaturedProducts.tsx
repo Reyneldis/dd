@@ -1,10 +1,11 @@
-// src/components/shared/FeaturedProducts/FeaturedProducts.tsx
 'use client';
+
+import { stockUpdateEmitter } from '@/lib/events';
 import type { ProductFull } from '@/types/product';
 import { useEffect, useState } from 'react';
 import FeaturedProductsGrid from './FeaturedProductsGrid';
 
-// Interfaz para la respuesta de la API basada en tu endpoint
+// <-- LA INTERFAZ AHORA ESTÁ DEFINIDA AQUÍ
 interface ApiResponseProduct {
   id: string;
   slug: string;
@@ -30,94 +31,164 @@ interface ApiResponseProduct {
   }>;
 }
 
+// *** COMPONENTE SKELETON MEJORADO Y FUTURISTA ***
+function FeaturedProductsSkeleton() {
+  return (
+    <section className="py-16">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Skeleton para el Título */}
+        <div className="text-center mb-8">
+          <div className="relative h-12 w-3/4 mx-auto overflow-hidden rounded-lg bg-muted">
+            <div className="absolute inset-0 -translate-x-full animate-pulse bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />{' '}
+            {/* <-- USAMOS LA CLASE DE ANIMACIÓN GLOBAL */}
+          </div>
+        </div>
+
+        {/* Skeleton para el Subtítulo */}
+        <div className="text-center mb-12">
+          <div className="relative h-6 w-1/2 mx-auto overflow-hidden rounded-md bg-muted">
+            <div className="absolute inset-0 -translate-x-full animate-pulse bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />{' '}
+            {/* <-- USAMOS LA CLASE DE ANIMACIÓN GLOBAL */}
+          </div>
+        </div>
+
+        {/* Grid de Skeletons de Productos */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:shadow-lg"
+            >
+              {/* Skeleton para la Imagen del Producto */}
+              <div className="relative h-64 w-full overflow-hidden bg-muted">
+                <div className="absolute inset-0 -translate-x-full animate-pulse bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />{' '}
+                {/* <-- USAMOS LA CLASE DE ANIMACIÓN GLOBAL */}
+              </div>
+
+              {/* Contenido de la Tarjeta */}
+              <div className="flex flex-1 flex-col justify-between p-4 space-y-3">
+                <div className="space-y-2">
+                  {/* Skeleton para el Nombre del Producto */}
+                  <div className="relative h-5 w-3/4 overflow-hidden rounded-md bg-muted">
+                    <div className="absolute inset-0 -translate-x-full animate-pulse bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />{' '}
+                    {/* <-- USAMOS LA CLASE DE ANIMACIÓN GLOBAL */}
+                  </div>
+                  {/* Skeleton para una descripción corta */}
+                  <div className="relative h-4 w-full overflow-hidden rounded bg-muted">
+                    <div className="absolute inset-0 -translate-x-full animate-pulse bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />{' '}
+                    {/* <-- USAMOS LA CLASE DE ANIMACIÓN GLOBAL */}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  {/* Skeleton para el Precio */}
+                  <div className="relative h-6 w-1/2 overflow-hidden rounded-md bg-muted">
+                    <div className="absolute inset-0 -translate-x-full animate-pulse bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />{' '}
+                    {/* <-- USAMOS LA CLASE DE ANIMACIÓN GLOBAL */}
+                  </div>
+                  {/* Skeleton para un botón de acción */}
+                  <div className="relative h-9 w-20 overflow-hidden rounded-lg bg-muted">
+                    <div className="absolute inset-0 -translate-x-full animate-pulse bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />{' '}
+                    {/* <-- USAMOS LA CLASE DE ANIMACIÓN GLOBAL */}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function FeaturedProducts() {
   const [featured, setFeatured] = useState<ProductFull[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const getFeaturedProducts = async () => {
-      try {
-        const baseUrl =
-          process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-        console.log(
-          '🔍 Fetching featured products from:',
-          `${baseUrl}/api/products/featured`,
-        );
-        const res = await fetch(`${baseUrl}/api/products/featured`, {
-          next: { revalidate: 60 },
-        });
-        console.log('📡 Response status:', res.status);
-        if (!res.ok) {
-          throw new Error(`Error ${res.status}: ${res.statusText}`);
-        }
-        const data = (await res.json()) as { products: ApiResponseProduct[] };
-        console.log('📦 Featured products data:', data);
-
-        // Transforma los datos para que coincidan con ProductFull
-        const transformedProducts: ProductFull[] = (data.products || []).map(
-          (product: ApiResponseProduct) => {
-            // Procesamiento de imágenes - como solo viene una imagen, la convertimos al formato completo
-            const processedImages = product.images.map(img => ({
-              id: img.id,
-              url: img.url,
-              alt: img.alt || null,
-              sortOrder: 0, // Solo hay una imagen, así que sortOrder es 0
-              isPrimary: true, // La única imagen es primaria
-              createdAt: new Date(), // No viene en la respuesta, usamos fecha actual
-            }));
-
-            // Completamos la categoría con los campos que faltan
-            const category = {
-              ...product.category,
-              description: null, // No viene en la respuesta
-              mainImage: null, // No viene en la respuesta
-              createdAt: new Date(), // No viene en la respuesta
-              updatedAt: new Date(), // No viene en la respuesta
-            };
-
-            return {
-              id: product.id,
-              slug: product.slug,
-              productName: product.productName,
-              price: product.price,
-              stock: product.stock,
-              description: product.description || null,
-              features: product.features,
-              status: product.status,
-              featured: product.featured,
-              createdAt: product.createdAt,
-              updatedAt: product.updatedAt,
-              categoryId: product.categoryId,
-              category,
-              images: processedImages,
-              reviewCount: 0, // No viene en la respuesta, lo ponemos en 0
-              reviews: [], // No vienen reseñas en la respuesta
-            };
-          },
-        );
-        setFeatured(transformedProducts);
-      } catch (err) {
-        console.error('❌ Error fetching featured products:', err);
-        setError(err instanceof Error ? err.message : 'Error desconocido');
-      } finally {
-        setLoading(false);
+  const getFeaturedProducts = async () => {
+    try {
+      setLoading(true);
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const res = await fetch(`${baseUrl}/api/products/featured`, {
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`);
       }
-    };
+      const data = (await res.json()) as { products: ApiResponseProduct[] };
+
+      const transformedProducts: ProductFull[] = (data.products || []).map(
+        (product: ApiResponseProduct) => {
+          // TypeScript ahora infiere el tipo de 'img' correctamente gracias a la interfaz
+          const processedImages = product.images.map(img => ({
+            id: img.id,
+            url: img.url,
+            alt: img.alt || null,
+            sortOrder: 0,
+            isPrimary: true,
+            createdAt: new Date(),
+          }));
+
+          const category = {
+            ...product.category,
+            description: null,
+            mainImage: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          return {
+            id: product.id,
+            slug: product.slug,
+            productName: product.productName,
+            price: product.price,
+            stock: product.stock,
+            description: product.description || null,
+            features: product.features,
+            status: product.status,
+            featured: product.featured,
+            createdAt: product.createdAt,
+            updatedAt: product.updatedAt,
+            categoryId: product.categoryId,
+            category,
+            images: processedImages,
+            reviewCount: 0,
+            reviews: [],
+          };
+        },
+      );
+      setFeatured(transformedProducts);
+    } catch (err) {
+      console.error('❌ Error fetching featured products:', err);
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     getFeaturedProducts();
   }, []);
 
-  // Estados de carga y error
+  useEffect(() => {
+    const handleStockUpdate = () => {
+      console.log(
+        '📢 Evento de actualización de stock recibido. Recargando productos destacados...',
+      );
+      getFeaturedProducts();
+    };
+
+    stockUpdateEmitter.addEventListener('update', handleStockUpdate);
+
+    return () => {
+      stockUpdateEmitter.removeEventListener('update', handleStockUpdate);
+    };
+  }, []);
+
   if (loading) {
-    return (
-      <section className="py-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <p>Cargando productos destacados...</p>
-          </div>
-        </div>
-      </section>
-    );
+    return <FeaturedProductsSkeleton />;
   }
 
   if (error) {

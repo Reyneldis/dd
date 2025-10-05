@@ -1,4 +1,3 @@
-// src/app/(routes)/products/page.tsx
 'use client';
 
 import FilterPanel from '@/components/shared/FilterPanel';
@@ -22,7 +21,6 @@ import {
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-// Importar el tipo ProductFull
 import { ProductFull } from '@/types/product';
 
 interface ProductWithCategory {
@@ -82,7 +80,6 @@ export default function ProductsPage() {
   const [isFiltering, setIsFiltering] = useState(false);
   const filterPanelRef = useRef<HTMLDivElement>(null);
 
-  // Sincronizar los filtros con los parámetros de la URL
   useEffect(() => {
     const categoryParam = searchParams.get('category');
     const searchParam = searchParams.get('q');
@@ -95,7 +92,6 @@ export default function ProductsPage() {
     if (maxPriceParam) setMaxPrice(Number(maxPriceParam));
   }, [searchParams, setCategory, setSearchQuery, setMinPrice, setMaxPrice]);
 
-  // Construir URL de búsqueda con parámetros
   const searchUrl = useMemo(() => {
     const params = new URLSearchParams();
     if (searchQuery) params.append('q', searchQuery);
@@ -108,7 +104,6 @@ export default function ProductsPage() {
     return `/api/products/search?${params.toString()}`;
   }, [searchQuery, category, minPrice, maxPrice, sortBy, inStock, onSale]);
 
-  // Obtener productos
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -131,13 +126,11 @@ export default function ProductsPage() {
     fetchProducts();
   }, [fetchProducts]);
 
-  // Refrescar productos
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     fetchProducts();
   }, [fetchProducts]);
 
-  // Cerrar filtros en móvil al cambiar de tamaño de pantalla
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768) {
@@ -148,7 +141,6 @@ export default function ProductsPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Controlar la animación del panel de filtros
   useEffect(() => {
     if (isFirstRender) {
       setIsFirstRender(false);
@@ -165,7 +157,6 @@ export default function ProductsPage() {
     }
   }, [showFilters, isFirstRender]);
 
-  // Resetear filtros
   const handleResetFilters = useCallback(() => {
     resetFilters();
     setError(null);
@@ -173,20 +164,14 @@ export default function ProductsPage() {
     setTimeout(() => setIsFiltering(false), 500);
   }, [resetFilters]);
 
-  // En tu archivo src/app/(routes)/products/page.tsx, modifica la función transformToProductFull:
-
-  // src/app/(routes)/products/page.tsx
-
   const transformToProductFull = useCallback(
     (product: ProductWithCategory): ProductFull => {
-      const reviewCount = 0; // Por defecto 0
-      const orderItemsCount = 0; // Por defecto 0
+      const reviewCount = 0;
+      const orderItemsCount = 0;
 
-      // Obtener la imagen primaria o la primera imagen como fallback
       const primaryImage =
         product.images.find(img => img.isPrimary) || product.images[0];
 
-      // Usar directamente la URL de la imagen primaria o la imagen por defecto
       const imageUrl = primaryImage?.url || '/img/placeholder-product.jpg';
 
       console.log('Producto:', product.productName, 'URL de imagen:', imageUrl);
@@ -226,14 +211,13 @@ export default function ProductsPage() {
           reviews: reviewCount,
           orderItems: orderItemsCount,
         },
-        reviewCount, // Añadir explícitamente la propiedad
-        image: imageUrl, // Usar directamente la URL de la imagen primaria
+        reviewCount,
+        image: imageUrl,
       };
     },
     [],
   );
 
-  // Contador de productos filtrados
   const productCount = useMemo(() => {
     return products.length;
   }, [products]);
@@ -241,8 +225,7 @@ export default function ProductsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white/65 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="container mx-auto px-4 py-8">
-        {/* Encabezado */}
-        <div className="mb-10 text-center  animate-fadeIn">
+        <div className="mb-10 text-center animate-fadeIn">
           <div className="inline-flex items-center justify-center mb-4">
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1 rounded-full">
               <div className="bg-white dark:bg-gray-800 rounded-full p-2">
@@ -259,7 +242,6 @@ export default function ProductsPage() {
           </p>
         </div>
 
-        {/* Mensaje de error */}
         {error && (
           <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-l-4 border-red-500 p-4 rounded-lg animate-slideDown shadow-sm">
             <div className="flex items-center justify-between">
@@ -281,7 +263,6 @@ export default function ProductsPage() {
           </div>
         )}
 
-        {/* Indicador de filtros activos */}
         {(searchQuery ||
           category ||
           minPrice !== null ||
@@ -307,7 +288,6 @@ export default function ProductsPage() {
         )}
 
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar con filtros */}
           <div
             ref={filterPanelRef}
             className={`${showFilters ? 'block' : 'hidden'} lg:block lg:w-1/4`}
@@ -315,9 +295,7 @@ export default function ProductsPage() {
             <FilterPanel />
           </div>
 
-          {/* Contenido principal */}
           <div className="lg:w-3/4">
-            {/* Barra de búsqueda y controles */}
             <div className="mb-6 flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <SearchBar />
@@ -377,7 +355,6 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* Contador de resultados */}
             <div className="mb-4 text-sm text-muted-foreground flex justify-between items-center">
               {loading ? (
                 <span className="flex items-center">
@@ -404,7 +381,6 @@ export default function ProductsPage() {
               )}
             </div>
 
-            {/* Resultados */}
             {loading ? (
               <div className="flex justify-center items-center py-16">
                 <div className="text-center">
@@ -459,7 +435,6 @@ export default function ProductsPage() {
                   const animationDelay = `${index * 0.05}s`;
                   const transformedProduct = transformToProductFull(product);
 
-                  // Verificación de seguridad para asegurar que el producto transformado sea válido
                   if (!transformedProduct || !transformedProduct.id) {
                     console.warn(
                       'Producto transformado inválido:',
@@ -483,7 +458,6 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        {/* Pie de página */}
         <div className="mt-16 text-center text-sm text-muted-foreground">
           <div className="inline-flex items-center justify-center mb-2">
             <ShoppingCart className="h-4 w-4 mr-2 text-blue-500" />

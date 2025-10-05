@@ -2,6 +2,8 @@
 'use client';
 import { useAdmin } from '@/hooks/use-admin';
 import { useCart } from '@/hooks/use-cart';
+// Importar el nuevo hook
+import { useNavbarStyle } from '@/hooks/use-navbar-style';
 import { SignOutButton, useAuth, useUser } from '@clerk/nextjs';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -82,6 +84,9 @@ export default function Navbar() {
   const { user } = useUser();
   const { isAdmin, loading } = useAdmin();
 
+  // Usar el hook personalizado para obtener los estilos del navbar
+  const { bg: navbarBg, border: navbarBorder } = useNavbarStyle();
+
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
@@ -107,10 +112,11 @@ export default function Navbar() {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
+        // Aplicar los estilos dinámicos aquí
         className={`fixed top-0 left-0 z-50 w-full transition-all duration-300 ${
           isScrolled
             ? 'bg-white/95 dark:bg-neutral-900/95 shadow-lg backdrop-blur-xl border-b border-white/10'
-            : 'bg-white dark:bg-neutral-900 lg:bg-transparent lg:dark:bg-transparent'
+            : `${navbarBg} backdrop-blur-md border-b ${navbarBorder}`
         }`}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">

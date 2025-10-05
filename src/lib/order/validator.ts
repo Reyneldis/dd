@@ -13,8 +13,8 @@ export const validateOrderItems = async (items: OrderItemInput[]) => {
     const products = await prisma.product.findMany({
       where: {
         slug: {
-          in: items.map(item => item.slug)
-        }
+          in: items.map(item => item.slug),
+        },
       },
       select: {
         id: true,
@@ -22,8 +22,8 @@ export const validateOrderItems = async (items: OrderItemInput[]) => {
         productName: true,
         price: true,
         stock: true,
-        status: true
-      }
+        status: true,
+      },
     });
 
     // Validar cada item
@@ -31,7 +31,7 @@ export const validateOrderItems = async (items: OrderItemInput[]) => {
 
     for (const item of items) {
       const product = products.find(p => p.slug === item.slug);
-      
+
       if (!product) {
         validationErrors.push(`Producto no encontrado: ${item.slug}`);
         continue;
@@ -44,12 +44,16 @@ export const validateOrderItems = async (items: OrderItemInput[]) => {
 
       // Convertir Decimal de Prisma a number para comparación segura
       if (Number(product.price) !== item.price) {
-        validationErrors.push(`Precio inválido para ${product.productName}: ${item.price} (precio actual: ${product.price})`);
+        validationErrors.push(
+          `Precio inválido para ${product.productName}: ${item.price} (precio actual: ${product.price})`,
+        );
         continue;
       }
 
       if (product.stock < item.quantity) {
-        validationErrors.push(`Stock insuficiente para ${product.productName}: ${item.quantity} solicitados, ${product.stock} disponibles`);
+        validationErrors.push(
+          `Stock insuficiente para ${product.productName}: ${item.quantity} solicitados, ${product.stock} disponibles`,
+        );
         continue;
       }
     }
@@ -60,10 +64,13 @@ export const validateOrderItems = async (items: OrderItemInput[]) => {
 
     return {
       valid: true,
-      products: products.reduce((acc, product) => ({
-        ...acc,
-        [product.slug]: product
-      }), {} as Record<string, typeof products[0]>)
+      products: products.reduce(
+        (acc, product) => ({
+          ...acc,
+          [product.slug]: product,
+        }),
+        {} as Record<string, (typeof products)[0]>,
+      ),
     };
   } catch (error) {
     console.error('Error al validar items del pedido:', error);

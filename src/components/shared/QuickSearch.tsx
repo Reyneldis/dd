@@ -111,6 +111,7 @@ export default function QuickSearch({ isOpen, onClose }: QuickSearchProps) {
         price: product.price ?? 0,
         image: imageUrl,
         slug: product.slug,
+        quantity: 1, // <-- ¡SOLUCIÓN! Añadimos la cantidad por defecto.
       };
 
       addItem(cartItem);

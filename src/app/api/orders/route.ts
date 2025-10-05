@@ -1,3 +1,4 @@
+// app/api/orders/route.ts
 import {
   createTransporter,
   sendOrderConfirmationEmail,
@@ -8,15 +9,13 @@ import { generateWhatsAppLinks } from '@/lib/whatsapp/service';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-// Asegura que este endpoint se ejecute en runtime Node.js (no Edge), necesario para Nodemailer
 export const runtime = 'nodejs';
 
-// Tipo de payload que llega desde el frontend para el checkout
+// Interfaces para los datos de entrada
 interface CheckoutItem {
   quantity: number;
   price: number;
   slug: string;
-  // Permite tanto productName como name para compatibilidad
   productName?: string;
   name?: string;
 }
@@ -35,7 +34,7 @@ interface ContactInfoInput {
   phone: string;
 }
 
-// Zod Schemas para validar el payload de checkout
+// Esquemas de validación Zod
 const checkoutItemSchema = z.object({
   quantity: z.number().int().positive(),
   price: z.number().nonnegative(),
@@ -66,7 +65,6 @@ const checkoutBodySchema = z.object({
 
 export async function GET() {
   try {
-    // Obtener todas las órdenes sin filtrar por usuario
     const orders = await prisma.order.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -77,41 +75,12 @@ export async function GET() {
             },
           },
         },
-        contactInfo: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-        shippingAddress: {
-          select: {
-            id: true,
-            street: true,
-            city: true,
-            state: true,
-            zip: true,
-            country: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
+        contactInfo: true,
+        shippingAddress: true,
       },
     });
 
-    // Mapear los datos para exponer customerAddress y customerPhone
-    const mappedOrders = orders.map(order => ({
-      ...order,
-      customerPhone: order.contactInfo?.phone || '',
-      customerAddress: order.shippingAddress
-        ? `${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zip}, ${order.shippingAddress.country}`
-        : '',
-    }));
-
-    return NextResponse.json(mappedOrders);
+    return NextResponse.json(orders);
   } catch (error) {
     console.error('Error al obtener pedidos:', error);
     return NextResponse.json({
@@ -127,6 +96,7 @@ export async function POST(request: NextRequest) {
     const parsed = checkoutBodySchema.safeParse(rawBody);
 
     if (!parsed.success) {
+      console.error('❌ [Orders] Validación fallida:', parsed.error.flatten());
       return NextResponse.json(
         {
           error: 'Validación de datos fallida',
@@ -136,6 +106,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Usamos explícitamente las interfaces
     const { items, shippingAddress, contactInfo } = parsed.data as {
       items: CheckoutItem[];
       shippingAddress: ShippingAddressInput;
@@ -143,13 +114,13 @@ export async function POST(request: NextRequest) {
     };
 
     if (!items || !shippingAddress || !contactInfo) {
+      console.error('❌ [Orders] Datos requeridos faltantes');
       return NextResponse.json({
         error: 'Datos requeridos faltantes',
         status: 400,
       });
     }
 
-    // Validar stock y precios
     try {
       await validateOrder(
         items.map(i => ({
@@ -159,39 +130,40 @@ export async function POST(request: NextRequest) {
         })),
       );
     } catch (error) {
-      console.error('Error validando items:', error);
+      console.error('❌ [Orders] Error validando items:', error);
       return NextResponse.json({
         error: error instanceof Error ? error.message : 'Error validando items',
         status: 400,
       });
     }
 
-    // No se verifica autenticación con Clerk
-    // La orden se crea sin usuario asociado
-
     const order = await prisma.$transaction(async tx => {
-      // Decrementar stock de forma atómica para cada item
+      // Verificar y descontar stock de forma atómica para cada item
       for (const item of items) {
-        const updated = await tx.product.updateMany({
-          where: {
-            slug: item.slug,
-            status: 'ACTIVE',
-            stock: { gte: item.quantity },
-          },
-          data: { stock: { decrement: item.quantity } },
+        // Obtener el producto actual para verificar stock
+        const product = await tx.product.findUnique({
+          where: { slug: item.slug },
         });
 
-        if (updated.count === 0) {
+        if (!product) {
+          throw new Error(`Producto no encontrado: ${item.slug}`);
+        }
+
+        if (product.stock < item.quantity) {
           throw new Error(
-            `Stock insuficiente o producto no disponible para ${
-              item.productName ?? item.name ?? item.slug
-            }: ${item.quantity} solicitados`,
+            `Stock insuficiente para ${product.productName}: ${item.quantity} solicitados, ${product.stock} disponibles`,
           );
         }
+
+        // Descontar stock
+        await tx.product.update({
+          where: { slug: item.slug },
+          data: { stock: { decrement: item.quantity } },
+        });
       }
 
       // Crear la orden y los items
-      const created = await tx.order.create({
+      return await tx.order.create({
         data: {
           status: 'PENDING',
           subtotal: items.reduce(
@@ -208,7 +180,7 @@ export async function POST(request: NextRequest) {
           ),
           orderNumber: `#${Date.now().toString().slice(-6)}`,
           customerEmail: contactInfo.email,
-          userId: null, // No hay usuario autenticado
+          userId: null,
           contactInfo: {
             create: {
               name: contactInfo.name,
@@ -241,75 +213,91 @@ export async function POST(request: NextRequest) {
           shippingAddress: true,
           items: {
             include: {
-              product: { select: { productName: true, price: true } },
+              product: {
+                select: {
+                  productName: true,
+                  price: true,
+                  images: { take: 1, select: { url: true } },
+                },
+              },
             },
           },
         },
       });
-
-      return created;
     });
 
-    console.log('📦 [orders] Creando pedido exitosamente:', {
+    console.log('✅ [Orders] Pedido creado exitosamente:', {
       orderId: order.id,
+      orderNumber: order.orderNumber,
       customerEmail: contactInfo.email,
       total: order.total,
       itemsCount: order.items.length,
     });
 
-    // CAMBIO PRINCIPAL: Enviar correo de confirmación de forma no bloqueante
+    // Enviar correo de confirmación con manejo de errores mejorado
     let emailSent = false;
     let emailError = null;
 
     try {
-      const transporter = createTransporter();
-      const emailResult = await sendOrderConfirmationEmail(
-        transporter,
-        contactInfo.email,
-        {
-          orderId: order.id,
-          items: order.items.map(item => ({
-            productName: item.productName ?? 'Producto sin nombre',
-            quantity: item.quantity,
-            price: item.price,
-          })),
-          total: order.total,
-          shippingAddress: `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip}`,
-        },
-      );
+      if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+        console.warn(
+          '⚠️ [Orders] Configuración de correo incompleta. Saltando envío.',
+        );
+        emailError = 'Configuración de correo incompleta';
+      } else {
+        const transporter = createTransporter();
+        const emailResult = await sendOrderConfirmationEmail(
+          transporter,
+          contactInfo.email,
+          {
+            orderId: order.id,
+            items: order.items.map(item => ({
+              productName: item.productName ?? 'Producto sin nombre',
+              quantity: item.quantity,
+              price: item.price,
+            })),
+            total: order.total,
+            shippingAddress: `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip}`,
+          },
+        );
 
-      emailSent = emailResult.success;
-      if (!emailResult.success) {
-        emailError = emailResult.error;
-        console.error('Error al enviar correo de confirmación:', emailError);
+        emailSent = emailResult.success;
+        if (!emailResult.success) {
+          emailError = emailResult.error;
+          console.error('❌ [Orders] Error al enviar correo:', emailError);
+        } else {
+          console.log('✅ [Orders] Correo enviado exitosamente');
+        }
       }
     } catch (error) {
-      console.error('Excepción al enviar correo de confirmación:', error);
+      console.error('❌ [Orders] Excepción al enviar correo:', error);
       emailError = error instanceof Error ? error.message : 'Error desconocido';
     }
 
-    console.log('📧 [orders] Estado del correo de confirmación:', {
-      emailSent,
-      emailError,
-    });
-
-    // Generar enlaces de WhatsApp para administradores
-    // Transformamos los datos para asegurar que productName sea siempre un string
+    // Generar enlaces de WhatsApp
     const orderForWhatsApp = {
       ...order,
       items: order.items.map(item => ({
-        ...item,
         productName: item.productName || 'Producto sin nombre',
+        quantity: item.quantity,
+        price: item.price,
+        imageUrl: item.product?.images?.[0]?.url || undefined,
+        productUrl: `${
+          process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+        }/products/${item.productSku}`,
       })),
     };
 
     const whatsappLinks = generateWhatsAppLinks(orderForWhatsApp);
-    console.log(
-      '📞 [orders] Enlaces de WhatsApp generados para admins:',
-      whatsappLinks,
-    );
 
-    // Devolver respuesta con información sobre el estado del correo y enlaces de WhatsApp
+    if (whatsappLinks.length === 0) {
+      console.error('❌ [Orders] No se generaron enlaces de WhatsApp');
+    } else {
+      console.log(
+        `✅ [Orders] Se generaron ${whatsappLinks.length} enlaces de WhatsApp`,
+      );
+    }
+
     return NextResponse.json(
       {
         order: {
@@ -317,27 +305,26 @@ export async function POST(request: NextRequest) {
           orderNumber: order.orderNumber,
           status: order.status,
           customerEmail: order.customerEmail,
-          subtotal: order.subtotal,
-          taxAmount: order.taxAmount,
-          shippingAmount: order.shippingAmount,
           total: order.total,
-          createdAt: order.createdAt,
-          updatedAt: order.updatedAt,
           contactInfo: order.contactInfo,
           shippingAddress: order.shippingAddress,
           items: order.items,
         },
         emailSent,
         emailError: emailError ? emailError : undefined,
-        whatsappLinks, // Enlaces para que el cliente notifique a los admins
+        whatsappLinks,
         message: emailSent
-          ? 'Pedido creado y correo de confirmación enviado'
-          : 'Pedido creado pero hubo un problema al enviar el correo de confirmación',
+          ? 'Pedido creado y correo enviado'
+          : 'Pedido creado pero hubo un problema con el correo',
+        whatsappStatus:
+          whatsappLinks.length > 0
+            ? 'Enlaces de WhatsApp generados correctamente'
+            : 'Error: No se generaron enlaces de WhatsApp',
       },
       { status: 201 },
     );
   } catch (error) {
-    console.error('Error creando orden:', error);
+    console.error('❌ [Orders] Error creando orden:', error);
     const message =
       error instanceof Error ? error.message : 'Error al crear la orden';
     const lower = message.toLowerCase();

@@ -11,7 +11,13 @@ interface CartModalProps {
 }
 
 export default function CartModal({ isOpen, onClose }: CartModalProps) {
-  const { items, removeItem, updateQuantity, clearCart } = useCart();
+  const {
+    items,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    loading: cartLoading,
+  } = useCart();
   const [isCheckoutOpen, setCheckoutOpen] = useState(false);
 
   const total = items.reduce(
@@ -19,13 +25,27 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
     0,
   );
 
-  // Función simplificada para actualizar la cantidad sin verificar stock
-  const handleQuantityChange = (slug: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeItem(slug);
-    } else {
-      // Actualización directa sin ninguna verificación de stock
-      updateQuantity(slug, newQuantity);
+  const handleQuantityChange = async (itemId: string, newQuantity: number) => {
+    try {
+      await updateQuantity(itemId, newQuantity);
+    } catch (error) {
+      console.error('Error al actualizar cantidad:', error);
+    }
+  };
+
+  const handleRemoveItem = async (itemId: string) => {
+    try {
+      await removeItem(itemId);
+    } catch (error) {
+      console.error('Error al eliminar producto:', error);
+    }
+  };
+
+  const handleClearCart = async () => {
+    try {
+      await clearCart();
+    } catch (error) {
+      console.error('Error al vaciar carrito:', error);
     }
   };
 
@@ -38,14 +58,11 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
       aria-modal="true"
       aria-labelledby="cart-modal-title"
     >
-      {/* Overlay */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      {/* Modal */}
       <div className="relative w-full max-w-md bg-background rounded-t-lg sm:rounded-lg shadow-xl border">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5 text-primary" />
@@ -65,7 +82,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
             <X className="h-4 w-4" />
           </button>
         </div>
-        {/* Content */}
+
         <div className="max-h-96 overflow-y-auto">
           {items.length === 0 ? (
             <div className="p-8 text-center">
@@ -81,7 +98,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
             <div className="p-4 space-y-4">
               {items.map(item => (
                 <div
-                  key={item.slug}
+                  key={item.id}
                   className="flex gap-3 p-3 bg-muted/20 rounded-lg"
                 >
                   <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted">
@@ -105,32 +122,43 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                     <p className="text-sm font-medium text-primary">
                       ${Number(item.price).toFixed(2)}
                     </p>
-                    {/* Controles de cantidad */}
+
                     <div className="flex items-center gap-2 mt-2">
                       <button
                         onClick={() =>
-                          handleQuantityChange(item.slug, item.quantity - 1)
+                          handleQuantityChange(item.id, item.quantity - 1)
                         }
-                        className="p-1 hover:bg-muted rounded-md transition-colors"
+                        disabled={cartLoading}
+                        className="p-1 hover:bg-muted rounded-md transition-colors disabled:opacity-50"
                       >
                         <Minus className="h-3 w-3" />
                       </button>
-                      <span className="text-sm font-medium min-w-[20px] text-center">
-                        {item.quantity}
-                      </span>
+
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-medium min-w-[20px] text-center">
+                          {item.quantity}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({item.quantity > 1 ? 'unidades' : 'unidad'})
+                        </span>
+                      </div>
+
                       <button
                         onClick={() =>
-                          handleQuantityChange(item.slug, item.quantity + 1)
+                          handleQuantityChange(item.id, item.quantity + 1)
                         }
-                        className="p-1 hover:bg-muted rounded-md transition-colors"
+                        disabled={cartLoading}
+                        className="p-1 hover:bg-muted rounded-md transition-colors disabled:opacity-50"
                       >
                         <Plus className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
+
                   <button
-                    onClick={() => removeItem(item.slug)}
-                    className="p-1 hover:bg-muted rounded-md transition-colors text-muted-foreground hover:text-destructive"
+                    onClick={() => handleRemoveItem(item.id)}
+                    disabled={cartLoading}
+                    className="p-1 hover:bg-muted rounded-md transition-colors text-muted-foreground hover:text-destructive disabled:opacity-50"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -139,7 +167,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
             </div>
           )}
         </div>
-        {/* Footer */}
+
         {items.length > 0 && (
           <div className="p-4 border-t space-y-3">
             <div className="flex justify-between items-center">
@@ -150,7 +178,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={clearCart}
+                onClick={handleClearCart}
                 className="flex-1 px-4 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors"
               >
                 Vaciar Carrito

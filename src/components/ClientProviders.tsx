@@ -3,7 +3,11 @@
 
 import { useSyncUser } from '@/hooks/use-sync-user';
 
-export function ClientProviders({ children }: { children: React.ReactNode }) {
+interface ClientProvidersProps {
+  children: React.ReactNode;
+}
+
+export function ClientProviders({ children }: ClientProvidersProps) {
   useSyncUser();
 
   return <>{children}</>;
