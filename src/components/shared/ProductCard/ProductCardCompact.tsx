@@ -1,10 +1,10 @@
 // components/shared/ProductCard/ProductCardCompact.tsx
 'use client';
 import { useCart } from '@/hooks/use-cart';
-import { ProductFull } from '@/types/product';
+import { ProductFull } from '@/types'; // Corregida la ruta de importación
 import { Check, Eye, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react'; // <-- Importa useEffect
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface ProductCardCompactProps {
@@ -18,11 +18,8 @@ export default function ProductCardCompact({
   const [isAdding, setIsAdding] = useState(false);
 
   // === SOLUCIÓN AL ERROR DE HIDRATACIÓN ===
-  // 1. Creamos un estado para saber si ya estamos en el cliente (hidratado)
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // 2. useEffect se ejecuta solo en el cliente, después del primer render.
-  //    Es el lugar perfecto para cambiar nuestro estado a "hidratado".
   useEffect(() => {
     setIsHydrated(true);
   }, []);
@@ -44,8 +41,6 @@ export default function ProductCardCompact({
   }
 
   // === LÓGICA CORREGIDA ===
-  // Solo comprobamos si está en el carrito DESPUÉS de estar hidratado.
-  // Esto asegura que servidor y cliente renderizan lo mismo al principio.
   const alreadyInCart = isHydrated && isInCart(product.slug);
 
   const handleAddToCart = async () => {
@@ -98,8 +93,9 @@ export default function ProductCardCompact({
     <div className="group relative bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl border border-slate-200 dark:border-slate-700 transition-all duration-300 hover:scale-[1.02] flex flex-col h-[320px]">
       {/* Imagen */}
       <div className="relative w-full h-[180px] overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800">
+        {/* CORRECCIÓN: Cambiada la ruta para que coincida con la nueva página de detalles */}
         <Link
-          href={product.slug ? `/products/${product.slug}` : '#'}
+          href={product.slug ? `/${product.slug}` : '#'}
           className="block w-full h-full"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -127,8 +123,9 @@ export default function ProductCardCompact({
       {/* Contenido */}
       <div className="flex-1 flex flex-col p-4 space-y-3">
         <div className="space-y-2">
+          {/* CORRECCIÓN: Cambiada la ruta para que coincida con la nueva página de detalles */}
           <Link
-            href={product.slug ? `/products/${product.slug}` : '#'}
+            href={product.slug ? `/${product.slug}` : '#'}
             className="block"
           >
             <h3 className="text-shadow-muted font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
@@ -158,8 +155,9 @@ export default function ProductCardCompact({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* CORRECCIÓN: Cambiada la ruta para que coincida con la nueva página de detalles */}
             <Link
-              href={product.slug ? `/products/${product.slug}` : '#'}
+              href={product.slug ? `/${product.slug}` : '#'}
               className="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200"
               aria-label="Ver detalles"
             >
