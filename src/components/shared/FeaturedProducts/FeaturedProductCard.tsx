@@ -96,7 +96,7 @@ export default function FeaturedProductCard({
         whileHover={{ scale: 1.07 }}
         transition={{ type: 'spring', stiffness: 300 }}
       >
-        <div className="rounded-2xl shadow-lg overflow-hidden border-4 border-white dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="rounded-2xl shadow-lg overflow-hidden border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-900">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={mainImage}
@@ -111,7 +111,7 @@ export default function FeaturedProductCard({
 
       {/* Parte inferior sólida */}
       <div className="w-full flex-1 flex flex-col items-center justify-center px-4 pb-4 pt-2 bg-white dark:bg-slate-900 rounded-b-3xl">
-        <h3 className="text-lg sm:text-xl font-extrabold text-center text-blue-900 dark:text-blue-200 mb-1">
+        <h3 className="text-lg sm:text-xl font-extrabold text-center text-slate-900 dark:text-blue-200 mb-1">
           {product.productName}
         </h3>
 

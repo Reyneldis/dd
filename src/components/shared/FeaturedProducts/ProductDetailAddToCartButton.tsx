@@ -1,4 +1,5 @@
-// src/components/shared/FeaturedProducts/AddToCartButton.tsx
+// src/components/shared/FeaturedProducts/ProductDetailAddToCartButton.tsx
+
 'use client';
 import { useCart } from '@/hooks/use-cart';
 import { useCartModal } from '@/hooks/use-cart-modal';
@@ -14,23 +15,26 @@ interface Product {
   stock?: number;
 }
 
-interface AddToCartButtonProps {
+interface ProductDetailAddToCartButtonProps {
   product: Product;
+  quantity: number; // Esta prop es OBLIGATORIA para este componente
   buttonClassName?: string;
   children?: React.ReactNode;
   icon?: React.ReactNode;
-  quantity?: number;
   openModalOnSuccess?: boolean;
 }
 
-const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
+const ProductDetailAddToCartButton = forwardRef<
+  HTMLButtonElement,
+  ProductDetailAddToCartButtonProps
+>(
   (
     {
       product,
+      quantity,
       buttonClassName,
       children,
       icon,
-      quantity = 1,
       openModalOnSuccess = true,
     },
     ref,
@@ -39,7 +43,6 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
     const { openCartModal } = useCartModal();
     const [isAdding, setIsAdding] = useState(false);
 
-    // Verificamos si el producto ya está en el carrito
     const alreadyInCart = isInCartHook(product.slug);
 
     const handleAdd = async () => {
@@ -48,17 +51,16 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
         return;
       }
 
-      // === INICIO: LÓGICA DE NOTIFICACIÓN CUANDO YA ESTÁ EN EL CARRITO ===
-      // Si el producto ya está en el carrito, mostramos una notificación y abrimos el modal.
+      // --- LÓGICA CORREGIDA ---
+      // Si el producto ya está en el carrito, solo notificamos y abrimos el modal.
       if (alreadyInCart) {
         toast.info('Este producto ya está en tu carrito');
-        // Opcional: Abrimos el modal para que el usuario pueda verlo o modificar la cantidad.
         if (openModalOnSuccess) {
           openCartModal();
         }
-        return; // Detenemos la función aquí para no agregarlo de nuevo.
+        return; // Detenemos la ejecución aquí.
       }
-      // === FIN: LÓGICA DE NOTIFICACIÓN ===
+      // --- FIN DE LA LÓGICA ---
 
       setIsAdding(true);
       try {
@@ -83,7 +85,9 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
           quantity,
         };
         await addItem(cartItem);
-        toast.success(`${product.productName} agregado al carrito`);
+        toast.success(
+          `${product.productName} (x${quantity}) agregado al carrito`,
+        );
 
         if (openModalOnSuccess) {
           openCartModal();
@@ -100,11 +104,10 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
       <button
         ref={ref}
         onClick={handleAdd}
-        // El botón se deshabilita si ya está en el carrito, si está cargando o si no hay stock.
-        disabled={isAdding || loading || product.stock === 0 || alreadyInCart}
+        disabled={isAdding || loading || product.stock === 0}
         className={
           buttonClassName ||
-          'w-full mt-2 bg-gradient-to-r from-primary to-secondary text-white text-sm font-semibold py-2 rounded-md hover:brightness-110 shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
+          'flex items-center justify-center gap-2 px-6 py-3 font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
         }
       >
         {icon && <span className="mr-2">{icon}</span>}
@@ -113,7 +116,7 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
             {isAdding
               ? 'Agregando...'
               : alreadyInCart
-              ? 'Ya en el carrito' // El texto del botón también cambia
+              ? 'Ver en el carrito'
               : 'Añadir al carrito'}
           </>
         )}
@@ -122,6 +125,6 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
   },
 );
 
-AddToCartButton.displayName = 'AddToCartButton';
+ProductDetailAddToCartButton.displayName = 'ProductDetailAddToCartButton';
 
-export default AddToCartButton;
+export default ProductDetailAddToCartButton;

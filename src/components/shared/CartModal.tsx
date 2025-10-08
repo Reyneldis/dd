@@ -1,3 +1,4 @@
+// components/shared/CartModal.tsx
 'use client';
 import { useCart } from '@/hooks/use-cart';
 import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
@@ -11,6 +12,7 @@ interface CartModalProps {
 }
 
 export default function CartModal({ isOpen, onClose }: CartModalProps) {
+  // El CartModal ahora solo obtiene los datos del hook. No tiene estado interno.
   const {
     items,
     removeItem,
@@ -25,17 +27,18 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
     0,
   );
 
-  const handleQuantityChange = async (itemId: string, newQuantity: number) => {
+  // Las funciones ahora simplemente llaman a las del hook
+  const handleQuantityChange = async (slug: string, newQuantity: number) => {
     try {
-      await updateQuantity(itemId, newQuantity);
+      await updateQuantity(slug, newQuantity);
     } catch (error) {
       console.error('Error al actualizar cantidad:', error);
     }
   };
 
-  const handleRemoveItem = async (itemId: string) => {
+  const handleRemoveItem = async (slug: string) => {
     try {
-      await removeItem(itemId);
+      await removeItem(slug);
     } catch (error) {
       console.error('Error al eliminar producto:', error);
     }
@@ -126,7 +129,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                     <div className="flex items-center gap-2 mt-2">
                       <button
                         onClick={() =>
-                          handleQuantityChange(item.id, item.quantity - 1)
+                          handleQuantityChange(item.slug, item.quantity - 1)
                         }
                         disabled={cartLoading}
                         className="p-1 hover:bg-muted rounded-md transition-colors disabled:opacity-50"
@@ -145,7 +148,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
 
                       <button
                         onClick={() =>
-                          handleQuantityChange(item.id, item.quantity + 1)
+                          handleQuantityChange(item.slug, item.quantity + 1)
                         }
                         disabled={cartLoading}
                         className="p-1 hover:bg-muted rounded-md transition-colors disabled:opacity-50"
@@ -156,7 +159,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                   </div>
 
                   <button
-                    onClick={() => handleRemoveItem(item.id)}
+                    onClick={() => handleRemoveItem(item.slug)}
                     disabled={cartLoading}
                     className="p-1 hover:bg-muted rounded-md transition-colors text-muted-foreground hover:text-destructive disabled:opacity-50"
                   >
