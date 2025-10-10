@@ -25,7 +25,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
 import { toast } from 'sonner';
 
 export default function CreateProductPage() {
@@ -52,8 +51,6 @@ export default function CreateProductPage() {
     const fetchCategories = async () => {
       try {
         const response = await fetch('/api/dashboard/categories');
-
-        // Verificar que la respuesta es JSON antes de analizarla
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           throw new Error('La respuesta no es JSON válido');
@@ -185,7 +182,6 @@ export default function CreateProductPage() {
       if (contentType && contentType.includes('application/json')) {
         error = await response.json();
       } else {
-        // Si no es JSON, obtener el texto para depuración
         const text = await response.text();
         console.error('Respuesta no JSON:', text);
         throw new Error('La respuesta del servidor no es JSON válido');
@@ -304,9 +300,8 @@ export default function CreateProductPage() {
                     handleSelectChange('categoryId', value)
                   }
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar categoría" />
-                  </SelectTrigger>
+                  <SelectTrigger />
+                  <SelectValue placeholder="Seleccionar categoría" />
                   <SelectContent>
                     {categories.map(category => (
                       <SelectItem key={category.id} value={category.id}>
@@ -334,9 +329,8 @@ export default function CreateProductPage() {
                   value={formData.status}
                   onValueChange={value => handleSelectChange('status', value)}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger />
+                  <SelectValue />
                   <SelectContent>
                     <SelectItem value="ACTIVE">Activo</SelectItem>
                     <SelectItem value="INACTIVE">Inactivo</SelectItem>
@@ -453,13 +447,10 @@ export default function CreateProductPage() {
                         <div className="aspect-square w-full overflow-hidden rounded-md border">
                           <Image
                             src={preview}
-                            alt={`Preview ${index}`}
-                            className="w-full h-full object-cover"
-                            style={{
-                              objectFit: 'cover',
-                              width: '100%',
-                              height: '100%',
-                            }}
+                            alt={`Vista previa de ${index}`}
+                            width={200}
+                            height={200}
+                            className="w-full h-full object-cover rounded-md"
                           />
                         </div>
                         <button

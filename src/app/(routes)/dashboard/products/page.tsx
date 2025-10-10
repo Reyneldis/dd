@@ -62,20 +62,37 @@ export default function ProductsPage() {
 
   // --- FUNCIONES PARA OBTENER DATOS ---
 
+  // --- FUNCIONES PARA OBTENER DATOS ---
+
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      console.log('🔍 Fetching products from API...');
       const response = await fetch('/api/dashboard/products?limit=100');
-      if (!response.ok) throw new Error('No se pudieron cargar los productos');
+
+      if (!response.ok) {
+        throw new Error(
+          `Error ${response.status}: No se pudieron cargar los productos`,
+        );
+      }
 
       const data = await response.json();
-      if (!data.success || !data.data)
-        throw new Error('La respuesta del servidor no es válida');
+      console.log('📦 Raw API response:', data);
 
+      // <-- ¡CORRECCIÓN AQUÍ!
+      // La API devuelve { data: [...], pagination: {...} }, no { success: true, ... }
+      if (!data.data || !Array.isArray(data.data)) {
+        console.error('❌ Invalid API response structure:', data);
+        throw new Error(
+          'La respuesta del servidor no es válida o no contiene productos.',
+        );
+      }
+
+      console.log('✨ Products fetched successfully:', data.data.length);
       setAllProducts(data.data);
     } catch (error) {
-      // <-- CORREGIDO: Renombrado 'err' a 'error' para consistencia
+      console.error('💥 Error in fetchProducts:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Error desconocido';
       setError(errorMessage);
