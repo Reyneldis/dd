@@ -900,6 +900,8 @@ export async function getUserById(userId: string): Promise<ApiResponse<User>> {
 // FUNCIONES DE ÓRDENES
 // ============================================================================
 
+// src/lib/dashboard-service.ts (modificación de la función getOrders)
+
 export async function getOrders(
   filters: OrderFilters = {},
 ): Promise<OrdersResponse> {
@@ -958,9 +960,9 @@ export async function getOrders(
                   description: true,
                   categoryId: true,
                   features: true,
-                  stock: true, // <-- CAMBIO: Añadido
-                  status: true, // <-- CAMBIO: Añadido
-                  featured: true, // <-- CAMBIO: Añadido
+                  stock: true,
+                  status: true,
+                  featured: true,
                   createdAt: true,
                   updatedAt: true,
                   category: {
@@ -994,6 +996,7 @@ export async function getOrders(
       prisma.order.count({ where: whereConditions }),
     ]);
 
+    // Serialización explícita para evitar problemas con las fechas
     const serializedOrders: Order[] = orders.map(order => ({
       id: order.id,
       orderNumber: order.orderNumber,
