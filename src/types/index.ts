@@ -379,15 +379,20 @@ export interface EmailMetrics {
   };
 }
 
+// src/types/index.ts - Actualizar la interfaz FailedEmail
+
 export interface FailedEmail {
   id: string;
   timestamp: string;
+  type: string;
   recipient: string;
-  orderNumber: string;
-  error: string;
-  attempts: number;
-  lastAttempt: string;
-  canRetry: boolean;
+  orderId: string;
+  status: 'sent' | 'failed' | 'retry' | 'pending';
+  attempts: number; // Corregido: era "attempt" pero debería ser "attempts"
+  error?: string;
+  order?: {
+    orderNumber: string;
+  };
 }
 
 // Tipos para formularios del dashboard

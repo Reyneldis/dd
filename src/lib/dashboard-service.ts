@@ -1326,6 +1326,8 @@ export async function toggleUserActive(
 // FUNCIONES DE EMAILS FALLIDOS
 // ============================================================================
 
+// src/lib/dashboard-service.ts - Actualizar la función getFailedEmails
+
 export async function getFailedEmails() {
   try {
     console.log('Consultando emails fallidos en la base de datos...');
@@ -1352,8 +1354,8 @@ export async function getFailedEmails() {
       type: email.type,
       recipient: email.recipient,
       orderId: email.orderId,
-      status: email.status,
-      attempt: email.attempt,
+      status: email.status as 'sent' | 'failed' | 'retry' | 'pending',
+      attempts: email.attempt, // Mapear de 'attempt' a 'attempts'
       error: email.error,
       order: email.order,
     }));
@@ -1399,7 +1401,54 @@ export async function retryEmail(
     };
   }
 }
+// src/lib/dashboard-service.ts - Agregar esta nueva función
 
+export async function getAllEmails() {
+  try {
+    console.log('Consultando todos los emails en la base de datos...');
+
+    const emails = await prisma.emailMetrics.findMany({
+      orderBy: { timestamp: 'desc' },
+      include: {
+        order: {
+          select: {
+            orderNumber: true,
+            total: true,
+            customerEmail: true,
+          },
+        },
+      },
+    });
+
+    console.log(`Se encontraron ${emails.length} emails en la base de datos`);
+
+    return emails.map(email => ({
+      id: email.id,
+      timestamp: email.timestamp.toISOString(),
+      type: email.type,
+      recipient: email.recipient,
+      orderId: email.orderId,
+      status: email.status as 'sent' | 'failed' | 'retry' | 'pending',
+      attempts: email.attempt,
+      error: email.error,
+      order: email.order,
+    }));
+  } catch (error) {
+    console.error('Error en getAllEmails:', error);
+
+    if (
+      error instanceof Error &&
+      error.message.includes('relation "EmailMetrics" does not exist')
+    ) {
+      console.error('La tabla EmailMetrics no existe en la base de datos');
+      throw new Error(
+        'La tabla de métricas de emails no existe. Ejecuta las migraciones de Prisma.',
+      );
+    }
+
+    throw new Error('Error al obtener los emails');
+  }
+}
 // ============================================================================
 // FUNCIONES DEL DASHBOARD PRINCIPAL
 // ============================================================================

@@ -60,7 +60,7 @@ export default function ProductsPage() {
   );
   // <-- ELIMINADO: La variable showFilters ya no es necesaria
 
-  // --- FUNCIONES PARA OBTENER DATOS ---
+
 
   // --- FUNCIONES PARA OBTENER DATOS ---
 
