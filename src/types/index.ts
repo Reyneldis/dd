@@ -215,6 +215,7 @@ export interface Review {
 
 // Tipos para las respuestas de las APIs
 export interface ApiResponse<T> {
+  success: boolean; // <-- ¡AÑADE ESTA PROPIEDAD!
   data?: T;
   error?: string;
   message?: string;
