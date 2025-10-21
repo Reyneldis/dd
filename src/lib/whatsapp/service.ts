@@ -1,13 +1,12 @@
-/**
- * Servicio simplificado de WhatsApp usando enlaces wa.me
- */
+// src/lib/whatsapp.ts
+
+// --- INTERFACES (Asegúrate de que coincidan con lo que usa tu API) ---
 
 export interface OrderItemSummary {
   productName: string;
   quantity: number;
   price: number;
-  imageUrl?: string;
-  productUrl?: string;
+  // Eliminamos imageUrl y productUrl para simplificar
 }
 
 export interface OrderForWhatsApp {
@@ -29,6 +28,8 @@ export interface OrderForWhatsApp {
   items: OrderItemSummary[];
 }
 
+// --- FUNCIONES PRINCIPALES ---
+
 /**
  * Normalizar número de teléfono para WhatsApp
  */
@@ -41,6 +42,7 @@ function normalizePhoneNumber(phone: string): string {
  */
 function formatPhoneForWhatsApp(phone: string): string {
   const normalized = normalizePhoneNumber(phone);
+  // Si no tiene código de país, asumir Cuba (+53)
   if (normalized.length === 8) {
     return `53${normalized}`;
   }
@@ -48,7 +50,7 @@ function formatPhoneForWhatsApp(phone: string): string {
 }
 
 /**
- * Construir mensaje detallado para WhatsApp
+ * 🎯 **FUNCIÓN CLAVE CORREGIDA**: Construir mensaje detallado para WhatsApp
  */
 export function buildOrderMessage(order: OrderForWhatsApp): string {
   const customerName = order.contactInfo?.name || 'Cliente';
@@ -60,45 +62,49 @@ export function buildOrderMessage(order: OrderForWhatsApp): string {
     order.shippingAddress?.city,
     order.shippingAddress?.state,
     order.shippingAddress?.zip,
-    order.shippingAddress?.country,
   ].filter(Boolean);
 
+  // 📝 **CAMBIO PRINCIPAL**: Simplificamos el resumen de items para evitar problemas.
+  // Ya no incluimos URLs, solo la información esencial.
   const itemsSummary = order.items
     .map(
       item =>
         `• ${item.productName} x${item.quantity} - $${(
           item.price * item.quantity
-        ).toFixed(2)}${
-          item.imageUrl ? `\n   📸 Imagen: ${item.imageUrl}` : ''
-        }${item.productUrl ? `\n   🔗 Ver: ${item.productUrl}` : ''}`,
+        ).toFixed(2)}`,
     )
-    .join('\n\n');
+    .join('\n');
 
-  const message = `🛒 *NUEVO PEDIDO* ${order.orderNumber}
+  const message = `🛒 *NUEVO PEDIDO* #${order.orderNumber}
 
-👤 *Cliente:* ${customerName}
-📞 *Teléfono:* ${customerPhone}
-📧 *Email:* ${customerEmail}
+👤 *Datos del Cliente:*
+• Nombre: ${customerName}
+• Teléfono: ${customerPhone}
+• Email: ${customerEmail}
 
-📍 *Dirección de entrega:*
+📍 *Dirección de Entrega:*
  ${addressParts.length > 0 ? addressParts.join(', ') : 'No proporcionada'}
 
-📦 *Productos:*
+📦 *Resumen del Pedido:*
  ${itemsSummary}
 
-💰 *Total del pedido:* $${order.total.toFixed(2)}
+💰 *Total a Pagar:* $${order.total.toFixed(2)}
 
-⏰ *Fecha:* ${new Date().toLocaleString('es-ES')}
+---
+_Pedido generado desde la tienda online._`;
 
-_— Pedido generado automáticamente desde la tienda online —_`;
+  // 📝 **LOG CLAVE**: Abre la consola de tu navegador (F12) para ver este mensaje.
+  // Esto te ayudará a depurar si algo aún no funciona.
+  console.log('📝 [WhatsApp] Mensaje formateado para enviar:\n', message);
 
   return message;
 }
 
 /**
- * Generar enlaces wa.me para todos los administradores
+ * 🔗 **FUNCIÓN CLAVE CORREGIDA**: Generar enlaces wa.me para todos los administradores
  */
 export function generateWhatsAppLinks(order: OrderForWhatsApp): string[] {
+  // Obtenemos los números de administradores desde las variables de entorno
   const adminNumbersEnv =
     process.env.NEXT_PUBLIC_WHATSAPP_ADMINS || '5358134753,5359597421';
 
@@ -122,18 +128,20 @@ export function generateWhatsAppLinks(order: OrderForWhatsApp): string[] {
   const message = buildOrderMessage(order);
   const encodedMessage = encodeURIComponent(message);
 
-  console.log(
-    '📝 [WhatsApp] Mensaje generado:',
-    message.substring(0, 100) + '...',
-  );
-
   const links = adminNumbers.map(phone => {
     const formattedPhone = formatPhoneForWhatsApp(phone);
     const link = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
-    console.log(`🔗 [WhatsApp] Enlace generado para ${phone}: ${link}`);
+    console.log(
+      `🔗 [WhatsApp] Enlace generado para ${phone}: ${link.substring(
+        0,
+        100,
+      )}...`,
+    ); // Log del enlace
     return link;
   });
 
-  console.log(`✅ [WhatsApp] Se generaron ${links.length} enlaces`);
+  console.log(
+    `✅ [WhatsApp] Se generaron ${links.length} enlaces correctamente.`,
+  );
   return links;
 }

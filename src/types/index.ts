@@ -141,13 +141,22 @@ export interface PaginatedResponse<T> {
 export type OrdersResponse = PaginatedResponse<Order>;
 
 export interface CartItem {
+  // ID del item en la base de datos (opcional, para items que aún no se sincronizan)
+  dbId?: string;
+  // ID del producto
   id: string;
   productName: string;
   price: number;
   slug: string;
-  image: string; // Añadimos la propiedad image que se usa en el componente
+  image: string;
   quantity: number;
+
+  // SKU del producto (opcional, puede que no siempre esté disponible)
+  productSku?: string;
 }
+// === FIN DE LA DEFINICIÓN UNIFICADA ===
+
+// ... (el resto de tu archivo types/index.ts)
 
 // Interfaz para la respuesta de la API de órdenes
 export interface OrderResponse {
@@ -206,6 +215,7 @@ export interface Review {
 
 // Tipos para las respuestas de las APIs
 export interface ApiResponse<T> {
+  success: boolean; // <-- ¡AÑADE ESTA PROPIEDAD!
   data?: T;
   error?: string;
   message?: string;
@@ -370,15 +380,20 @@ export interface EmailMetrics {
   };
 }
 
+// src/types/index.ts - Actualizar la interfaz FailedEmail
+
 export interface FailedEmail {
   id: string;
   timestamp: string;
+  type: string;
   recipient: string;
-  orderNumber: string;
-  error: string;
-  attempts: number;
-  lastAttempt: string;
-  canRetry: boolean;
+  orderId: string;
+  status: 'sent' | 'failed' | 'retry' | 'pending';
+  attempts: number; // Corregido: era "attempt" pero debería ser "attempts"
+  error?: string;
+  order?: {
+    orderNumber: string;
+  };
 }
 
 // Tipos para formularios del dashboard

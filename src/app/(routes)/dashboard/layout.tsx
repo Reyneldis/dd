@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 // src/app/(routes)/dashboard/layout.tsx - VERSIÓN MÓVIL OPTIMIZADA
 'use client';
 // import { Header } from '@/components/dashboard/Header';
@@ -18,7 +19,6 @@ import {
   Store,
   Sun,
   Tags,
-  User,
   Users,
   X,
 } from 'lucide-react';
@@ -32,6 +32,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -157,7 +158,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Navegación principal - Compacta */}
-        <nav className="flex-1 px-2 py-2 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-2 py-2 space-y-2 overflow-y-auto">
           <Link
             href="/dashboard"
             className="group flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 bg-indigo-100 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300"
@@ -207,7 +208,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </Link>
 
           <Link
-            href="/dashboard/settings"
+            href="/dashboard/configuracion"
             className="group flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
           >
             <Settings className="mr-2 h-4 w-4" />
@@ -220,9 +221,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Perfil de usuario - Compacto */}
           <div className="px-3 py-2">
             <div className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
-                <User className="h-4 w-4 text-white" />
-              </div>
+              <img
+                src="/img/avatar.png"
+                alt="Avatar"
+                width={32}
+                height={32}
+                className="rounded-full border-2 border-indigo-500"
+              />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
                   Admin User
@@ -236,10 +241,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* Notificaciones - Compacto */}
           <div className="px-3 py-1">
-            <button className="w-full group flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white">
-              <Bell className="mr-2 h-4 w-4" />
+            <button
+              className="w-full group flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+              title="Notificaciones"
+            >
+              <Bell className="mr-2 h-5 w-5 text-indigo-500" />
               <span className="text-xs">Notificaciones</span>
-              <span className="ml-auto h-1.5 w-1.5 bg-red-500 rounded-full"></span>
+              <span className="ml-auto h-2 w-2 bg-red-500 rounded-full"></span>
             </button>
           </div>
         </nav>
@@ -254,7 +262,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       )}
 
       {/* === LAYOUT PARA ESCRITORIO (sin cambios) === */}
-      <div className="hidden md:flex md:w-72 md:flex-shrink-0">
+      <div
+        className={`hidden md:flex ${
+          sidebarCollapsed ? 'md:w-20' : 'md:w-72'
+        } md:flex-shrink-0 transition-all duration-300`}
+      >
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-200/30 dark:border-gray-700/30">
           <div className="flex items-center flex-shrink-0 px-6 py-8">
             <div className="flex items-center">
@@ -275,60 +287,67 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="mt-4 flex-grow flex flex-col">
-            <nav className="flex-1 px-4 pb-4 space-y-2">
+            <nav className="flex-1 px-4 pb-4 space-y-3">
               <Link
                 href="/dashboard"
                 className="group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300"
+                title="Dashboard"
               >
-                <LayoutDashboard className="mr-3 h-5 w-5" />
+                <LayoutDashboard className="mr-3 h-6 w-6 text-indigo-500" />
                 Dashboard
               </Link>
 
               <Link
                 href="/dashboard/orders"
                 className="group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                title="Pedidos"
               >
-                <ShoppingCart className="mr-3 h-5 w-5" />
+                <ShoppingCart className="mr-3 h-6 w-6 text-indigo-500" />
                 Pedidos
               </Link>
 
               <Link
                 href="/dashboard/products"
                 className="group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                title="Productos"
               >
-                <Package className="mr-3 h-5 w-5" />
+                <Package className="mr-3 h-6 w-6 text-indigo-500" />
                 Productos
               </Link>
 
               <Link
                 href="/dashboard/categories"
                 className="group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                title="Categorías"
               >
-                <Tags className="mr-3 h-5 w-5" />
+                <Tags className="mr-3 h-6 w-6 text-indigo-500" />
                 Categorías
               </Link>
 
               <Link
                 href="/dashboard/users"
                 className="group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                title="Usuarios"
               >
-                <Users className="mr-3 h-5 w-5" />
+                <Users className="mr-3 h-6 w-6 text-indigo-500" />
                 Usuarios
               </Link>
 
               <Link
                 href="/dashboard/emails/failed"
                 className="group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                title="Emails Fallidos"
               >
-                <MailWarning className="mr-3 h-5 w-5" />
+                <MailWarning className="mr-3 h-6 w-6 text-indigo-500" />
                 Emails Fallidos
               </Link>
 
               <Link
-                href="/dashboard/settings"
+                href="/dashboard/configuracion"
                 className="group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                title="Configuración"
               >
-                <Settings className="mr-3 h-5 w-5" />
+                <Settings className="mr-3 h-6 w-6 text-indigo-500" />
                 Configuración
               </Link>
             </nav>
@@ -339,9 +358,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             <div className="px-4 pb-4 space-y-3">
               <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
-                  <User className="h-5 w-5 text-white" />
-                </div>
+                <img
+                  src="/img/avatar.png"
+                  alt="Avatar"
+                  width={40}
+                  height={40}
+                  className="rounded-full border-2 border-indigo-500"
+                />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     Admin User
@@ -352,8 +375,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 </div>
               </div>
 
-              <button className="w-full group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white">
-                <Bell className="mr-3 h-5 w-5" />
+              <button
+                className="w-full group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
+                title="Notificaciones"
+              >
+                <Bell className="mr-3 h-6 w-6 text-indigo-500" />
+                <button
+                  className="absolute top-4 right-4 bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-2 shadow hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300"
+                  title={
+                    sidebarCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'
+                  }
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                >
+                  {sidebarCollapsed ? (
+                    <Menu className="h-5 w-5 text-indigo-700" />
+                  ) : (
+                    <ArrowLeft className="h-5 w-5 text-indigo-700" />
+                  )}
+                </button>
                 Notificaciones
                 <span className="ml-auto h-2 w-2 bg-red-500 rounded-full"></span>
               </button>
