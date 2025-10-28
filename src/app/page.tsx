@@ -8,6 +8,7 @@ import StatsCounter from '@/components/shared/StatsCounter/StatsCounter';
 import Testimonials from '@/components/shared/Testimonials/Testimonials';
 
 export default function Home() {
+  console.log('DATABASE_URL desde el servidor:', process.env.DATABASE_URL);
   return (
     <main className="flex flex-col items-center w-full min-h-screen mx-auto max-w-full">
       <CarouselTextBanner />
