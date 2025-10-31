@@ -15,7 +15,7 @@ export interface WhatsAppConfig {
 export function getWhatsAppConfig(): WhatsAppConfig {
   // Números de administradores para notificaciones
   const adminNumbersEnv = process.env.WHATSAPP_ADMIN_NUMBERS || '';
-  const publicAdminNumbersEnv = process.env.NEXT_PUBLIC_WHATSAPP_ADMINS || '';
+  const publicAdminNumbersEnv = process.env.WHATSAPP_ADMINS || '';
 
   const adminNumbers = adminNumbersEnv
     .split(',')
