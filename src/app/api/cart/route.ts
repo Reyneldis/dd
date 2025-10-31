@@ -66,7 +66,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { userId, productId, quantity } = result.data;
+    const { userId: clerkId, productId, quantity } = result.data;
+
+    // Buscar el usuario interno usando el clerkId
+    const user = await prisma.user.findUnique({
+      where: { clerkId },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Usuario no encontrado' },
+        { status: 404 },
+      );
+    }
 
     // Verificar que el producto existe
     const product = await prisma.product.findUnique({
@@ -84,7 +96,7 @@ export async function POST(request: NextRequest) {
     const existingItem = await prisma.cartItem.findUnique({
       where: {
         userId_productId: {
-          userId,
+          userId: user.id, // Usar el ID interno del usuario
           productId,
         },
       },
@@ -111,7 +123,7 @@ export async function POST(request: NextRequest) {
       // Crear nuevo item
       cartItem = await prisma.cartItem.create({
         data: {
-          userId,
+          userId: user.id, // Usar el ID interno del usuario
           productId,
           quantity,
         },

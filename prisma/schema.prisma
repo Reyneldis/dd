@@ -1,74 +1,65 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("LOCAL_DATABASE_URL")
-  directUrl = env("DIRECT_URL") 
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  clerkId   String   @unique
-  email     String   @unique
+  id        String        @id @default(cuid())
+  clerkId   String        @unique
+  email     String        @unique
   firstName String?
   lastName  String?
   avatar    String?
-  role      Role     @default(USER)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relaciones
+  role      Role          @default(USER)
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  cartItems CartItem[]
   orders    Order[]
   reviews   Review[]
   addresses UserAddress[]
-  cartItems CartItem[]
 
   @@map("users")
 }
 
 model Category {
-  id          String   @id @default(cuid())
-  categoryName String  @unique
-  slug        String   @unique
-  description String?
-  mainImage   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relaciones
-  products Product[]
+  id           String    @id @default(cuid())
+  categoryName String    @unique
+  slug         String    @unique
+  mainImage    String?
+  description  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  products     Product[]
 
   @@map("categories")
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  slug        String   @unique
+  id          String                   @id @default(cuid())
+  slug        String                   @unique
   productName String
-  price       Float   
-  stock       Int      @default(0) @db.SmallInt
+  price       Float
   description String?
+  categoryId  String
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  featured    Boolean                  @default(false)
   features    String[]
-  status      Status   @default(ACTIVE)
-  featured    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      Status                   @default(ACTIVE)
+  stock       Int                      @default(0) @db.SmallInt
   /// @ts-ignore
   searchText  Unsupported("tsvector")?
-
-  // Relaciones
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  images     ProductImage[]
-  orderItems OrderItem[]
-  cartItems  CartItem[]
-  reviews    Review[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  images      ProductImage[]
+  category    Category                 @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  reviews     Review[]
 
   @@index([categoryId])
   @@index([price])
@@ -81,40 +72,34 @@ model Product {
 
 model ProductImage {
   id        String   @id @default(cuid())
+  productId String
   url       String
   alt       String?
   sortOrder Int      @default(0)
   isPrimary Boolean  @default(false)
   createdAt DateTime @default(now())
-
-  // Relaciones
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("product_images")
 }
 
 model Order {
-  id             String        @id @default(cuid())
-  orderNumber    String        @unique
-  status         OrderStatus   @default(PENDING)
-  subtotal       Float
-  taxAmount      Float         @default(0)
-  shippingAmount Float         @default(0)
-  total          Float
-  customerEmail  String?       // Agregar este campo
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  // Información de contacto
-  contactInfo    ContactInfo?
+  id              String           @id @default(cuid())
+  orderNumber     String           @unique
+  userId          String?
+  status          OrderStatus      @default(PENDING)
+  customerEmail   String?
+  subtotal        Float
+  taxAmount       Float            @default(0)
+  shippingAmount  Float            @default(0)
+  total           Float
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  contactInfo     ContactInfo?
+  emailMetrics    EmailMetrics[]
+  items           OrderItem[]
+  user            User?            @relation(fields: [userId], references: [id])
   shippingAddress ShippingAddress?
-
-  // Relaciones - userId es opcional para usuarios no logueados
-  userId String?
-  user   User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  items  OrderItem[]
-  emailMetrics EmailMetrics[]
 
   @@index([userId, status])
   @@index([status])
@@ -129,10 +114,8 @@ model ContactInfo {
   phone     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relación con Order
-  order    Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderId  String    @unique
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("contact_info")
 }
@@ -143,49 +126,42 @@ model ShippingAddress {
   city      String
   state     String
   zip       String
-  country   String  @default("Cuba")
+  country   String   @default("Cuba")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relación con Order
-  order    Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderId  String    @unique
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("shipping_addresses")
 }
 
 model OrderItem {
-  id        String @id @default(cuid())
-  quantity  Int
-  price     Float
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String
   productName String?
-  productSku String?
-  total     Float
-  createdAt DateTime @default(now())
-
-  // Relaciones
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productSku  String?
+  price       Float
+  quantity    Int
+  total       Float
+  createdAt   DateTime @default(now())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("order_items")
 }
 
 model Review {
   id         String   @id @default(cuid())
+  userId     String
+  productId  String
   rating     Int
   comment    String?
   isApproved Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
-  // Relaciones
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([productId, rating])
   @@index([isApproved])
@@ -204,10 +180,8 @@ model UserAddress {
   isDefault Boolean     @default(false)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
-
-  // Relaciones
-  userId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isDefault])
@@ -216,15 +190,13 @@ model UserAddress {
 
 model CartItem {
   id        String   @id @default(cuid())
+  userId    String
+  productId String
   quantity  Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relaciones
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
   @@index([userId])
@@ -238,15 +210,13 @@ model EmailMetrics {
   type      String
   recipient String
   orderId   String
-  status    String // e.g., 'sent', 'failed', 'retry'
+  status    String
   attempt   Int
   error     String?
-
-  // Relaciones
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
-   @@map("email_metrics")
+  @@map("email_metrics")
 }
 
 enum Role {
@@ -263,10 +233,10 @@ enum Status {
 enum OrderStatus {
   PENDING
   CONFIRMED
+  PROCESSING
   SHIPPED
   DELIVERED
   CANCELLED
-  PROCESSING
   REFUNDED
   FAILED
 }

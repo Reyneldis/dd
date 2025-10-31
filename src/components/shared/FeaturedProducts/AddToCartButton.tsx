@@ -39,7 +39,8 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
     const { openCartModal } = useCartModal();
     const [isAdding, setIsAdding] = useState(false);
 
-    const alreadyInCart = isInCartHook(product.id);
+    // Verificamos si el producto ya está en el carrito
+    const alreadyInCart = isInCartHook(product.slug);
 
     const handleAdd = async () => {
       if (product.stock === 0) {
@@ -47,19 +48,20 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
         return;
       }
 
-      // CAMBIO CLAVE: Si ya está en el carrito, notificamos y salimos de la función.
+      // === INICIO: LÓGICA DE NOTIFICACIÓN CUANDO YA ESTÁ EN EL CARRITO ===
+      // Si el producto ya está en el carrito, mostramos una notificación y abrimos el modal.
       if (alreadyInCart) {
         toast.info('Este producto ya está en tu carrito');
-        // Opcional: podemos abrir el modal para que el usuario lo vea.
+        // Opcional: Abrimos el modal para que el usuario pueda verlo o modificar la cantidad.
         if (openModalOnSuccess) {
           openCartModal();
         }
-        return; // Detenemos la ejecución aquí.
+        return; // Detenemos la función aquí para no agregarlo de nuevo.
       }
+      // === FIN: LÓGICA DE NOTIFICACIÓN ===
 
       setIsAdding(true);
       try {
-        // Si no está en el carrito, lo agregamos.
         const cartItem = {
           id: product.id,
           productName: product.productName,
@@ -98,7 +100,7 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
       <button
         ref={ref}
         onClick={handleAdd}
-        // CAMBIO: Deshabilitamos el botón si ya está en el carrito para evitar clics.
+        // El botón se deshabilita si ya está en el carrito, si está cargando o si no hay stock.
         disabled={isAdding || loading || product.stock === 0 || alreadyInCart}
         className={
           buttonClassName ||
@@ -111,7 +113,7 @@ const AddToCartButton = forwardRef<HTMLButtonElement, AddToCartButtonProps>(
             {isAdding
               ? 'Agregando...'
               : alreadyInCart
-              ? 'Ya en el carrito' // Texto más claro
+              ? 'Ya en el carrito' // El texto del botón también cambia
               : 'Añadir al carrito'}
           </>
         )}

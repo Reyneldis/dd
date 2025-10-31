@@ -1,4 +1,4 @@
-// src/app/(routes)/dashboard/page.tsx
+// src/app/(routes)/dashboard/page.tsx - VERSIÓN CORREGIDA
 'use client';
 
 import { OrdersChart } from '@/components/dashboard/OrdersChart';
@@ -7,6 +7,7 @@ import { SalesChart } from '@/components/dashboard/SalesChart';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { TopProductsChart } from '@/components/dashboard/TopProductsChart';
 import { DashboardStats } from '@/types';
+import { Package, RefreshCw, ShoppingCart, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export default function DashboardPage() {
@@ -49,10 +50,10 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex justify-center items-center h-96">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando dashboard...</p>
+          <RefreshCw className="h-12 w-12 text-indigo-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Cargando dashboard...</p>
         </div>
       </div>
     );
@@ -60,11 +61,11 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex justify-center items-center h-96">
         <div className="text-center">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 max-w-md">
             <h3 className="font-bold">Error al cargar el dashboard</h3>
-            <p className="text-sm">{error}</p>
+            <p className="text-sm mt-2">{error}</p>
           </div>
           <button
             onClick={fetchDashboardStats}
@@ -79,14 +80,14 @@ export default function DashboardPage() {
 
   if (!stats) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex justify-center items-center h-96">
         <div className="text-center">
-          <p className="text-gray-500">
+          <p className="text-gray-500 mb-4">
             No se pudieron cargar las estadísticas
           </p>
           <button
             onClick={fetchDashboardStats}
-            className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
           >
             Reintentar
           </button>
@@ -97,134 +98,100 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Resumen de las actividades y métricas de tu tienda online
-        </p>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Dashboard
+          </h1>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Resumen general de tu tienda online
+          </p>
+        </div>
+        <button
+          onClick={fetchDashboardStats}
+          className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Actualizar
+        </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total Pedidos"
           value={stats.totalOrders}
-          description="Número total de pedidos realizados"
-          trend={{ value: 12, isPositive: true }}
-          color="from-indigo-500 to-purple-500"
-          icon={
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 11V7a4 4 0 01-8 0v4M5 9h14l-5 5m0 0l5-5m-5 5H5"
-              />
-            </svg>
-          }
+          description="Pedidos totales realizados"
+          icon={<ShoppingCart className="h-6 w-6" />}
+          color="from-blue-500 to-cyan-500"
         />
         <StatsCard
           title="Pedidos Pendientes"
           value={stats.pendingOrders}
-          description="Pedidos pendientes de procesar"
-          trend={{ value: 8, isPositive: false }}
+          description="Esperando procesamiento"
+          icon={<Package className="h-6 w-6" />}
           color="from-amber-500 to-orange-500"
-          icon={
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          }
         />
         <StatsCard
-          title="Productos"
+          title="Total Productos"
           value={stats.totalProducts}
-          description="Total de productos en la tienda"
-          trend={{ value: 5, isPositive: true }}
+          description="Productos en inventario"
+          icon={<Package className="h-6 w-6" />}
           color="from-emerald-500 to-teal-500"
-          icon={
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M20 7l-8-4-8 4m16 0l-8 4-8-4M4 7h16M4 7v10a2 2 0 002 2h10a2 2 0 002-2V7"
-              />
-            </svg>
-          }
         />
         <StatsCard
-          title="Usuarios"
+          title="Total Usuarios"
           value={stats.totalUsers}
-          description="Total de usuarios registrados"
-          trend={{ value: 18, isPositive: true }}
-          color="from-violet-500 to-fuchsia-500"
-          icon={
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-              />
-            </svg>
-          }
+          description="Usuarios registrados"
+          icon={<Users className="h-6 w-6" />}
+          color="from-violet-500 to-purple-500"
         />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Sales by Category */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Ventas por Categoría
           </h2>
-          <SalesChart data={stats.salesByCategory} />
+          <div className="h-80">
+            <SalesChart data={stats.salesByCategory} />
+          </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+
+        {/* Orders by Status */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Pedidos por Estado
           </h2>
-          <OrdersChart data={stats.ordersByStatus} />
+          <div className="h-80">
+            <OrdersChart data={stats.ordersByStatus} />
+          </div>
         </div>
       </div>
 
-      {/* Additional Charts */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      {/* Bottom Charts Grid */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Top Products */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Productos Más Vendidos
           </h2>
-          <TopProductsChart data={stats.topProducts} />
+          <div className="h-80">
+            <TopProductsChart data={stats.topProducts} />
+          </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+
+        {/* Recent Orders */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Pedidos Recientes
           </h2>
-          <RecentOrdersTable orders={stats.recentOrders} />
+          <div className="h-80 overflow-auto">
+            <RecentOrdersTable orders={stats.recentOrders} />
+          </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
-// src/app/(routes)/dashboard/orders/page.tsx - Página de gestión de órdenes
+// src/app/(routes)/dashboard/orders/page.tsx
+
 'use client';
 
 import { OrdersManagement } from '@/components/dashboard/OrdersManagement';

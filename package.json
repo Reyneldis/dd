@@ -16,8 +16,10 @@
     "type-check": "tsc --noEmit",
     "test": "echo \"No hay tests aún\"",
     "optimize-images": "node scripts/optimize-images.js",
-    "migrate-to-neon": "node scripts/migrate-to-neon.js",
-    "setup-migration": "node scripts/setup-migration.js"
+    "migrate-to-supabase": "bun scripts/migrate-to-supabase.js",
+    "migrate-to-supabase-from-local": "node scripts/migrate-to-supabase-from-local.js",
+    "setup-migration": "bun scripts/setup-migration.js",
+    "setup-vercel": "node scripts/setup-vercel.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.31.8",
@@ -42,6 +44,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@strapi/blocks-react-renderer": "^1.0.2",
+    "@supabase/supabase-js": "^2.75.0",
     "@tabler/icons-react": "^3.35.0",
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.11.0",
@@ -60,6 +63,7 @@
     "next-themes": "^0.4.6",
     "nextjs-toploader": "^3.8.16",
     "nodemailer": "^7.0.5",
+    "pg": "^8.16.3",
     "prisma": "^6.13.0",
     "react": "^19.0.0",
     "react-chartjs-2": "^5.3.0",

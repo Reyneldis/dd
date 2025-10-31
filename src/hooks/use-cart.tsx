@@ -1,5 +1,6 @@
+// hooks/use-cart.ts
 'use client';
-import { stockUpdateEmitter } from '@/lib/events'; // <-- NUEVO: Importar el emisor de eventos
+import { stockUpdateEmitter } from '@/lib/events';
 import { useCartStore } from '@/store/cart-store';
 import { CartItem } from '@/types';
 import { useUser } from '@clerk/nextjs';
@@ -23,24 +24,34 @@ export function useCart() {
   const lastSyncTime = useRef(0);
   const [loading, setLoading] = useState(false);
 
+  // --- FUNCIÓN CLAVE CORREGIDA ---
   const checkProductStock = useCallback(async (productId: string) => {
     try {
-      const response = await fetch(`/api/products/${productId}/stock`);
+      // --- SOLUCIÓN CLAVE: Añadimos cache: 'no-store' para evitar respuestas cacheadas ---
+      const response = await fetch(`/api/products/${productId}/stock`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      // --- FIN DE LA SOLUCIÓN ---
+
       if (!response.ok) {
         console.error(
-          'Error en respuesta de stock:',
+          `Error en respuesta de stock para ${productId}:`,
           response.status,
           response.statusText,
         );
-        return 0;
+        return 0; // Si la API falla, asumimos que no hay stock
       }
       const data = await response.json();
+      console.log(`[checkProductStock] Stock para ${productId}:`, data.stock);
       return data.stock || 0;
     } catch (error) {
-      console.error('Error al verificar stock:', error);
-      return 0;
+      console.error(`Error al verificar stock para ${productId}:`, error);
+      return 0; // Si hay un error de red, asumimos que no hay stock
     }
   }, []);
+  // --- FIN DE LA FUNCIÓN CLAVE ---
 
   const updateProductStock = useCallback(
     async (productId: string, quantityChange: number) => {
@@ -52,7 +63,8 @@ export function useCart() {
         });
 
         if (!response.ok) {
-          throw new Error('Error al actualizar stock');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Error al actualizar stock');
         }
 
         return await response.json();
@@ -68,7 +80,13 @@ export function useCart() {
     async (item: CartItem) => {
       setLoading(true);
       try {
-        const existingItem = items.find(i => i.id === item.id);
+        // --- DEPURACIÓN: Veamos qué estamos intentando añadir ---
+        console.log(
+          `[addItem] Intentando añadir: ${item.productName} (x${item.quantity})`,
+        );
+        // --- FIN DE LA DEPURACIÓN ---
+
+        const existingItem = items.find(i => i.slug === item.slug);
 
         if (existingItem) {
           const newQuantity = existingItem.quantity + item.quantity;
@@ -97,10 +115,11 @@ export function useCart() {
 
           await updateProductStock(item.id, -item.quantity);
           addItemToStore(item);
-          toast.success(`${item.productName} agregado al carrito`);
+          toast.success(
+            `${item.productName} (x${item.quantity}) agregado al carrito`,
+          );
         }
 
-        // <-- NUEVO: Emitir evento de actualización después de agregar
         stockUpdateEmitter.dispatchEvent(new Event('update'));
       } catch (error) {
         console.error('Error al agregar producto:', error);
@@ -119,16 +138,20 @@ export function useCart() {
   );
 
   const removeItem = useCallback(
-    async (productId: string) => {
-      const item = items.find(i => i.id === productId);
+    async (slug: string) => {
+      const item = items.find(i => i.slug === slug);
       if (item) {
         setLoading(true);
         try {
-          await updateProductStock(productId, item.quantity);
-          removeItemFromStore(item.slug);
-          toast.info(`${item.productName} eliminado del carrito`);
+          if (isSignedIn && user && item.dbId) {
+            await fetch(`/api/cart?itemId=${item.dbId}`, {
+              method: 'DELETE',
+            });
+          }
 
-          // <-- NUEVO: Emitir evento de actualización después de eliminar
+          await updateProductStock(item.id, item.quantity);
+          removeItemFromStore(slug);
+          toast.info(`${item.productName} eliminado del carrito`);
           stockUpdateEmitter.dispatchEvent(new Event('update'));
         } catch (error) {
           console.error('Error al eliminar producto:', error);
@@ -138,22 +161,22 @@ export function useCart() {
         }
       }
     },
-    [items, removeItemFromStore, updateProductStock],
+    [items, removeItemFromStore, updateProductStock, isSignedIn, user],
   );
 
   const updateQuantity = useCallback(
-    async (productId: string, newQuantity: number) => {
-      const item = items.find(i => i.id === productId);
+    async (slug: string, newQuantity: number) => {
+      const item = items.find(i => i.slug === slug);
       if (!item) return;
 
       if (newQuantity <= 0) {
-        removeItem(productId);
+        removeItem(slug);
         return;
       }
 
       setLoading(true);
       try {
-        const availableStock = await checkProductStock(productId);
+        const availableStock = await checkProductStock(item.id);
         const currentQuantity = item.quantity;
         const quantityDiff = newQuantity - currentQuantity;
 
@@ -162,10 +185,16 @@ export function useCart() {
           return;
         }
 
-        await updateProductStock(productId, -quantityDiff);
-        updateQuantityInStore(item.slug, newQuantity);
+        if (isSignedIn && user && item.dbId) {
+          await fetch('/api/cart', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itemId: item.dbId, quantity: newQuantity }),
+          });
+        }
 
-        // <-- NUEVO: Emitir evento de actualización después de modificar cantidad
+        await updateProductStock(item.id, -quantityDiff);
+        updateQuantityInStore(slug, newQuantity);
         stockUpdateEmitter.dispatchEvent(new Event('update'));
       } catch (error) {
         console.error('Error al actualizar cantidad:', error);
@@ -180,49 +209,62 @@ export function useCart() {
       updateQuantityInStore,
       removeItem,
       updateProductStock,
+      isSignedIn,
+      user,
     ],
   );
 
   const clearCart = useCallback(async () => {
     setLoading(true);
-    const errors: string[] = [];
+    const stockRestoreErrors: string[] = [];
+    const itemsToRestore = items;
 
-    for (const item of items) {
-      try {
-        console.log(
-          `[clearCart] Devolviendo ${item.quantity} unidades del producto ${item.productName} (ID: ${item.id}) al stock.`,
-        );
-        await updateProductStock(item.id, item.quantity);
-      } catch (error) {
-        console.error(
-          `[clearCart] Error al devolver stock de ${item.productName}:`,
-          error,
-        );
-        errors.push(`Error al devolver stock de ${item.productName}`);
+    try {
+      for (const item of itemsToRestore) {
+        try {
+          await updateProductStock(item.id, item.quantity);
+        } catch (error) {
+          console.error(
+            `[clearCart] Error al devolver stock de ${item.productName}:`,
+            error,
+          );
+          stockRestoreErrors.push(
+            `Error al devolver stock de "${item.productName}"`,
+          );
+        }
       }
+
+      clearCartFromStore();
+      if (isSignedIn && user) {
+        await fetch(`/api/cart?userId=${user.id}`, {
+          method: 'DELETE',
+        });
+      }
+
+      if (stockRestoreErrors.length > 0) {
+        toast.error(
+          `Carrito vaciado, pero hubo problemas: ${stockRestoreErrors.join(
+            ', ',
+          )}`,
+        );
+      } else {
+        toast.success('Carrito vaciado y stock restaurado correctamente.');
+      }
+
+      stockUpdateEmitter.dispatchEvent(new Event('update'));
+    } catch (error) {
+      console.error('Error al vaciar el carrito:', error);
+      toast.error('Error al vaciar el carrito');
+    } finally {
+      setLoading(false);
     }
-
-    if (errors.length > 0) {
-      toast.error(
-        `Hubo problemas al actualizar el stock: ${errors.join(', ')}`,
-      );
-    }
-
-    clearCartFromStore();
-    toast.success('Carrito vaciado');
-
-    // <-- NUEVO: Emitir evento de actualización después de vaciar el carrito
-    stockUpdateEmitter.dispatchEvent(new Event('update'));
-
-    setLoading(false);
-  }, [items, clearCartFromStore, updateProductStock]);
+  }, [items, clearCartFromStore, updateProductStock, isSignedIn, user]);
 
   const isInCart = useCallback(
-    (productId: string) => {
-      const item = items.find(i => i.id === productId);
-      return item ? isInCartBySlug(item.slug) : false;
+    (slug: string) => {
+      return isInCartBySlug(slug);
     },
-    [items, isInCartBySlug],
+    [isInCartBySlug],
   );
 
   const syncFromBackend = useCallback(async () => {
@@ -236,7 +278,7 @@ export function useCart() {
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data.items)) {
-          const mappedItems: CartItem[] = data.items.map(
+          const serverItems: CartItem[] = data.items.map(
             (item: {
               id: string;
               product: {
@@ -248,6 +290,7 @@ export function useCart() {
               };
               quantity: number;
             }) => ({
+              dbId: item.id,
               id: item.product.id,
               productName: item.product.productName,
               price: item.product.price,
@@ -256,7 +299,34 @@ export function useCart() {
               quantity: item.quantity,
             }),
           );
-          setCart(mappedItems);
+
+          const currentLocalItems = items;
+          const mergedItems = serverItems.reduce((acc, serverItem) => {
+            const existingLocalItem = currentLocalItems.find(
+              localItem => localItem.slug === serverItem.slug,
+            );
+
+            if (existingLocalItem) {
+              acc.push({
+                ...serverItem,
+                quantity: serverItem.quantity + existingLocalItem.quantity,
+                dbId: serverItem.dbId,
+              });
+            } else {
+              acc.push(serverItem);
+            }
+            return acc;
+          }, [] as CartItem[]);
+
+          const localOnlyItems = currentLocalItems.filter(
+            localItem =>
+              !serverItems.some(
+                serverItem => serverItem.slug === localItem.slug,
+              ),
+          );
+
+          const finalCart = [...mergedItems, ...localOnlyItems];
+          setCart(finalCart);
         }
       } else {
         toast.error('Error al sincronizar el carrito');
@@ -267,7 +337,7 @@ export function useCart() {
     } finally {
       isSyncing.current = false;
     }
-  }, [isSignedIn, user, setCart]);
+  }, [isSignedIn, user, setCart, items]);
 
   useEffect(() => {
     if (isSignedIn) {

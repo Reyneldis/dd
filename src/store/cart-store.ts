@@ -3,7 +3,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface CartItem {
-  id: string;
+  dbId?: string; // ID del item en la base de datos
+  id: string; // Este es el productId
   productName: string;
   price: number;
   image: string;

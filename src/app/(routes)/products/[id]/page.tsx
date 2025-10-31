@@ -1,3 +1,5 @@
+// app/[...]/ProductPage.tsx
+
 'use client';
 import { useCart } from '@/hooks/use-cart';
 import { useAuth } from '@clerk/nextjs';
@@ -16,7 +18,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 
-// ... (las interfaces y funciones de fetch que ya tenías)
+// ... (las interfaces que ya tenías)
 interface ReviewUser {
   firstName?: string;
   lastName?: string;
@@ -35,29 +37,35 @@ import { useCartModal } from '@/hooks/use-cart-modal';
 import type { Product } from '@/types';
 import { toast } from 'sonner';
 
-async function fetchProduct(id: string): Promise<Product | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-  const res = await fetch(`${baseUrl}/api/products/${id}`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) return null;
-  return await res.json();
-}
-
+// CAMBIO: Importa el nuevo componente específico
+import ProductDetailAddToCartButton from '@/components/shared/FeaturedProducts/ProductDetailAddToCartButton';
 import CheckoutModal from '@/components/shared/checkout/CheckoutModal';
-import AddToCartButton from '@/components/shared/FeaturedProducts/AddToCartButton';
-
-function formatUSD(price: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(price);
-}
 
 export default function ProductPage() {
-  const { addItem, updateQuantity, items } = useCart();
+  // --- SOLUCIÓN: Mueve las funciones auxiliares DENTRO del componente ---
+  const fetchProduct = async (id: string): Promise<Product | null> => {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const res = await fetch(`${baseUrl}/api/products/${id}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  };
+
+  const formatUSD = (price: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(price);
+  };
+  // --- FIN DE LA SOLUCIÓN ---
+
+  // --- CORRECCIÓN CLAVE: Elimina updateQuantity de la destructuración ---
+  const { addItem, items } = useCart();
+  // --- FIN DE LA CORRECCIÓN ---
+
   const { isSignedIn, userId } = useAuth();
   const params = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
@@ -73,7 +81,6 @@ export default function ProductPage() {
     isOpen: isCartModalOpen,
   } = useCartModal();
 
-  // ... (el resto del estado para reviews se mantiene igual)
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -82,7 +89,6 @@ export default function ProductPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
 
-  // ... (las funciones de manejo de reviews se mantienen igual)
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setReviewLoading(true);
@@ -121,7 +127,7 @@ export default function ProductPage() {
 
       setLoading(true);
       try {
-        const prod = await fetchProduct(params.id);
+        const prod = await fetchProduct(params.id); // Ahora esta función está en el mismo scope
         setProduct(prod);
         if (prod) {
           setOriginalStock(prod.stock);
@@ -156,39 +162,43 @@ export default function ProductPage() {
     }
   }, [product?.id]);
 
-  // 'isInCart' es un booleano, no una función.
   const isInCart = items.some(item => item.id === product?.id);
 
+  // --- FUNCIÓN handleBuyNow CORREGIDA Y FINAL ---
   const handleBuyNow = async () => {
     if (!product) return;
     if (isBuyNowLoading) return;
 
-    setIsBuyNowLoading(true);
-    try {
-      if (isInCart) {
-        await updateQuantity(product.id, quantity);
-        toast.success(
-          `Cantidad de ${product.productName} actualizada a ${quantity}`,
-        );
-      } else {
-        const cartItem = {
-          id: product.id,
-          productName: product.productName,
-          price: product.price,
-          image: product.images?.[0]?.url || '/img/placeholder-category.jpg',
-          slug: product.slug || '',
-          quantity,
-        };
-        await addItem(cartItem);
-        toast.success(`${product.productName} agregado al carrito`);
-      }
-
-      // --- SOLUCIÓN CLAVE ---
-      // Añadimos un pequeño retraso para garantizar que el estado del carrito
-      // se actualice en la UI antes de abrir el modal.
+    // Si el producto ya está en el carrito, solo notificamos y abrimos el modal.
+    if (isInCart) {
+      toast.info(
+        'Este producto ya está en tu carrito. Revisa la cantidad en el carrito.',
+      );
       setTimeout(() => {
         openCartModal();
-      }, 300); // Aumentado a 300ms para mayor seguridad
+      }, 300); // Pequeña demora para que el usuario vea la notificación
+      return; // Detenemos la ejecución aquí.
+    }
+
+    // Si no está, lo añadimos con la cantidad seleccionada.
+    setIsBuyNowLoading(true);
+    try {
+      const cartItem = {
+        id: product.id,
+        productName: product.productName,
+        price: product.price,
+        image: product.images?.[0]?.url || '/img/placeholder-category.jpg',
+        slug: product.slug || '',
+        quantity,
+      };
+      await addItem(cartItem);
+      toast.success(
+        `${product.productName} (x${quantity}) agregado al carrito`,
+      );
+
+      setTimeout(() => {
+        openCartModal();
+      }, 300);
     } catch (error) {
       console.error('Error al procesar "Pedir ahora":', error);
       toast.error('Error al agregar el producto al carrito');
@@ -196,6 +206,7 @@ export default function ProductPage() {
       setIsBuyNowLoading(false);
     }
   };
+  // --- FIN DE LA FUNCIÓN CORREGIDA ---
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) {
@@ -258,7 +269,6 @@ export default function ProductPage() {
       ? parseFloat(product.price)
       : product.price || 0;
 
-  // CORRECCIÓN: Extraer el rating de forma segura
   const rating = product.rating ?? 0;
   const sold = product.sold ?? 0;
 
@@ -499,15 +509,15 @@ export default function ProductPage() {
                     )}
                   </button>
 
-                  <AddToCartButton
+                  <ProductDetailAddToCartButton
                     product={product}
                     quantity={quantity}
                     openModalOnSuccess={false}
                     buttonClassName="flex items-center justify-center gap-2 px-6 py-3 font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
                     icon={<ShoppingCart className="w-5 h-5" />}
                   >
-                    {isInCart ? 'En el carrito' : 'Añadir al carrito'}
-                  </AddToCartButton>
+                    {isInCart ? 'Actualizar cantidad' : 'Añadir al carrito'}
+                  </ProductDetailAddToCartButton>
                 </div>
 
                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
