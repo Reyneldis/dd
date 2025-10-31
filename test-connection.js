@@ -1,12 +1,13 @@
 // test-connection.js
 import { Client } from 'pg';
 
+// NOTA: Quitamos 'sslmode=require' de la URL.
 const connectionString =
-  'postgresql://postgres.rzwatbwqtelwhxlcqcvg:DeliveriExpress123@aws-1-us-east-2.pooler.supabase.com:6543/postgres?sslmode=require';
+  'postgresql://postgres.rzwatbwqtelwhxlcqcvg:DeliveriExpress123@aws-1-us-east-2.pooler.supabase.com:6543/postgres';
 
 const client = new Client({
   connectionString: connectionString,
-  // ¡AÑADE ESTA OPCIÓN!
+  // Aquí configuramos el SSL de forma explícita y limpia
   ssl: {
     rejectUnauthorized: false,
   },

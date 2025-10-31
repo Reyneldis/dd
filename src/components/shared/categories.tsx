@@ -76,6 +76,7 @@ export default function Categories() {
         });
         if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
         const data = await res.json();
+        console.log('Data crudo recibido de la API:', data);
         const processedCategories = Array.isArray(data)
           ? data.map((c: ApiCategory) => transformCategory(c))
           : data.categories?.map((c: ApiCategory) => transformCategory(c)) ||
@@ -91,6 +92,7 @@ export default function Categories() {
     fetchCategories();
   }, []);
 
+  console.log('Categorías en el estado del componente:', categories);
   const transformCategory = (category: ApiCategory): Category => ({
     id: category.id,
     categoryName: category.categoryName,
@@ -116,7 +118,7 @@ export default function Categories() {
         </div>
       </section>
     );
-  if (!categories || categories.length === 0) return null;
+  if (!categories || categories.length === 0) return <CategoriesSkeleton />;
 
   const featuredCategory = categories[0];
   const restOfCategories = categories.slice(1, 3);
