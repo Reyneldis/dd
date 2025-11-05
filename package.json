@@ -8,6 +8,7 @@
     "build": "prisma generate && next build",
     "start": "bun run start",
     "lint": "next lint",
+    "test": "next lint",
     "lint:fix": "next lint --fix",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
