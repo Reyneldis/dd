@@ -1,4 +1,3 @@
-// src/components/shared/Navbar/Navbar.tsx
 'use client';
 import { useAdmin } from '@/hooks/use-admin';
 import { useCart } from '@/hooks/use-cart';
@@ -168,8 +167,8 @@ export default function Navbar() {
             : 'bg-transparent'
         }`}
       >
-        <div className="px-20 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="px-4 sm:px-6 lg:px-20 py-2 sm:py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3 sm:gap-4">
             <AnimatedMenuIcon
               isOpen={isMenuOpen}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -191,7 +190,7 @@ export default function Navbar() {
             <CategoriesDropdown />
           </div>
 
-          {/* Iconos de móvil (se ocultan cuando el menú está abierto) */}
+          {/* Iconos de móvil (mejorados) */}
           <div
             className={`flex items-center gap-2 lg:hidden transition-opacity duration-300 ${
               isMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
@@ -200,39 +199,47 @@ export default function Navbar() {
             <button
               aria-label="Buscar"
               onClick={() => setIsQuickSearchOpen(true)}
-              className="p-2 rounded-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 hover:bg-primary/10 dark:hover:bg-primary/20 transition-all"
+              className={`p-2 rounded-xl transition-all duration-300 ${
+                isScrolled
+                  ? 'bg-white/80 dark:bg-black/80 border border-white/30 dark:border-white/20 hover:bg-white dark:hover:bg-black'
+                  : 'bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 hover:bg-white/20 dark:hover:bg-black/20'
+              }`}
             >
               <span
                 className={
                   isScrolled
                     ? theme === 'dark'
-                      ? 'text-neutral-800'
-                      : 'text-neutral-900'
+                      ? 'text-neutral-200'
+                      : 'text-neutral-800'
                     : theme === 'dark'
-                    ? 'text-neutral-200'
-                    : 'text-neutral-700'
+                    ? 'text-white'
+                    : 'text-neutral-900'
                 }
               >
-                <Search size={20} />
+                <Search size={18} />
               </span>
             </button>
             <button
               aria-label="Carrito"
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2 rounded-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 hover:bg-primary/10 dark:hover:bg-primary/20 transition-all"
+              className={`relative p-2 rounded-xl transition-all duration-300 ${
+                isScrolled
+                  ? 'bg-white/80 dark:bg-black/80 border border-white/30 dark:border-white/20 hover:bg-white dark:hover:bg-black'
+                  : 'bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 hover:bg-white/20 dark:hover:bg-black/20'
+              }`}
             >
               <span
                 className={
                   isScrolled
                     ? theme === 'dark'
-                      ? 'text-neutral-800'
-                      : 'text-neutral-900'
+                      ? 'text-neutral-200'
+                      : 'text-neutral-800'
                     : theme === 'dark'
-                    ? 'text-neutral-200'
-                    : 'text-neutral-700'
+                    ? 'text-white'
+                    : 'text-neutral-900'
                 }
               >
-                <ShoppingCart size={20} />
+                <ShoppingCart size={18} />
               </span>
               {totalItems > 0 && (
                 <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md">
@@ -244,7 +251,6 @@ export default function Navbar() {
 
           {/* Contenido de escritorio (sin cambios) */}
           <div className="hidden lg:flex items-center gap-2">
-            {/* ... (todo el bloque de iconos de escritorio permanece igual) ... */}
             <button
               aria-label="Buscar"
               onClick={() => setIsQuickSearchOpen(true)}
@@ -419,7 +425,7 @@ export default function Navbar() {
         </div>
       </motion.nav>
 
-      {/* Menú móvil de pantalla completa (sin cambios) */}
+      {/* Menú móvil de pantalla completa (mejorado para móvil) */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
@@ -434,7 +440,7 @@ export default function Navbar() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="flex flex-col items-center justify-start pt-32 h-full p-8"
+              className="flex flex-col items-center justify-start pt-20 sm:pt-32 h-full p-4 sm:p-8"
               onClick={e => e.stopPropagation()}
             >
               {/* Enlaces de Navegación */}
@@ -444,7 +450,7 @@ export default function Navbar() {
                     <Link
                       href={link.href}
                       onClick={() => setIsMenuOpen(false)}
-                      className="text-4xl font-bold text-neutral-900 dark:text-white hover:text-orange-400 transition-colors duration-300"
+                      className="text-2xl sm:text-4xl font-bold text-neutral-900 dark:text-white hover:text-orange-400 transition-colors duration-300"
                     >
                       {link.label}
                     </Link>
