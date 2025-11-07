@@ -164,11 +164,11 @@ export default function Navbar() {
         // --- CAMBIO CLAVE: Efecto "Espejo Empañado" ---
         className={`fixed top-0 left-0 z-50 w-full transition-all duration-300 ${
           isScrolled
-            ? 'bg-gradient-to-b from-white/70 dark:from-black/70 to-transparent backdrop-blur-xl'
+            ? 'bg-gradient-to-b from-white/70 dark:from-black/70 to-transparent backdrop-blur-sm'
             : 'bg-transparent'
         }`}
       >
-        <div className="px-20 py-4 flex items-center justify-between">
+        <div className="px-20 py-2 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <AnimatedMenuIcon
               isOpen={isMenuOpen}
