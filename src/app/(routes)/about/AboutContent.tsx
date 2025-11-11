@@ -570,7 +570,7 @@ export default function AboutContent() {
                           Teléfono
                         </h3>
                         <p className="text-primary font-medium text-sm sm:text-base">
-                          +34 900 123 456
+                          +53 59597421
                         </p>
                         <p className="text-muted-foreground text-xs sm:text-sm mt-1">
                           Línea directa 24/7
@@ -604,10 +604,10 @@ export default function AboutContent() {
                           Dirección
                         </h3>
                         <p className="text-primary font-medium text-sm sm:text-base">
-                          Calle Principal, Madrid
+                          Calle Principal, Camaguey
                         </p>
                         <p className="text-muted-foreground text-xs sm:text-sm mt-1">
-                          España
+                          Cuba
                         </p>
                       </div>
                     </div>
