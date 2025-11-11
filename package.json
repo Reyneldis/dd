@@ -2,30 +2,27 @@
   "name": "mi-tienda",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build",
-    "start": "next start",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "prepare": "husky",
+    "start": "bun run start",
+    "lint": "next lint",
+    "test": "next lint",
+    "lint:fix": "next lint --fix",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "type-check": "tsc --noEmit",
-    "test": "echo \"No hay tests aún\"",
-    "optimize-images": "node scripts/optimize-images.js",
-    "migrate-to-supabase": "bun scripts/migrate-to-supabase.js",
-    "migrate-to-supabase-from-local": "node scripts/migrate-to-supabase-from-local.js",
-    "setup-migration": "bun scripts/setup-migration.js",
-    "setup-vercel": "node scripts/setup-vercel.js"
+    "migrate-to-supabase": "bun run scripts/migrate-to-supabase.js",
+    "setup-migration": "bun run scripts/setup-migration.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.31.8",
     "@emailjs/browser": "^4.4.1",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/onest": "^5.2.9",
+    "@fontsource/playfair-display": "^5.2.8",
     "@hookform/resolvers": "^5.1.0",
     "@neondatabase/serverless": "^1.0.1",
     "@prisma/client": "^6.13.0",
@@ -44,6 +41,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@strapi/blocks-react-renderer": "^1.0.2",
+    "@studio-freight/lenis": "^1.0.42",
     "@supabase/supabase-js": "^2.75.0",
     "@tabler/icons-react": "^3.35.0",
     "@tanstack/react-table": "^8.21.3",
@@ -55,6 +53,7 @@
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.6",
+    "gsap": "^3.13.0",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.523.0",
@@ -71,7 +70,7 @@
     "react-dom": "^19.0.0",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.62.0",
-    "react-hot-toast": "^2.6.0",
+    "react-hot-toast": "2.6.0",
     "react-icons": "^5.5.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
@@ -96,19 +95,5 @@
     "tsx": "^4.19.2",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5"
-  },
-  "description": "This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).",
-  "main": "index.js",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Reyneldis/ecommercer.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "bugs": {
-    "url": "https://github.com/Reyneldis/ecommercer/issues"
-  },
-  "homepage": "https://github.com/Reyneldis/ecommercer#readme"
+  }
 }
