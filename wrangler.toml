@@ -1,0 +1,10 @@
+name = "mi-tienda"
+compatibility_date = "2024-11-12"
+
+[build]
+# Este comando le dice a Cloudflare que use pnpm para instalar y construir
+command = "pnpm install --frozen-lockfile && pnpm run build"
+
+[build.upload]
+# Esta línea le dice a Cloudflare dónde encontrar los archivos listos para desplegar
+dir = ".vercel/output/static"
