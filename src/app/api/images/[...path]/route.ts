@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // src/app/api/images/[...path]/route.ts
 import fs from 'fs';
 import { NextRequest, NextResponse } from 'next/server';

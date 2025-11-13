@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // src/app/api/dashboard/categories/route.ts
 
 import { createCategory, getCategories } from '@/lib/dashboard-service';

@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // src/app/api/orders/[id]/route.ts
 import { prisma } from '@/lib/prisma';
 import { auth } from '@clerk/nextjs/server';

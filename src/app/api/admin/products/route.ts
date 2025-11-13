@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // src/app/api/admin/products/route.ts
 
 import { requireRole } from '@/lib/auth-guard';

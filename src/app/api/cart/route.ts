@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // src/app/api/cart/route.ts
 import { prisma } from '@/lib/prisma';
 import { cartItemSchema, updateCartItemSchema } from '@/schemas/cartSchema';

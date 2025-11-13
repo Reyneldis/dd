@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // app/api/test-data/route.ts
 import { prisma } from '@/lib/prisma'; // Asegúrate que esta ruta a tu instancia de Prisma es correcta
 

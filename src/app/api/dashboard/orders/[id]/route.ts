@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // src/app/api/dashboard/orders/[id]/route.ts
 import { getOrderById } from '@/lib/dashboard-service';
 import { NextRequest, NextResponse } from 'next/server';

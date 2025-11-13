@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // src/app/api/dashboard/orders/[id]/status/route.ts
 import { updateOrderStatus } from '@/lib/dashboard-service';
 import { createTransporter } from '@/lib/email/service';

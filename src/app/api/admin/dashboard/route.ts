@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // src/app/api/admin/dashboard/route.ts
 
 import { prisma } from '@/lib/prisma';

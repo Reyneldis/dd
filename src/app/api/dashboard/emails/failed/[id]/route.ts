@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // src/app/api/dashboard/emails/failed/[id]/route.ts
 
 import { deleteFailedEmail, retryEmail } from '@/lib/dashboard-service';

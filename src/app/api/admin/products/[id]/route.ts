@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { requireRole } from '@/lib/auth-guard';
 import { prisma } from '@/lib/prisma';
 import { productSchema } from '@/schemas/productSchema';

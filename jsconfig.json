@@ -29,7 +29,8 @@
     ".next/types/**/*.ts",
     "**/*.js",
     "**/*.jsx",
-    "next.config.cjs"
+    "next.config.cjs",
+    "fix-edge-routes.mjs"
   ],
   "exclude": ["node_modules"]
 }

@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // app/api/orders/route.ts
 import {
   createTransporter,

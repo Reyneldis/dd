@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 // src/app/api/dashboard/emails/failed/export/route.ts - VERSIÓN CORREGIDA
 import { getFailedEmails } from '@/lib/dashboard-service';
 import { NextRequest, NextResponse } from 'next/server';
