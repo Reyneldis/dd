@@ -57,6 +57,7 @@ const nextConfig = {
     // Optimiza la importación de paquetes como 'lucide-react' para reducir el tamaño del bundle
     // Solo incluirá los iconos que realmente usas.
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    runtime: 'edge',
   },
 };
 
