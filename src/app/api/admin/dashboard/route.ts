@@ -1,3 +1,5 @@
+// src/app/api/admin/dashboard/route.ts
+
 import { prisma } from '@/lib/prisma';
 import { getAuth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
@@ -90,6 +92,26 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // --- INICIO DE LA CORRECCIÓN COMPLETA ---
+    // FIX: Añadimos las aserciones de tipo para que TypeScript sepa la forma de los datos
+    const typedMonthlySales = monthlySales as {
+      createdAt: Date;
+      _sum: { total: number | null };
+    }[];
+    const typedUserGrowth = userGrowth as {
+      createdAt: Date;
+      _count: { id: number };
+    }[];
+    const typedTopSoldProducts = topSoldProducts as {
+      productId: string;
+      _sum: { quantity: number | null };
+    }[];
+    const typedOrderStatus = orderStatus as {
+      status: string;
+      _count: { status: number };
+    }[];
+    // --- FIN DE LA CORRECCIÓN ---
+
     // Procesar datos para que los meses estén ordenados y formateados
     const processMonthlyData = (
       data: MonthlyDataItem[],
@@ -122,21 +144,22 @@ export async function GET(request: NextRequest) {
     };
 
     const monthlySalesData = processMonthlyData(
-      monthlySales,
+      typedMonthlySales,
       item => item._sum?.total,
     );
     const userGrowthData = processMonthlyData(
-      userGrowth,
+      typedUserGrowth,
       item => item._count?.id,
     );
 
     // Obtener detalles de los productos más vendidos
     const topProductDetails = await prisma.product.findMany({
-      where: { id: { in: topSoldProducts.map(p => p.productId) } },
+      where: { id: { in: typedTopSoldProducts.map(p => p.productId) } }, // <-- Usar variable tipada
       select: { id: true, productName: true },
     });
 
-    const topProductsData = topSoldProducts.map(p => {
+    const topProductsData = typedTopSoldProducts.map(p => {
+      // <-- Usar variable tipada
       const details = topProductDetails.find(d => d.id === p.productId);
       return {
         name: details?.productName || 'Desconocido',
@@ -144,7 +167,8 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const orderStatusData = orderStatus.reduce(
+    const orderStatusData = typedOrderStatus.reduce(
+      // <-- Usar variable tipada
       (acc: Record<string, number>, item) => {
         acc[item.status] = item._count.status;
         return acc;
