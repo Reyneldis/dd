@@ -1,4 +1,3 @@
-// next.config.cjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Configuración optimizada para imágenes
@@ -48,20 +47,8 @@ const nextConfig = {
   // Configuración experimental para mejorar el rendimiento
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    runtime: 'experimental-edge', // <-- ESTA ES LA CLAVE FINAL
   },
 };
 
-// --- INICIO DE LA CONFIGURACIÓN PARA CLOUDFLARE ---
-// Aplicamos el Edge Runtime a todas las rutas de forma global
-const { setupPlatform } = require('@opennext/next/config');
-
-module.exports = setupPlatform({
-  ...nextConfig,
-  // Esta es la clave: fuerza el runtime 'edge' para todas las rutas
-  output: 'standalone',
-  // Forzamos el runtime para que se aplique a todas las páginas y APIs
-  experimental: {
-    ...nextConfig.experimental,
-    runtime: 'edge',
-  },
-});
+export default nextConfig;
