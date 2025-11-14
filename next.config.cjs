@@ -47,7 +47,7 @@ const nextConfig = {
   // Configuración experimental para mejorar el rendimiento
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
-    runtime: 'experimental-edge', // <-- ESTA ES LA CLAVE FINAL
+    // runtime: 'experimental-edge', // Desactivado para Vercel (Node.js)
   },
 };
 
