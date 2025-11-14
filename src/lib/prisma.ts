@@ -1,24 +1,13 @@
 // src/lib/prisma.ts
 
-import { PrismaClient } from '@prisma/client/edge';
-import { withAccelerate } from '@prisma/extension-accelerate';
+import { PrismaClient } from '@prisma/client'; // <-- CAMBIO CLAVE: Usar el cliente estándar
 
-// 1. Creamos una función "fábrica" que crea el cliente extendido
-const createPrismaClient = () => {
-  return new PrismaClient().$extends(withAccelerate());
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
 };
 
-// 2. Obtenemos el tipo exacto del cliente que devuelve la fábrica
-type ExtendedPrismaClient = ReturnType<typeof createPrismaClient>;
-
-// 3. Usamos este tipo para nuestro objeto global
-declare global {
-  var prismaGlobal: ExtendedPrismaClient | undefined;
-}
-
-// 4. Creamos la instancia usando la fábrica y la lógica global
-export const prisma = global.prismaGlobal ?? createPrismaClient();
+export const prisma = globalForPrisma.prisma ?? new PrismaClient(); // <-- CAMBIO CLAVE: Crear una instancia normal, sin extensiones
 
 if (process.env.NODE_ENV !== 'production') {
-  global.prismaGlobal = prisma;
+  globalForPrisma.prisma = prisma;
 }
