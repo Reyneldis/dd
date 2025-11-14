@@ -109,9 +109,10 @@ export default function FeaturedProducts() {
   const getFeaturedProducts = async () => {
     try {
       setLoading(true);
-      const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-      const res = await fetch(`${baseUrl}/api/products/featured`, {
+      // *** CAMBIO CLAVE AQUÍ ***
+      // Usamos una ruta relativa. Next.js se encarga de resolverla
+      // tanto en desarrollo como en producción.
+      const res = await fetch('/api/products/featured', {
         cache: 'no-store',
       });
       if (!res.ok) {

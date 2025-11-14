@@ -1,3 +1,4 @@
+export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
@@ -186,7 +187,9 @@ export async function POST(request: NextRequest) {
       from: process.env.GMAIL_USER,
       to: email,
       cc: ['neldis537@gmail.com', 'admin2@gmail.com'], // Opcional
-      subject: `Confirmación de pedido #${Date.now().toString().slice(-6)} - Delivery Express`,
+      subject: `Confirmación de pedido #${Date.now()
+        .toString()
+        .slice(-6)} - Delivery Express`,
       html: htmlContent,
     };
 

@@ -1,6 +1,3 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
-
 @import url('@fontsource/onest/400.css');
 @import url('@fontsource/onest/500.css');
 @import url('@fontsource/onest/600.css');
@@ -12,6 +9,8 @@
 
 @import url('@fontsource/playfair-display/400.css');
 @import url('@fontsource/playfair-display/700.css'); /* Para la versión 'bold' */
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 img,

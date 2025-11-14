@@ -1,4 +1,5 @@
-// app/api/search/route.ts
+// src/app/api/search/route.ts
+
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
@@ -86,16 +87,45 @@ export async function GET(request: Request) {
 
     console.log(`✅ Encontrados ${products.length} productos de ${totalCount}`);
 
+    // --- INICIO DE LA CORRECCIÓN ---
+    // FIX: Aserción de tipo para que TypeScript sepa la forma de los productos con sus relaciones
+    const typedProducts = products as Array<{
+      id: string;
+      slug: string;
+      productName: string;
+      price: number;
+      description: string | null;
+      categoryId: string;
+      featured: boolean;
+      features: string[];
+      status: 'ACTIVE' | 'INACTIVE';
+      stock: number;
+      createdAt: Date;
+      updatedAt: Date;
+      category: {
+        id: string;
+        categoryName: string;
+        slug: string;
+      };
+      images: Array<{
+        id: string;
+        url: string;
+        isPrimary: boolean;
+        sortOrder: number;
+      }>;
+    }>;
+    // --- FIN DE LA CORRECCIÓN ---
+
     const totalPages = Math.max(1, Math.ceil(totalCount / limit));
 
     // Formatear productos para asegurar todos los campos
-    const formattedProducts = products.map(product => ({
+    const formattedProducts = typedProducts.map(product => ({
       ...product,
       price: Number(product.price),
       rating: 0, // Valor por defecto
       reviewCount: 0, // Valor por defecto
       stock: product.stock ?? 0,
-      image: product.images[0]?.url || '/img/placeholder-category.jpg',
+      image: product.images[0]?.url || '/img/placeholder-category.jpg', // <-- Ahora TypeScript entiende esto
       features: product.features ?? [],
     }));
 

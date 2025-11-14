@@ -1,3 +1,4 @@
+export const runtime = 'nodejs';
 import { NextRequest } from 'next/server';
 import nodemailer from 'nodemailer';
 import { badRequest, okRaw, serverError } from './responses';

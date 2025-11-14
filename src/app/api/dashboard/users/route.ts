@@ -1,3 +1,4 @@
+export const runtime = 'nodejs';
 // src/app/api/dashboard/users/route.ts
 import { getUsers } from '@/lib/dashboard-service';
 import { Role } from '@prisma/client'; // Importar el enum Role

@@ -115,7 +115,11 @@ export function SalesChart({ data }: SalesChartProps) {
           displayColors: false,
           callbacks: {
             label: function (context) {
-              return `Ventas: $${context.parsed.y.toLocaleString()}`;
+              // Verificar si context.parsed.y no es nulo
+              if (context.parsed.y !== null) {
+                return `Ventas: $${context.parsed.y.toLocaleString()}`;
+              }
+              return 'Ventas: $0';
             },
           },
         },

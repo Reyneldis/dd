@@ -20,7 +20,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-// Revalidate this page every hour
+// --- LÍNEA AÑADIDA: Fuerza el renderizado dinámico ---
+// Esto evita que Next.js intente obtener los datos durante el build.
+export const dynamic = 'force-dynamic';
+// ----------------------------------------------------
+
+// Revalidate this page every hour (será ignorado por 'force-dynamic', pero está bien dejarlo)
 export const revalidate = 3600;
 
 interface Category {

@@ -1,3 +1,4 @@
+export const runtime = 'nodejs';
 // src/app/api/dashboard/categories/route.ts
 
 import { createCategory, getCategories } from '@/lib/dashboard-service';
