@@ -14,6 +14,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "type-check": "tsc --noEmit",
+    "db:seed": "tsx prisma/seed.ts",
     "migrate-to-supabase": "bun run scripts/migrate-to-supabase.js",
     "setup-migration": "bun run scripts/setup-migration.js"
   },
