@@ -420,11 +420,13 @@ export default function ProductPage() {
     isOpen: isCartModalOpen,
   } = useCartModal();
 
+  // *** CAMBIO CLAVE AQUÍ ***
+  // Usamos una ruta relativa. Next.js se encarga de resolverla
+  // tanto en desarrollo como en producción.
   const fetchProduct = async (slug: string): Promise<Product | null> => {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${slug}`,
-      { cache: 'no-store' },
-    );
+    const res = await fetch(`/api/products/${slug}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) return null;
     return await res.json();
   };
@@ -527,13 +529,12 @@ export default function ProductPage() {
     }
   }, [params.slug]);
 
-  // --- CORRECCIÓN 2: Usar la variable 'error' para satisfacer a ESLint ---
   useEffect(() => {
     if (product?.id) {
       fetch(`/api/reviews?productId=${product.id}`)
         .then(res => res.json())
         .then(data => setReviews(data.reviews || []))
-        .catch(error => console.error(error)); // <-- Cambiado de .catch(console.error)
+        .catch(error => console.error(error));
     }
   }, [product?.id]);
 
@@ -608,7 +609,6 @@ export default function ProductPage() {
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 {product.productName}
               </h1>
-              {/* --- CORRECCIÓN 1: Añadir un valor por defecto para product.rating --- */}
               <div className="flex items-center gap-4">
                 {product.rating && (
                   <div className="flex items-center">
