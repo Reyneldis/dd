@@ -16,7 +16,7 @@ import {
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-// ... (Interfaces y CategoriesSkeleton sin cambios) ...
+// --- Interfaces y Componente Skeleton (sin cambios) ---
 interface Category {
   id: string;
   categoryName: string;
@@ -68,19 +68,24 @@ export default function Categories() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const baseUrl =
-          process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-        const res = await fetch(`${baseUrl}/api/categories`, {
+        // *** CAMBIO CLAVE AQUÍ ***
+        // Usamos una ruta relativa. Next.js se encarga de resolverla
+        // tanto en desarrollo (http://localhost:3000) como en producción (https://tu-app.vercel.app).
+        const res = await fetch('/api/categories', {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache' },
         });
+
         if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
+
         const data = await res.json();
         console.log('Data crudo recibido de la API:', data);
+
         const processedCategories = Array.isArray(data)
           ? data.map((c: ApiCategory) => transformCategory(c))
           : data.categories?.map((c: ApiCategory) => transformCategory(c)) ||
             [];
+
         setCategories(processedCategories);
       } catch (err) {
         console.error('Error al obtener categorías:', err);
@@ -90,9 +95,10 @@ export default function Categories() {
       }
     };
     fetchCategories();
-  }, []);
+  }, []); // El array vacío asegura que se ejecute solo una vez al montar el componente
 
   console.log('Categorías en el estado del componente:', categories);
+
   const transformCategory = (category: ApiCategory): Category => ({
     id: category.id,
     categoryName: category.categoryName,
