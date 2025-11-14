@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // src/app/api/auth/sync-user/route.ts
 import { prisma } from '@/lib/prisma';
 import { getAuth } from '@clerk/nextjs/server';

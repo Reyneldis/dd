@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { prisma } from '@/lib/prisma';
 import { reviewSchema } from '@/schemas/reviewSchema';
 import { NextRequest, NextResponse } from 'next/server';

@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // src/app/api/auth/callback/google/route.ts
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';

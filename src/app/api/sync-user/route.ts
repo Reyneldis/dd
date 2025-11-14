@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // // src/app/api/sync-user/route.ts
 import { prisma } from '@/lib/prisma';
 import { syncUserSchema } from '@/schemas/syncUserSchema';

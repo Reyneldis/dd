@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // src/app/api/dashboard/stats/route.ts
 import { getDashboardStats } from '@/lib/dashboard-service';
 import { NextResponse } from 'next/server';

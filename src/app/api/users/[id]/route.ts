@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { notFound, okRaw, serverError } from '@/lib/api/responses';
 import { requireRole } from '@/lib/auth-guard';
 import { prisma } from '@/lib/prisma';

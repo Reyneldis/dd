@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // src/app/api/dashboard/emails/failed/route.ts
 import { getFailedEmails } from '@/lib/dashboard-service';
 import { NextRequest, NextResponse } from 'next/server';

@@ -1,6 +1,6 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
+import { mkdir, writeFile } from 'fs/promises';
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const category = formData.get('category') as string || 'general';
+    const category = (formData.get('category') as string) || 'general';
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
@@ -17,10 +17,10 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileExtension = path.extname(file.name);
     const fileName = `${uuidv4()}${fileExtension}`;
-    
+
     // Create a subdirectory based on the category
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', category);
-    
+
     // Ensure the upload directory exists
     await mkdir(uploadDir, { recursive: true });
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     console.error('Error uploading file:', error);
     return NextResponse.json(
       { error: 'Failed to upload file.' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

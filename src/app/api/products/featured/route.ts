@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // pages/api/products/featured.ts
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';

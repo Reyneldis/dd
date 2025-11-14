@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // src/app/api/dashboard/products/[id]/route.ts
 import { deleteProduct, updateProduct } from '@/lib/dashboard-service';
 import { NextRequest, NextResponse } from 'next/server';

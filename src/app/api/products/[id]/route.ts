@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // app/api/products/[id]/route.ts
 
 import { prisma } from '@/lib/prisma';

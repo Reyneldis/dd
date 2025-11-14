@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // src/app/api/dashboard/products/[id]/stock/route.ts
 import { requireRole } from '@/lib/auth-guard';
 import { prisma } from '@/lib/prisma';

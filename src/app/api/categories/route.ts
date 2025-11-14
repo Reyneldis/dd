@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 // import { getCategoriesWithProductCounts } from '@/lib/product/categories';
 // import { NextResponse } from 'next/server';
 

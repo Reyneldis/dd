@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { requireRole } from '@/lib/auth-guard';
 import { prisma } from '@/lib/prisma';
 import { OrderStatus } from '@prisma/client';

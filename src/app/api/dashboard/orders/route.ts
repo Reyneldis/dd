@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 // src/app/api/dashboard/orders/route.ts
 import { getOrders } from '@/lib/dashboard-service';
 import { OrderStatus } from '@prisma/client';

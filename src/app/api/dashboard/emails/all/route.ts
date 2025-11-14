@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 // src/app/api/dashboard/emails/all/route.ts - NUEVA RUTA
 import { getAllEmails } from '@/lib/dashboard-service';
 import { NextRequest, NextResponse } from 'next/server';

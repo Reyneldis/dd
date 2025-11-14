@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 // app/api/orders/route.ts
 import {
   createTransporter,
@@ -9,8 +9,6 @@ import { prisma } from '@/lib/prisma';
 import { generateWhatsAppLinks } from '@/lib/whatsapp/service';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-
-export const runtime = 'nodejs';
 
 // Interfaces para los datos de entrada
 interface CheckoutItem {
