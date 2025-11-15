@@ -70,6 +70,7 @@ interface UpdateProductData {
   status?: Status;
   featured?: boolean;
   categoryId?: string;
+  images?: File[];
 }
 
 interface CreateCategoryData {
@@ -337,6 +338,7 @@ export async function createProduct(
   }
 }
 
+// <-- FUNCIÓN updateProduct CORREGIDA PARA MANEJO DE IMÁGENES -->
 export async function updateProduct(
   productId: string,
   productData: UpdateProductData,
@@ -360,12 +362,63 @@ export async function updateProduct(
       }
     }
 
+    // 1. Preparamos los datos para la actualización del producto (texto, precio, etc.)
+    const updateData: any = {
+      productName: productData.productName,
+      slug: productData.slug,
+      price: productData.price,
+      stock: productData.stock,
+      description: productData.description,
+      features: productData.features,
+      status: productData.status,
+      featured: productData.featured,
+      categoryId: productData.categoryId,
+    };
+
+    // 2. MANEJO DE IMÁGENES (La parte clave)
+    // Si se proporcionan nuevas imágenes en la actualización...
+    if (productData.images && productData.images.length > 0) {
+      // a. Borramos todas las imágenes antiguas asociadas a este producto
+      await prisma.productImage.deleteMany({
+        where: { productId: productId },
+      });
+
+      // b. Subimos las nuevas imágenes a Vercel Blob
+      const uploadedImages: { url: string; alt?: string }[] = [];
+      for (const image of productData.images) {
+        if (!image || image.size === 0) continue;
+        const blob = await put(image.name, image, {
+          access: 'public',
+          addRandomSuffix: true,
+        });
+        uploadedImages.push({
+          url: blob.url,
+          alt: productData.productName || 'Imagen de producto',
+        });
+      }
+
+      // c. Añadimos las nuevas imágenes al objeto de actualización
+      updateData.images = {
+        create: uploadedImages.map((img, index) => ({
+          url: img.url,
+          alt: img.alt,
+          sortOrder: index,
+          isPrimary: index === 0, // La primera nueva imagen será la principal
+        })),
+      };
+    }
+    // Si NO se proporcionan nuevas imágenes, no hacemos nada con 'updateData.images',
+    // por lo que las imágenes existentes se mantienen intactas.
+
+    // 3. Ejecutamos la actualización del producto con los datos y las imágenes (si las hay)
     const product = await prisma.product.update({
       where: { id: productId },
-      data: productData,
+      data: updateData,
       include: {
         category: true,
-        images: { orderBy: { sortOrder: 'asc' } },
+        images: {
+          orderBy: { sortOrder: 'asc' },
+        },
         _count: { select: { orderItems: true, reviews: true } },
       },
     });
