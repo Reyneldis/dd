@@ -9,8 +9,7 @@ import {
   User,
 } from '@/types';
 import { OrderStatus, PrismaClient, Role, Status } from '@prisma/client';
-import { mkdir, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob'; // <-- 1. Importación para Vercel Blob
 
 const prisma = new PrismaClient();
 
@@ -125,7 +124,6 @@ export async function getProducts(
 
     const skip = (page - 1) * limit;
 
-    // Construir condiciones de búsqueda
     const whereConditions: Record<string, unknown> = {};
 
     if (status) {
@@ -170,7 +168,6 @@ export async function getProducts(
       prisma.product.count({ where: whereConditions }),
     ]);
 
-    // Serializar productos
     const serializedProducts: Product[] = products.map(product => ({
       id: product.id,
       slug: product.slug,
@@ -182,16 +179,16 @@ export async function getProducts(
       features: product.features,
       status: product.status as 'ACTIVE' | 'INACTIVE',
       featured: product.featured,
-      createdAt: product.createdAt.toISOString(), // Convertir Date a string
-      updatedAt: product.updatedAt.toISOString(), // Convertir Date a string
+      createdAt: product.createdAt.toISOString(),
+      updatedAt: product.updatedAt.toISOString(),
       category: {
         id: product.category.id,
         categoryName: product.category.categoryName,
         slug: product.category.slug,
         description: product.category.description,
         mainImage: product.category.mainImage,
-        createdAt: product.category.createdAt.toISOString(), // Convertir Date a string
-        updatedAt: product.category.updatedAt.toISOString(), // Convertir Date a string
+        createdAt: product.category.createdAt.toISOString(),
+        updatedAt: product.category.updatedAt.toISOString(),
       },
       images: product.images.map(img => ({
         id: img.id,
@@ -200,7 +197,7 @@ export async function getProducts(
         alt: img.alt,
         sortOrder: img.sortOrder,
         isPrimary: img.isPrimary,
-        createdAt: img.createdAt.toISOString(), // Convertir Date a string
+        createdAt: img.createdAt.toISOString(),
       })),
       reviewCount: 0,
       _count: {
@@ -224,38 +221,11 @@ export async function getProducts(
   }
 }
 
-// Función para guardar imágenes localmente
-async function saveImageLocally(
-  image: File,
-  productId: string,
-): Promise<string> {
-  // Crear directorio si no existe
-  const uploadDir = join(process.cwd(), 'public', 'uploads', 'products');
-  try {
-    await mkdir(uploadDir, { recursive: true });
-  } catch (error) {
-    // El directorio ya existe, ignorar error
-    console.log(error);
-  }
-
-  // Generar nombre de archivo único
-  const fileName = `${productId}-${Date.now()}-${image.name}`;
-  const filePath = join(uploadDir, fileName);
-
-  // Guardar archivo
-  const bytes = await image.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  await writeFile(filePath, buffer);
-
-  // Retornar URL pública
-  return `/uploads/products/${fileName}`;
-}
-
+// <-- 2. FUNCIÓN createProduct CORREGIDA CON VERCEL BLOB -->
 export async function createProduct(
   productData: CreateProductData,
 ): Promise<ApiResponse<Product>> {
   try {
-    // Validar que la categoría existe
     const category = await prisma.category.findUnique({
       where: { id: productData.categoryId },
     });
@@ -267,7 +237,6 @@ export async function createProduct(
       };
     }
 
-    // Generar slug si no se proporciona
     const slug =
       productData.slug ||
       productData.productName
@@ -275,8 +244,22 @@ export async function createProduct(
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-    // Crear el producto primero sin imágenes
-    const product = await prisma.product.create({
+    // Subir imágenes a Vercel Blob
+    const uploadedImages: { url: string; alt?: string }[] = [];
+    if (productData.images && productData.images.length > 0) {
+      for (const image of productData.images) {
+        if (!image || image.size === 0) continue;
+        const blob = await put(image.name, image, {
+          access: 'public',
+        });
+        uploadedImages.push({
+          url: blob.url,
+          alt: productData.productName,
+        });
+      }
+    }
+
+    const newProduct = await prisma.product.create({
       data: {
         productName: productData.productName,
         slug,
@@ -287,35 +270,15 @@ export async function createProduct(
         features: productData.features,
         status: productData.status,
         featured: productData.featured,
-      },
-      include: {
-        category: true,
-        images: true,
-      },
-    });
-
-    // Procesar imágenes si existen
-    if (productData.images && productData.images.length > 0) {
-      const imagePromises = productData.images.map(async (image, index) => {
-        const imageUrl = await saveImageLocally(image, product.id);
-
-        return prisma.productImage.create({
-          data: {
-            productId: product.id,
-            url: imageUrl,
-            alt: productData.productName,
+        images: {
+          create: uploadedImages.map((img, index) => ({
+            url: img.url,
+            alt: img.alt || `Imagen de ${productData.productName}`,
             sortOrder: index,
             isPrimary: index === 0,
-          },
-        });
-      });
-
-      await Promise.all(imagePromises);
-    }
-
-    // Recuperar el producto con las imágenes actualizadas
-    const updatedProduct = await prisma.product.findUnique({
-      where: { id: product.id },
+          })),
+        },
+      },
       include: {
         category: true,
         images: {
@@ -325,37 +288,29 @@ export async function createProduct(
       },
     });
 
-    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
-    if (!updatedProduct) {
-      return {
-        success: false,
-        error: 'No se pudo recuperar el producto después de crearlo.',
-      };
-    }
-
     const serializedProduct: Product = {
-      id: updatedProduct.id,
-      slug: updatedProduct.slug,
-      productName: updatedProduct.productName,
-      price: updatedProduct.price,
-      stock: updatedProduct.stock,
-      description: updatedProduct.description,
-      categoryId: updatedProduct.categoryId,
-      features: updatedProduct.features,
-      status: updatedProduct.status,
-      featured: updatedProduct.featured,
-      createdAt: updatedProduct.createdAt.toISOString(),
-      updatedAt: updatedProduct.updatedAt.toISOString(),
+      id: newProduct.id,
+      slug: newProduct.slug,
+      productName: newProduct.productName,
+      price: newProduct.price,
+      stock: newProduct.stock,
+      description: newProduct.description,
+      categoryId: newProduct.categoryId,
+      features: newProduct.features,
+      status: newProduct.status,
+      featured: newProduct.featured,
+      createdAt: newProduct.createdAt.toISOString(),
+      updatedAt: newProduct.updatedAt.toISOString(),
       category: {
-        id: updatedProduct.category.id,
-        categoryName: updatedProduct.category.categoryName,
-        slug: updatedProduct.category.slug,
-        description: updatedProduct.category.description,
-        mainImage: updatedProduct.category.mainImage,
-        createdAt: updatedProduct.category.createdAt.toISOString(),
-        updatedAt: updatedProduct.category.updatedAt.toISOString(),
+        id: newProduct.category.id,
+        categoryName: newProduct.category.categoryName,
+        slug: newProduct.category.slug,
+        description: newProduct.category.description,
+        mainImage: newProduct.category.mainImage,
+        createdAt: newProduct.category.createdAt.toISOString(),
+        updatedAt: newProduct.category.updatedAt.toISOString(),
       },
-      images: updatedProduct.images.map(img => ({
+      images: newProduct.images.map(img => ({
         id: img.id,
         productId: img.productId,
         url: img.url,
@@ -365,16 +320,15 @@ export async function createProduct(
         createdAt: img.createdAt.toISOString(),
       })),
       _count: {
-        reviews: updatedProduct._count.reviews,
-        orderItems: updatedProduct._count.orderItems,
+        reviews: newProduct._count.reviews,
+        orderItems: newProduct._count.orderItems,
       },
     };
 
     return {
       success: true,
-      data: serializedProduct, // <-- Devolvemos el objeto serializado
+      data: serializedProduct,
     };
-    // *** FIN DE LA SOLUCIÓN ***
   } catch (error) {
     console.error('Error creating product:', error);
     return {
@@ -385,34 +339,28 @@ export async function createProduct(
   }
 }
 
+// NOTA: La función updateProduct no maneja la subida de nuevas imágenes por complejidad.
+// Se enfoca en actualizar los datos de texto del producto.
 export async function updateProduct(
   productId: string,
   productData: UpdateProductData,
 ): Promise<ApiResponse<Product>> {
   try {
-    // Verificar que el producto existe
     const existingProduct = await prisma.product.findUnique({
       where: { id: productId },
     });
 
     if (!existingProduct) {
-      return {
-        success: false,
-        error: 'El producto no existe',
-      };
+      return { success: false, error: 'El producto no existe' };
     }
 
-    // Si se actualiza la categoría, verificar que existe
     if (productData.categoryId) {
       const category = await prisma.category.findUnique({
         where: { id: productData.categoryId },
       });
 
       if (!category) {
-        return {
-          success: false,
-          error: 'La categoría especificada no existe',
-        };
+        return { success: false, error: 'La categoría especificada no existe' };
       }
     }
 
@@ -421,14 +369,11 @@ export async function updateProduct(
       data: productData,
       include: {
         category: true,
-        images: {
-          orderBy: { sortOrder: 'asc' },
-        },
+        images: { orderBy: { sortOrder: 'asc' } },
         _count: { select: { orderItems: true, reviews: true } },
       },
     });
 
-    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
     const serializedProduct: Product = {
       id: product.id,
       slug: product.slug,
@@ -466,11 +411,7 @@ export async function updateProduct(
       },
     };
 
-    return {
-      success: true,
-      data: serializedProduct, // <-- Devolvemos el objeto serializado
-    };
-    // *** FIN DE LA SOLUCIÓN ***
+    return { success: true, data: serializedProduct };
   } catch (error) {
     console.error('Error updating product:', error);
     return {
@@ -487,26 +428,17 @@ export async function deleteProduct(
   productId: string,
 ): Promise<ApiResponse<{ success: boolean }>> {
   try {
-    // Verificar que el producto existe
     const existingProduct = await prisma.product.findUnique({
       where: { id: productId },
     });
 
     if (!existingProduct) {
-      return {
-        success: false,
-        error: 'El producto no existe',
-      };
+      return { success: false, error: 'El producto no existe' };
     }
 
-    await prisma.product.delete({
-      where: { id: productId },
-    });
+    await prisma.product.delete({ where: { id: productId } });
 
-    return {
-      success: true,
-      data: { success: true },
-    };
+    return { success: true, data: { success: true } };
   } catch (error) {
     console.error('Error deleting product:', error);
     return {
@@ -544,13 +476,7 @@ export async function getCategories(
       skip: (page - 1) * limit,
       take: limit,
       orderBy: { categoryName: 'asc' },
-      include: {
-        _count: {
-          select: {
-            products: true,
-          },
-        },
-      },
+      include: { _count: { select: { products: true } } },
     });
 
     return categories.map(category => ({
@@ -569,28 +495,7 @@ export async function getCategories(
   }
 }
 
-// Función para guardar imágenes de categorías localmente
-async function saveCategoryImageLocally(
-  image: File,
-  categoryId: string,
-): Promise<string> {
-  const uploadDir = join(process.cwd(), 'public', 'uploads', 'categories');
-  try {
-    await mkdir(uploadDir, { recursive: true });
-  } catch (error) {
-    console.log(error);
-  }
-
-  const fileName = `${categoryId}-${Date.now()}-${image.name}`;
-  const filePath = join(uploadDir, fileName);
-
-  const bytes = await image.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  await writeFile(filePath, buffer);
-
-  return `/uploads/categories/${fileName}`;
-}
-
+// <-- 3. FUNCIÓN createCategory CORREGIDA CON VERCEL BLOB -->
 export async function createCategory(
   categoryData: CreateCategoryData,
 ): Promise<ApiResponse<Category>> {
@@ -613,61 +518,43 @@ export async function createCategory(
       };
     }
 
+    let mainImageUrl: string | undefined;
+
+    if (categoryData.mainImage instanceof File) {
+      const blob = await put(
+        categoryData.mainImage.name,
+        categoryData.mainImage,
+        {
+          access: 'public',
+        },
+      );
+      mainImageUrl = blob.url;
+    } else if (typeof categoryData.mainImage === 'string') {
+      mainImageUrl = categoryData.mainImage;
+    }
+
     const category = await prisma.category.create({
       data: {
         categoryName: categoryData.categoryName,
         slug,
         description: categoryData.description,
+        mainImage: mainImageUrl,
       },
-    });
-
-    if (categoryData.mainImage) {
-      let imageUrl: string;
-
-      if (categoryData.mainImage instanceof File) {
-        imageUrl = await saveCategoryImageLocally(
-          categoryData.mainImage,
-          category.id,
-        );
-      } else {
-        imageUrl = categoryData.mainImage;
-      }
-
-      await prisma.category.update({
-        where: { id: category.id },
-        data: { mainImage: imageUrl },
-      });
-    }
-
-    const updatedCategory = await prisma.category.findUnique({
-      where: { id: category.id },
       include: { _count: { select: { products: true } } },
     });
 
-    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
-    if (!updatedCategory) {
-      return {
-        success: false,
-        error: 'No se pudo recuperar la categoría después de crearla.',
-      };
-    }
-
     const serializedCategory: Category = {
-      id: updatedCategory.id,
-      categoryName: updatedCategory.categoryName,
-      slug: updatedCategory.slug,
-      description: updatedCategory.description,
-      mainImage: updatedCategory.mainImage,
-      createdAt: updatedCategory.createdAt.toISOString(),
-      updatedAt: updatedCategory.updatedAt.toISOString(),
-      _count: updatedCategory._count,
+      id: category.id,
+      categoryName: category.categoryName,
+      slug: category.slug,
+      description: category.description,
+      mainImage: category.mainImage,
+      createdAt: category.createdAt.toISOString(),
+      updatedAt: category.updatedAt.toISOString(),
+      _count: category._count,
     };
 
-    return {
-      success: true,
-      data: serializedCategory, // <-- Devolvemos el objeto serializado
-    };
-    // *** FIN DE LA SOLUCIÓN ***
+    return { success: true, data: serializedCategory };
   } catch (error) {
     console.error('Error creating category:', error);
     return {
@@ -678,6 +565,7 @@ export async function createCategory(
   }
 }
 
+// <-- 4. FUNCIÓN updateCategory CORREGIDA CON VERCEL BLOB -->
 export async function updateCategory(
   categoryId: string,
   categoryData: UpdateCategoryData,
@@ -688,10 +576,7 @@ export async function updateCategory(
     });
 
     if (!existingCategory) {
-      return {
-        success: false,
-        error: 'La categoría no existe',
-      };
+      return { success: false, error: 'La categoría no existe' };
     }
 
     if (categoryData.slug && categoryData.slug !== existingCategory.slug) {
@@ -707,14 +592,12 @@ export async function updateCategory(
       }
     }
 
-    type CategoryUpdateData = {
+    const updateData: {
       categoryName?: string;
       slug?: string;
       description?: string;
       mainImage?: string | null;
-    };
-
-    const updateData: CategoryUpdateData = {
+    } = {
       categoryName: categoryData.categoryName,
       slug: categoryData.slug,
       description: categoryData.description,
@@ -722,10 +605,14 @@ export async function updateCategory(
 
     if (categoryData.mainImage !== undefined) {
       if (categoryData.mainImage instanceof File) {
-        updateData.mainImage = await saveCategoryImageLocally(
+        const blob = await put(
+          categoryData.mainImage.name,
           categoryData.mainImage,
-          categoryId,
+          {
+            access: 'public',
+          },
         );
+        updateData.mainImage = blob.url;
       } else if (categoryData.mainImage === null) {
         updateData.mainImage = null;
       } else {
@@ -739,7 +626,6 @@ export async function updateCategory(
       include: { _count: { select: { products: true } } },
     });
 
-    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
     const serializedCategory: Category = {
       id: category.id,
       categoryName: category.categoryName,
@@ -751,11 +637,7 @@ export async function updateCategory(
       _count: category._count,
     };
 
-    return {
-      success: true,
-      data: serializedCategory, // <-- Devolvemos el objeto serializado
-    };
-    // *** FIN DE LA SOLUCIÓN ***
+    return { success: true, data: serializedCategory };
   } catch (error) {
     console.error('Error updating category:', error);
     return {
@@ -772,32 +654,16 @@ export async function deleteCategory(
   categoryId: string,
 ): Promise<ApiResponse<{ success: boolean }>> {
   try {
-    console.log('Deleting category with ID:', categoryId);
-
     const existingCategory = await prisma.category.findUnique({
       where: { id: categoryId },
-      include: {
-        _count: {
-          select: {
-            products: true,
-          },
-        },
-      },
+      include: { _count: { select: { products: true } } },
     });
 
-    console.log('Existing category:', existingCategory);
-
     if (!existingCategory) {
-      console.error('Category not found');
-      return {
-        success: false,
-        error: 'La categoría no existe',
-      };
+      return { success: false, error: 'La categoría no existe' };
     }
 
-    console.log('Product count:', existingCategory._count.products);
     if (existingCategory._count.products > 0) {
-      console.error('Category has associated products');
       return {
         success: false,
         error:
@@ -805,42 +671,11 @@ export async function deleteCategory(
       };
     }
 
-    const deletedCategory = await prisma.category.delete({
-      where: { id: categoryId },
-    });
+    await prisma.category.delete({ where: { id: categoryId } });
 
-    console.log('Deleted category:', deletedCategory);
-
-    return {
-      success: true,
-      data: { success: true },
-    };
+    return { success: true, data: { success: true } };
   } catch (error) {
-    console.error('Error in deleteCategory service:', error);
-
-    if (error instanceof Error) {
-      console.error('Error message:', error.message);
-      console.error('Error name:', error.name);
-
-      if (error.message.includes('foreign key constraint')) {
-        console.error('Foreign key constraint detected');
-        return {
-          success: false,
-          error:
-            'No se puede eliminar la categoría porque tiene productos asociados',
-        };
-      }
-    }
-
-    if (error && typeof error === 'object' && 'code' in error) {
-      const prismaError = error as {
-        code: string;
-        meta?: Record<string, unknown>;
-      };
-      console.error('Prisma error code:', prismaError.code);
-      console.error('Prisma error meta:', prismaError.meta);
-    }
-
+    console.error('Error deleting category:', error);
     return {
       success: false,
       error:
@@ -851,24 +686,19 @@ export async function deleteCategory(
   }
 }
 
+// ============================================================================
+// FUNCIONES DE USUARIOS
+// ============================================================================
+
 export async function getUserById(userId: string): Promise<ApiResponse<User>> {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        _count: {
-          select: {
-            orders: true,
-          },
-        },
-      },
+      include: { _count: { select: { orders: true } } },
     });
 
     if (!user) {
-      return {
-        success: false,
-        error: 'El usuario no existe',
-      };
+      return { success: false, error: 'El usuario no existe' };
     }
 
     const serializedUser: User = {
@@ -884,15 +714,143 @@ export async function getUserById(userId: string): Promise<ApiResponse<User>> {
       updatedAt: user.updatedAt.toISOString(),
     };
 
-    return {
-      success: true,
-      data: serializedUser,
-    };
+    return { success: true, data: serializedUser };
   } catch (error) {
     console.error('Error fetching user by ID:', error);
+    return { success: false, error: 'Error al obtener el usuario' };
+  }
+}
+
+export async function getUsers(
+  filters: UserFilters = {},
+): Promise<PaginatedResponse<User>> {
+  try {
+    const { search = '', role, isActive, page = 1, limit = 10 } = filters;
+
+    const skip = (page - 1) * limit;
+
+    const whereConditions: Record<string, unknown> = {};
+
+    if (role) {
+      whereConditions.role = role;
+    }
+
+    if (isActive !== undefined) {
+      whereConditions.isActive = isActive;
+    }
+
+    if (search) {
+      whereConditions.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where: whereConditions,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { _count: { select: { orders: true } } },
+      }),
+      prisma.user.count({ where: whereConditions }),
+    ]);
+
+    const serializedUsers: User[] = users.map(user => ({
+      id: user.id,
+      clerkId: user.clerkId,
+      email: user.email,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+      avatar: user.avatar,
+      isActive: user.isActive,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+    }));
+
+    return {
+      data: serializedUsers,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    };
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    throw new Error('Error al obtener los usuarios');
+  }
+}
+
+export async function updateUser(
+  userId: string,
+  userData: UpdateUserData,
+): Promise<ApiResponse<User>> {
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      return { success: false, error: 'El usuario no existe' };
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: userData,
+    });
+
+    const serializedUser: User = {
+      id: user.id,
+      clerkId: user.clerkId,
+      email: user.email,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+      avatar: user.avatar,
+      isActive: user.isActive,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+    };
+
+    return { success: true, data: serializedUser };
+  } catch (error) {
+    console.error('Error updating user:', error);
     return {
       success: false,
-      error: 'Error al obtener el usuario',
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al actualizar el usuario',
+    };
+  }
+}
+
+export async function toggleUserActive(
+  userId: string,
+): Promise<ApiResponse<{ success: boolean }>> {
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      return { success: false, error: 'El usuario no existe' };
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: !existingUser.isActive },
+    });
+
+    return { success: true, data: { success: true } };
+  } catch (error) {
+    console.error('Error toggling user active status:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Error al cambiar el estado del usuario',
     };
   }
 }
@@ -901,14 +859,11 @@ export async function getUserById(userId: string): Promise<ApiResponse<User>> {
 // FUNCIONES DE ÓRDENES
 // ============================================================================
 
-// src/lib/dashboard-service.ts (modificación de la función getOrders)
-
 export async function getOrders(
   filters: OrderFilters = {},
 ): Promise<OrdersResponse> {
   try {
     const { search = '', status, page = 1, limit = 10 } = filters;
-
     const skip = (page - 1) * limit;
 
     const whereConditions: Record<string, unknown> = {};
@@ -997,7 +952,6 @@ export async function getOrders(
       prisma.order.count({ where: whereConditions }),
     ]);
 
-    // Serialización explícita para evitar problemas con las fechas
     const serializedOrders: Order[] = orders.map(order => ({
       id: order.id,
       orderNumber: order.orderNumber,
@@ -1015,7 +969,7 @@ export async function getOrders(
       user: order.user
         ? {
             id: order.user.id,
-            clerkId: '', // No disponible en la consulta actual
+            clerkId: '',
             email: order.user.email,
             firstName: order.user.firstName || '',
             lastName: order.user.lastName || '',
@@ -1102,12 +1056,7 @@ export async function getOrders(
 
     return {
       data: serializedOrders,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     };
   } catch (error) {
     console.error('Error fetching orders:', error);
@@ -1139,15 +1088,9 @@ export async function updateOrderStatus(
       };
     }
 
-    await prisma.order.update({
-      where: { id: orderId },
-      data: { status },
-    });
+    await prisma.order.update({ where: { id: orderId }, data: { status } });
 
-    return {
-      success: true,
-      data: { success: true },
-    };
+    return { success: true, data: { success: true } };
   } catch (error) {
     console.error('Error updating order status:', error);
     return {
@@ -1160,166 +1103,134 @@ export async function updateOrderStatus(
   }
 }
 
-// ============================================================================
-// FUNCIONES DE USUARIOS
-// ============================================================================
-
-export async function getUsers(
-  filters: UserFilters = {},
-): Promise<PaginatedResponse<User>> {
+export async function getOrderById(
+  orderId: string,
+): Promise<ApiResponse<Order>> {
   try {
-    const { search = '', role, isActive, page = 1, limit = 10 } = filters;
-
-    const skip = (page - 1) * limit;
-
-    const whereConditions: Record<string, unknown> = {};
-
-    if (role) {
-      whereConditions.role = role;
-    }
-
-    if (isActive !== undefined) {
-      whereConditions.isActive = isActive;
-    }
-
-    if (search) {
-      whereConditions.OR = [
-        { email: { contains: search, mode: 'insensitive' } },
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const [users, total] = await Promise.all([
-      prisma.user.findMany({
-        where: whereConditions,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          _count: {
-            select: {
-              orders: true,
-            },
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        contactInfo: true,
+        shippingAddress: true,
+        user: true,
+        items: {
+          include: {
+            product: { include: { category: true, images: true } },
           },
         },
-      }),
-      prisma.user.count({ where: whereConditions }),
-    ]);
-
-    const serializedUsers: User[] = users.map(user => ({
-      id: user.id,
-      clerkId: user.clerkId,
-      email: user.email,
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
-      role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
-      avatar: user.avatar,
-      isActive: user.isActive,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    }));
-
-    return {
-      data: serializedUsers,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
       },
-    };
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    throw new Error('Error al obtener los usuarios');
-  }
-}
-
-export async function updateUser(
-  userId: string,
-  userData: UpdateUserData,
-): Promise<ApiResponse<User>> {
-  try {
-    const existingUser = await prisma.user.findUnique({
-      where: { id: userId },
     });
 
-    if (!existingUser) {
-      return {
-        success: false,
-        error: 'El usuario no existe',
-      };
+    if (!order) {
+      return { success: false, error: 'Orden no encontrada' };
     }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: userData,
-    });
-
-    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
-    const serializedUser: User = {
-      id: user.id,
-      clerkId: user.clerkId,
-      email: user.email,
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
-      role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
-      avatar: user.avatar,
-      isActive: user.isActive,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
+    const serializedOrder: Order = {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status as Order['status'],
+      customerEmail: order.customerEmail || undefined,
+      subtotal: order.subtotal,
+      taxAmount: order.taxAmount,
+      shippingAmount: order.shippingAmount,
+      total: order.total,
+      paymentStatus: 'PENDING' as const,
+      paymentMethod: null,
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString(),
+      userId: order.userId || undefined,
+      user: order.user
+        ? {
+            id: order.user.id,
+            clerkId: order.user.clerkId,
+            email: order.user.email,
+            firstName: order.user.firstName || '',
+            lastName: order.user.lastName || '',
+            role: order.user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+            avatar: order.user.avatar,
+            isActive: order.user.isActive,
+            createdAt: order.user.createdAt.toISOString(),
+            updatedAt: order.user.updatedAt.toISOString(),
+          }
+        : null,
+      items: order.items.map(item => ({
+        id: item.id,
+        orderId: item.orderId,
+        productId: item.productId,
+        productName: item.productName || 'Producto sin nombre',
+        productSku: item.productSku || '',
+        price: item.price,
+        quantity: item.quantity,
+        total: item.total,
+        createdAt: item.createdAt.toISOString(),
+        product: {
+          id: item.product.id,
+          slug: item.product.slug,
+          productName: item.product.productName,
+          price: item.product.price,
+          stock: item.product.stock,
+          status: item.product.status as 'ACTIVE' | 'INACTIVE',
+          featured: item.product.featured,
+          description: item.product.description,
+          categoryId: item.product.categoryId,
+          features: item.product.features,
+          createdAt: item.product.createdAt.toISOString(),
+          updatedAt: item.product.updatedAt.toISOString(),
+          category: {
+            id: item.product.category.id,
+            categoryName: item.product.category.categoryName,
+            slug: item.product.category.slug,
+            mainImage: item.product.category.mainImage,
+            description: item.product.category.description,
+            createdAt: item.product.category.createdAt.toISOString(),
+            updatedAt: item.product.category.updatedAt.toISOString(),
+          },
+          images: item.product.images.map(img => ({
+            id: img.id,
+            productId: img.productId,
+            url: img.url,
+            alt: img.alt,
+            sortOrder: img.sortOrder,
+            isPrimary: img.isPrimary,
+            createdAt: img.createdAt.toISOString(),
+          })),
+        },
+      })),
+      contactInfo: order.contactInfo
+        ? {
+            id: order.contactInfo.id,
+            name: order.contactInfo.name,
+            email: order.contactInfo.email,
+            phone: order.contactInfo.phone,
+            createdAt: order.contactInfo.createdAt.toISOString(),
+            updatedAt: order.contactInfo.updatedAt.toISOString(),
+            orderId: order.contactInfo.orderId,
+          }
+        : null,
+      shippingAddress: order.shippingAddress
+        ? {
+            id: order.shippingAddress.id,
+            street: order.shippingAddress.street,
+            city: order.shippingAddress.city,
+            state: order.shippingAddress.state,
+            zip: order.shippingAddress.zip,
+            country: order.shippingAddress.country,
+            createdAt: order.shippingAddress.createdAt.toISOString(),
+            updatedAt: order.shippingAddress.updatedAt.toISOString(),
+            orderId: order.shippingAddress.orderId,
+          }
+        : null,
+      customerName:
+        order.contactInfo?.name ||
+        (order.user
+          ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim()
+          : 'Cliente sin nombre'),
     };
 
-    return {
-      success: true,
-      data: serializedUser, // <-- Devolvemos el objeto serializado
-    };
-    // *** FIN DE LA SOLUCIÓN ***
+    return { success: true, data: serializedOrder };
   } catch (error) {
-    console.error('Error updating user:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Error al actualizar el usuario',
-    };
-  }
-}
-
-export async function toggleUserActive(
-  userId: string,
-): Promise<ApiResponse<{ success: boolean }>> {
-  try {
-    const existingUser = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!existingUser) {
-      return {
-        success: false,
-        error: 'El usuario no existe',
-      };
-    }
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { isActive: !existingUser.isActive },
-    });
-
-    return {
-      success: true,
-      data: { success: true },
-    };
-  } catch (error) {
-    console.error('Error toggling user active status:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Error al cambiar el estado del usuario',
-    };
+    console.error('Error fetching order by ID:', error);
+    return { success: false, error: 'Error al obtener la orden' };
   }
 }
 
@@ -1327,27 +1238,13 @@ export async function toggleUserActive(
 // FUNCIONES DE EMAILS FALLIDOS
 // ============================================================================
 
-// src/lib/dashboard-service.ts - Actualizar la función getFailedEmails
-
 export async function getFailedEmails() {
   try {
-    console.log('Consultando emails fallidos en la base de datos...');
-
     const emails = await prisma.emailMetrics.findMany({
       where: { status: 'failed' },
       orderBy: { timestamp: 'desc' },
-      include: {
-        order: {
-          select: {
-            orderNumber: true,
-          },
-        },
-      },
+      include: { order: { select: { orderNumber: true } } },
     });
-
-    console.log(
-      `Se encontraron ${emails.length} emails fallidos en la base de datos`,
-    );
 
     return emails.map(email => ({
       id: email.id,
@@ -1356,47 +1253,34 @@ export async function getFailedEmails() {
       recipient: email.recipient,
       orderId: email.orderId,
       status: email.status as 'sent' | 'failed' | 'retry' | 'pending',
-      attempts: email.attempt, // Mapear de 'attempt' a 'attempts'
+      attempts: email.attempt,
       error: email.error,
       order: email.order,
     }));
   } catch (error) {
     console.error('Error en getFailedEmails:', error);
-
     if (
       error instanceof Error &&
       error.message.includes('relation "EmailMetrics" does not exist')
     ) {
-      console.error('La tabla EmailMetrics no existe en la base de datos');
       throw new Error(
         'La tabla de métricas de emails no existe. Ejecuta las migraciones de Prisma.',
       );
     }
-
     throw new Error('Error al obtener los emails fallidos');
   }
 }
 
-// src/lib/dashboard-service.ts - Agregar esta nueva función
-
 export async function getAllEmails() {
   try {
-    console.log('Consultando todos los emails en la base de datos...');
-
     const emails = await prisma.emailMetrics.findMany({
       orderBy: { timestamp: 'desc' },
       include: {
         order: {
-          select: {
-            orderNumber: true,
-            total: true,
-            customerEmail: true,
-          },
+          select: { orderNumber: true, total: true, customerEmail: true },
         },
       },
     });
-
-    console.log(`Se encontraron ${emails.length} emails en la base de datos`);
 
     return emails.map(email => ({
       id: email.id,
@@ -1411,45 +1295,23 @@ export async function getAllEmails() {
     }));
   } catch (error) {
     console.error('Error en getAllEmails:', error);
-
     if (
       error instanceof Error &&
       error.message.includes('relation "EmailMetrics" does not exist')
     ) {
-      console.error('La tabla EmailMetrics no existe en la base de datos');
       throw new Error(
         'La tabla de métricas de emails no existe. Ejecuta las migraciones de Prisma.',
       );
     }
-
     throw new Error('Error al obtener los emails');
   }
 }
-// src/lib/dashboard-service.ts
 
-// ... (el resto de tu archivo)
-
-// ============================================================================
-// FUNCIONES DE EMAILS FALLIDOS (VERSIÓN FINAL Y ÚNICA)
-// ============================================================================
-
-// ============================================================================
-// FUNCIONES DE EMAILS FALLIDOS (VERSIÓN FINAL Y ÚNICA)
-// ============================================================================
-
-/**
- * 🎯 Elimina un registro de email fallido.
- * @param id - El ID del registro de email a eliminar.
- * @returns Un objeto ApiResponse con el estado de la operación.
- */
 export async function deleteFailedEmail(
   id: string,
 ): Promise<ApiResponse<{ success: boolean }>> {
   try {
-    await prisma.emailMetrics.delete({
-      where: { id },
-    });
-
+    await prisma.emailMetrics.delete({ where: { id } });
     return {
       success: true,
       data: { success: true },
@@ -1467,11 +1329,6 @@ export async function deleteFailedEmail(
   }
 }
 
-/**
- * 🎯 Intenta reenviar un email fallido.
- * @param id - El ID del registro de email a reintentar.
- * @returns Un objeto ApiResponse con el estado de la operación.
- */
 export async function retryEmail(
   emailId: string,
 ): Promise<ApiResponse<{ success: boolean }>> {
@@ -1479,19 +1336,14 @@ export async function retryEmail(
     const failedEmail = await prisma.emailMetrics.findUnique({
       where: { id: emailId },
     });
-
-    if (!failedEmail) {
-      return { success: false, error: 'Email no encontrado.' };
-    }
+    if (!failedEmail) return { success: false, error: 'Email no encontrado.' };
 
     await prisma.emailMetrics.update({
       where: { id: emailId },
       data: { status: 'retry', attempt: { increment: 1 } },
     });
 
-    // Simulamos que el reintento fue exitoso
     const retrySuccessful = true;
-
     if (retrySuccessful) {
       await prisma.emailMetrics.update({
         where: { id: emailId },
@@ -1519,7 +1371,7 @@ export async function retryEmail(
     };
   }
 }
-// ... (asegúrate de que esté exportada junto a tus otras funciones)
+
 // ============================================================================
 // FUNCIONES DEL DASHBOARD PRINCIPAL
 // ============================================================================
@@ -1601,9 +1453,9 @@ export async function getDashboardStats() {
                 description: true,
                 categoryId: true,
                 features: true,
-                stock: true, // <-- CAMBIO: Añadido
-                status: true, // <-- CAMBIO: Añadido
-                featured: true, // <-- CAMBIO: Añadido
+                stock: true,
+                status: true,
+                featured: true,
                 createdAt: true,
                 updatedAt: true,
                 category: {
@@ -1754,155 +1606,5 @@ export async function getDashboardStats() {
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     throw new Error('Error al obtener las estadísticas del dashboard');
-  }
-}
-
-// ============================================================================
-// FUNCIONES DE UTILIDAD
-// ============================================================================
-
-export async function getOrderById(
-  orderId: string,
-): Promise<ApiResponse<Order>> {
-  try {
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        contactInfo: true,
-        shippingAddress: true,
-        user: true,
-        items: {
-          include: {
-            product: {
-              include: {
-                category: true,
-                images: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!order) {
-      return {
-        success: false,
-        error: 'Orden no encontrada',
-      };
-    }
-
-    const serializedOrder: Order = {
-      id: order.id,
-      orderNumber: order.orderNumber,
-      status: order.status as Order['status'],
-      customerEmail: order.customerEmail || undefined,
-      subtotal: order.subtotal,
-      taxAmount: order.taxAmount,
-      shippingAmount: order.shippingAmount,
-      total: order.total,
-      paymentStatus: 'PENDING' as const,
-      paymentMethod: null,
-      createdAt: order.createdAt.toISOString(),
-      updatedAt: order.updatedAt.toISOString(),
-      userId: order.userId || undefined,
-      user: order.user
-        ? {
-            id: order.user.id,
-            clerkId: order.user.clerkId,
-            email: order.user.email,
-            firstName: order.user.firstName || '',
-            lastName: order.user.lastName || '',
-            role: order.user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
-            avatar: order.user.avatar,
-            isActive: order.user.isActive,
-            createdAt: order.user.createdAt.toISOString(),
-            updatedAt: order.user.updatedAt.toISOString(),
-          }
-        : null,
-      items: order.items.map(item => ({
-        id: item.id,
-        orderId: item.orderId,
-        productId: item.productId,
-        productName: item.productName || 'Producto sin nombre',
-        productSku: item.productSku || '',
-        price: item.price,
-        quantity: item.quantity,
-        total: item.total,
-        createdAt: item.createdAt.toISOString(),
-        product: {
-          id: item.product.id,
-          slug: item.product.slug,
-          productName: item.product.productName,
-          price: item.product.price,
-          stock: item.product.stock,
-          status: item.product.status as 'ACTIVE' | 'INACTIVE',
-          featured: item.product.featured,
-          description: item.product.description,
-          categoryId: item.product.categoryId,
-          features: item.product.features,
-          createdAt: item.product.createdAt.toISOString(),
-          updatedAt: item.product.updatedAt.toISOString(),
-          category: {
-            id: item.product.category.id,
-            categoryName: item.product.category.categoryName,
-            slug: item.product.category.slug,
-            mainImage: item.product.category.mainImage,
-            description: item.product.category.description,
-            createdAt: item.product.category.createdAt.toISOString(),
-            updatedAt: item.product.category.updatedAt.toISOString(),
-          },
-          images: item.product.images.map(img => ({
-            id: img.id,
-            productId: img.productId,
-            url: img.url,
-            alt: img.alt,
-            sortOrder: img.sortOrder,
-            isPrimary: img.isPrimary,
-            createdAt: img.createdAt.toISOString(),
-          })),
-        },
-      })),
-      contactInfo: order.contactInfo
-        ? {
-            id: order.contactInfo.id,
-            name: order.contactInfo.name,
-            email: order.contactInfo.email,
-            phone: order.contactInfo.phone,
-            createdAt: order.contactInfo.createdAt.toISOString(),
-            updatedAt: order.contactInfo.updatedAt.toISOString(),
-            orderId: order.contactInfo.orderId,
-          }
-        : null,
-      shippingAddress: order.shippingAddress
-        ? {
-            id: order.shippingAddress.id,
-            street: order.shippingAddress.street,
-            city: order.shippingAddress.city,
-            state: order.shippingAddress.state,
-            zip: order.shippingAddress.zip,
-            country: order.shippingAddress.country,
-            createdAt: order.shippingAddress.createdAt.toISOString(),
-            updatedAt: order.shippingAddress.updatedAt.toISOString(),
-            orderId: order.shippingAddress.orderId,
-          }
-        : null,
-      customerName:
-        order.contactInfo?.name ||
-        (order.user
-          ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim()
-          : 'Cliente sin nombre'),
-    };
-
-    return {
-      success: true,
-      data: serializedOrder,
-    };
-  } catch (error) {
-    console.error('Error fetching order by ID:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'Error al obtener la orden',
-    };
   }
 }
