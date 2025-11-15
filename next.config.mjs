@@ -9,11 +9,12 @@ const nextConfig = {
       'images.clerk.dev',
       'images.unsplash.com',
       'uploadthing.com',
+      '3urcrfdkc6hfnjsv.public.blob.vercel-storage.com',
     ],
     remotePatterns: [
       {
         protocol: 'http',
-        hostname: 'localhost'
+        hostname: 'localhost',
       },
       {
         protocol: 'https',
