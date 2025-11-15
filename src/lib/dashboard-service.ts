@@ -70,6 +70,7 @@ interface UpdateProductData {
   status?: Status;
   featured?: boolean;
   categoryId?: string;
+  images?: File[];
 }
 
 interface CreateCategoryData {
@@ -337,9 +338,11 @@ export async function createProduct(
   }
 }
 
+// <-- DENTRO de src/lib/dashboard-service.ts, reemplaza la función updateProduct
+
 export async function updateProduct(
   productId: string,
-  productData: UpdateProductData,
+  productData: UpdateProductData, // Asegúrate de que esta interfaz incluya `images?: File[]`
 ): Promise<ApiResponse<Product>> {
   try {
     const existingProduct = await prisma.product.findUnique({
@@ -360,9 +363,54 @@ export async function updateProduct(
       }
     }
 
+    // Preparar los datos para la actualización
+    const updateData: any = {
+      productName: productData.productName,
+      slug: productData.slug,
+      price: productData.price,
+      stock: productData.stock,
+      description: productData.description,
+      features: productData.features,
+      status: productData.status,
+      featured: productData.featured,
+      categoryId: productData.categoryId,
+    };
+
+    // <-- MANEJO DE IMÁGENES: La parte más importante
+    // Si se proporcionan nuevas imágenes, las subimos y reemplazamos las antiguas.
+    if (productData.images && productData.images.length > 0) {
+      const uploadedImages: { url: string; alt?: string }[] = [];
+      for (const image of productData.images) {
+        if (!image || image.size === 0) continue;
+        const blob = await put(image.name, image, {
+          access: 'public',
+          addRandomSuffix: true, // Evita errores de nombre duplicado
+        });
+        uploadedImages.push({
+          url: blob.url,
+          alt: productData.productName || 'Imagen de producto',
+        });
+      }
+
+      // Para simplificar, eliminamos las imágenes antiguas y creamos las nuevas.
+      await prisma.productImage.deleteMany({
+        where: { productId: productId },
+      });
+
+      // Añadimos las nuevas imágenes al objeto de actualización
+      updateData.images = {
+        create: uploadedImages.map((img, index) => ({
+          url: img.url,
+          alt: img.alt || `Imagen de ${productData.productName}`,
+          sortOrder: index,
+          isPrimary: index === 0, // La primera imagen subida será la principal
+        })),
+      };
+    }
+
     const product = await prisma.product.update({
       where: { id: productId },
-      data: productData,
+      data: updateData,
       include: {
         category: true,
         images: {
@@ -421,7 +469,6 @@ export async function updateProduct(
     };
   }
 }
-
 export async function deleteProduct(
   productId: string,
 ): Promise<ApiResponse<{ success: boolean }>> {
