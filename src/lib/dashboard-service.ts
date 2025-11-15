@@ -131,7 +131,6 @@ export async function getProducts(
 
     const skip = (page - 1) * limit;
 
-    // Usamos el tipo específico de Prisma para las consultas
     const whereConditions: Prisma.ProductWhereInput = {};
 
     if (status) {
@@ -356,8 +355,6 @@ export async function updateProduct(
       return { success: false, error: 'El producto no existe' };
     }
 
-    // 1. Preparamos los datos para la actualización del producto (texto, precio, etc.)
-    // Este objeto solo contendrá los campos directos del producto.
     const updateData: Prisma.ProductUpdateInput = {
       productName: productData.productName,
       slug: productData.slug,
@@ -367,12 +364,9 @@ export async function updateProduct(
       features: productData.features,
       status: productData.status,
       featured: productData.featured,
-      // <-- ELIMINAMOS 'categoryId' DE AQUÍ -->
     };
 
-    // <-- CORRECCIÓN CLAVE: Manejar la relación de la categoría por separado -->
     if (productData.categoryId) {
-      // Verificamos que la nueva categoría exista
       const category = await prisma.category.findUnique({
         where: { id: productData.categoryId },
       });
@@ -380,8 +374,6 @@ export async function updateProduct(
       if (!category) {
         return { success: false, error: 'La categoría especificada no existe' };
       }
-
-      // Usamos la sintaxis 'connect' para la relación
       updateData.category = {
         connect: {
           id: productData.categoryId,
@@ -389,17 +381,12 @@ export async function updateProduct(
       };
     }
 
-    // 2. MANEJO DE IMÁGENES (LA PARTE CLAVE Y CORREGIDA)
-    // Verificamos si la propiedad 'images' fue enviada en la petición.
     if (productData.images) {
-      // Caso A: Se enviaron una o más imágenes nuevas.
       if (productData.images.length > 0) {
-        // a. Borramos todas las imágenes antiguas asociadas a este producto.
         await prisma.productImage.deleteMany({
           where: { productId: productId },
         });
 
-        // b. Subimos las nuevas imágenes a Vercel Blob.
         const uploadedImages: { url: string; alt?: string }[] = [];
         for (const image of productData.images) {
           if (!image || image.size === 0) continue;
@@ -413,30 +400,21 @@ export async function updateProduct(
           });
         }
 
-        // c. Añadimos las nuevas imágenes al objeto de actualización.
-        // Esto le dice a Prisma: "crea estas nuevas imágenes para este producto".
         updateData.images = {
           create: uploadedImages.map((img, index) => ({
             url: img.url,
             alt: img.alt,
             sortOrder: index,
-            isPrimary: index === 0, // La primera imagen será la principal
+            isPrimary: index === 0,
           })),
         };
       } else {
-        // Caso B: Se envió un array de imágenes vacío explícitamente (`images: []`).
-        // Esto significa que el usuario NO quiere cambiar las imágenes.
-        // La acción correcta es NO HACER NADA. No añadimos la clave 'images' a 'updateData'.
-        // Así, Prisma ignora la relación y las imágenes existentes se conservan.
         console.log(
           `Se recibió un array de imágenes vacío para el producto ${productId}. No se realizarán cambios en las imágenes.`,
         );
       }
     }
-    // Si 'productData.images' es 'undefined', tampoco hacemos nada, logrando el mismo resultado.
 
-    // 3. Ejecutamos la actualización del producto.
-    // El objeto 'updateData' ahora es seguro y está correctamente tipado.
     const product = await prisma.product.update({
       where: { id: productId },
       data: updateData,
@@ -683,6 +661,7 @@ export async function updateCategory(
       description: categoryData.description,
     };
 
+    // <-- CORRECCIÓN CLAVE PARA MANEJO DE IMÁGENES -->
     if (categoryData.mainImage !== undefined) {
       if (categoryData.mainImage instanceof File) {
         const blob = await put(
@@ -694,7 +673,8 @@ export async function updateCategory(
           },
         );
         updateData.mainImage = blob.url;
-      } else if (categoryData.mainImage === null) {
+      } else if (categoryData.mainImage === 'DELETE') {
+        // <-- MANEJO ESPECÍFICO PARA LA SEÑAL 'DELETE'
         updateData.mainImage = null;
       } else {
         updateData.mainImage = categoryData.mainImage;
@@ -1767,5 +1747,46 @@ export async function getDashboardStats() {
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     throw new Error('Error al obtener las estadísticas del dashboard');
+  }
+}
+
+// ============================================================================
+// FUNCIÓN PARA OBTENER UNA CATEGORÍA POR ID (AÑADIDA)
+// ============================================================================
+
+export async function getCategoryById(
+  categoryId: string,
+): Promise<ApiResponse<Category>> {
+  try {
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        _count: {
+          select: {
+            products: true,
+          },
+        },
+      },
+    });
+
+    if (!category) {
+      return { success: false, error: 'La categoría no existe' };
+    }
+
+    const serializedCategory: Category = {
+      id: category.id,
+      categoryName: category.categoryName,
+      slug: category.slug,
+      description: category.description,
+      mainImage: category.mainImage,
+      createdAt: category.createdAt.toISOString(),
+      updatedAt: category.updatedAt.toISOString(),
+      _count: category._count,
+    };
+
+    return { success: true, data: serializedCategory };
+  } catch (error) {
+    console.error('Error fetching category by ID:', error);
+    return { success: false, error: 'Error al obtener la categoría' };
   }
 }
