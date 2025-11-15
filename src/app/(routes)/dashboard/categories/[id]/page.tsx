@@ -36,10 +36,17 @@ export default function CategoryDetailPage() {
       try {
         setLoading(true);
         const response = await fetch(`/api/dashboard/categories/${categoryId}`);
+
+        // Es una buena práctica verificar si la respuesta fue exitosa
+        if (!response.ok) {
+          throw new Error('Error al obtener la categoría');
+        }
+
         const data = await response.json();
         setCategory(data);
       } catch (error) {
         console.error('Error fetching category:', error);
+        // Opcional: puedes mostrar un toast de error aquí
       } finally {
         setLoading(false);
       }
@@ -82,6 +89,7 @@ export default function CategoryDetailPage() {
           </h1>
         </div>
         <Button asChild>
+          {/* <-- AQUÍ ESTÁ LA CORRECCIÓN */}
           <Link href={`/dashboard/categories/${categoryId}/edit`}>
             <Edit className="mr-2 h-4 w-4" />
             Editar
@@ -103,8 +111,10 @@ export default function CategoryDetailPage() {
               <div className="rounded-md overflow-hidden">
                 <Image
                   src={category.mainImage}
-                  alt={category.categoryName}
-                  className="w-full h-48 object-cover"
+                  alt={category.categoryName || 'Imagen de categoría'}
+                  width={300}
+                  height={300}
+                  className="object-cover rounded-lg"
                 />
               </div>
             ) : (
