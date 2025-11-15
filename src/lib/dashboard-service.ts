@@ -221,7 +221,7 @@ export async function getProducts(
   }
 }
 
-// <-- 2. FUNCIÓN createProduct CORREGIDA CON VERCEL BLOB -->
+// <-- 2. FUNCIÓN createProduct CORREGIDA CON VERCEL BLOB Y addRandomSuffix -->
 export async function createProduct(
   productData: CreateProductData,
 ): Promise<ApiResponse<Product>> {
@@ -251,6 +251,7 @@ export async function createProduct(
         if (!image || image.size === 0) continue;
         const blob = await put(image.name, image, {
           access: 'public',
+          addRandomSuffix: true, // Evita errores de nombre duplicado
         });
         uploadedImages.push({
           url: blob.url,
@@ -325,10 +326,7 @@ export async function createProduct(
       },
     };
 
-    return {
-      success: true,
-      data: serializedProduct,
-    };
+    return { success: true, data: serializedProduct };
   } catch (error) {
     console.error('Error creating product:', error);
     return {
@@ -339,8 +337,6 @@ export async function createProduct(
   }
 }
 
-// NOTA: La función updateProduct no maneja la subida de nuevas imágenes por complejidad.
-// Se enfoca en actualizar los datos de texto del producto.
 export async function updateProduct(
   productId: string,
   productData: UpdateProductData,
@@ -369,7 +365,9 @@ export async function updateProduct(
       data: productData,
       include: {
         category: true,
-        images: { orderBy: { sortOrder: 'asc' } },
+        images: {
+          orderBy: { sortOrder: 'asc' },
+        },
         _count: { select: { orderItems: true, reviews: true } },
       },
     });
@@ -436,7 +434,9 @@ export async function deleteProduct(
       return { success: false, error: 'El producto no existe' };
     }
 
-    await prisma.product.delete({ where: { id: productId } });
+    await prisma.product.delete({
+      where: { id: productId },
+    });
 
     return { success: true, data: { success: true } };
   } catch (error) {
@@ -476,7 +476,13 @@ export async function getCategories(
       skip: (page - 1) * limit,
       take: limit,
       orderBy: { categoryName: 'asc' },
-      include: { _count: { select: { products: true } } },
+      include: {
+        _count: {
+          select: {
+            products: true,
+          },
+        },
+      },
     });
 
     return categories.map(category => ({
@@ -495,7 +501,7 @@ export async function getCategories(
   }
 }
 
-// <-- 3. FUNCIÓN createCategory CORREGIDA CON VERCEL BLOB -->
+// <-- 3. FUNCIÓN createCategory CORREGIDA CON VERCEL BLOB Y addRandomSuffix -->
 export async function createCategory(
   categoryData: CreateCategoryData,
 ): Promise<ApiResponse<Category>> {
@@ -526,6 +532,7 @@ export async function createCategory(
         categoryData.mainImage,
         {
           access: 'public',
+          addRandomSuffix: true, // Evita errores de nombre duplicado
         },
       );
       mainImageUrl = blob.url;
@@ -565,7 +572,7 @@ export async function createCategory(
   }
 }
 
-// <-- 4. FUNCIÓN updateCategory CORREGIDA CON VERCEL BLOB -->
+// <-- 4. FUNCIÓN updateCategory CORREGIDA CON VERCEL BLOB Y addRandomSuffix -->
 export async function updateCategory(
   categoryId: string,
   categoryData: UpdateCategoryData,
@@ -592,12 +599,14 @@ export async function updateCategory(
       }
     }
 
-    const updateData: {
+    type CategoryUpdateData = {
       categoryName?: string;
       slug?: string;
       description?: string;
       mainImage?: string | null;
-    } = {
+    };
+
+    const updateData: CategoryUpdateData = {
       categoryName: categoryData.categoryName,
       slug: categoryData.slug,
       description: categoryData.description,
@@ -610,6 +619,7 @@ export async function updateCategory(
           categoryData.mainImage,
           {
             access: 'public',
+            addRandomSuffix: true, // Evita errores de nombre duplicado
           },
         );
         updateData.mainImage = blob.url;
@@ -656,7 +666,13 @@ export async function deleteCategory(
   try {
     const existingCategory = await prisma.category.findUnique({
       where: { id: categoryId },
-      include: { _count: { select: { products: true } } },
+      include: {
+        _count: {
+          select: {
+            products: true,
+          },
+        },
+      },
     });
 
     if (!existingCategory) {
@@ -671,11 +687,25 @@ export async function deleteCategory(
       };
     }
 
-    await prisma.category.delete({ where: { id: categoryId } });
+    const deletedCategory = await prisma.category.delete({
+      where: { id: categoryId },
+    });
 
     return { success: true, data: { success: true } };
   } catch (error) {
-    console.error('Error deleting category:', error);
+    console.error('Error in deleteCategory service:', error);
+
+    if (
+      error instanceof Error &&
+      error.message.includes('foreign key constraint')
+    ) {
+      return {
+        success: false,
+        error:
+          'No se puede eliminar la categoría porque tiene productos asociados',
+      };
+    }
+
     return {
       success: false,
       error:
@@ -694,7 +724,13 @@ export async function getUserById(userId: string): Promise<ApiResponse<User>> {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { _count: { select: { orders: true } } },
+      include: {
+        _count: {
+          select: {
+            orders: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -753,7 +789,13 @@ export async function getUsers(
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { _count: { select: { orders: true } } },
+        include: {
+          _count: {
+            select: {
+              orders: true,
+            },
+          },
+        },
       }),
       prisma.user.count({ where: whereConditions }),
     ]);
@@ -773,7 +815,12 @@ export async function getUsers(
 
     return {
       data: serializedUsers,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
     };
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -864,6 +911,7 @@ export async function getOrders(
 ): Promise<OrdersResponse> {
   try {
     const { search = '', status, page = 1, limit = 10 } = filters;
+
     const skip = (page - 1) * limit;
 
     const whereConditions: Record<string, unknown> = {};
@@ -1056,7 +1104,12 @@ export async function getOrders(
 
     return {
       data: serializedOrders,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
     };
   } catch (error) {
     console.error('Error fetching orders:', error);
@@ -1088,9 +1141,15 @@ export async function updateOrderStatus(
       };
     }
 
-    await prisma.order.update({ where: { id: orderId }, data: { status } });
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { status },
+    });
 
-    return { success: true, data: { success: true } };
+    return {
+      success: true,
+      data: { success: true },
+    };
   } catch (error) {
     console.error('Error updating order status:', error);
     return {
@@ -1115,7 +1174,12 @@ export async function getOrderById(
         user: true,
         items: {
           include: {
-            product: { include: { category: true, images: true } },
+            product: {
+              include: {
+                category: true,
+                images: true,
+              },
+            },
           },
         },
       },
@@ -1230,7 +1294,11 @@ export async function getOrderById(
     return { success: true, data: serializedOrder };
   } catch (error) {
     console.error('Error fetching order by ID:', error);
-    return { success: false, error: 'Error al obtener la orden' };
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Error al obtener la orden',
+    };
   }
 }
 
@@ -1240,10 +1308,18 @@ export async function getOrderById(
 
 export async function getFailedEmails() {
   try {
+    console.log('Consultando emails fallidos en la base de datos...');
+
     const emails = await prisma.emailMetrics.findMany({
       where: { status: 'failed' },
       orderBy: { timestamp: 'desc' },
-      include: { order: { select: { orderNumber: true } } },
+      include: {
+        order: {
+          select: {
+            orderNumber: true,
+          },
+        },
+      },
     });
 
     return emails.map(email => ({
@@ -1259,25 +1335,34 @@ export async function getFailedEmails() {
     }));
   } catch (error) {
     console.error('Error en getFailedEmails:', error);
+
     if (
       error instanceof Error &&
       error.message.includes('relation "EmailMetrics" does not exist')
     ) {
+      console.error('La tabla EmailMetrics no existe en la base de datos');
       throw new Error(
         'La tabla de métricas de emails no existe. Ejecuta las migraciones de Prisma.',
       );
     }
+
     throw new Error('Error al obtener los emails fallidos');
   }
 }
 
 export async function getAllEmails() {
   try {
+    console.log('Consultando todos los emails en la base de datos...');
+
     const emails = await prisma.emailMetrics.findMany({
       orderBy: { timestamp: 'desc' },
       include: {
         order: {
-          select: { orderNumber: true, total: true, customerEmail: true },
+          select: {
+            orderNumber: true,
+            total: true,
+            customerEmail: true,
+          },
         },
       },
     });
@@ -1295,14 +1380,17 @@ export async function getAllEmails() {
     }));
   } catch (error) {
     console.error('Error en getAllEmails:', error);
+
     if (
       error instanceof Error &&
       error.message.includes('relation "EmailMetrics" does not exist')
     ) {
+      console.error('La tabla EmailMetrics no existe en la base de datos');
       throw new Error(
         'La tabla de métricas de emails no existe. Ejecuta las migraciones de Prisma.',
       );
     }
+
     throw new Error('Error al obtener los emails');
   }
 }
@@ -1311,7 +1399,10 @@ export async function deleteFailedEmail(
   id: string,
 ): Promise<ApiResponse<{ success: boolean }>> {
   try {
-    await prisma.emailMetrics.delete({ where: { id } });
+    await prisma.emailMetrics.delete({
+      where: { id },
+    });
+
     return {
       success: true,
       data: { success: true },
@@ -1336,7 +1427,10 @@ export async function retryEmail(
     const failedEmail = await prisma.emailMetrics.findUnique({
       where: { id: emailId },
     });
-    if (!failedEmail) return { success: false, error: 'Email no encontrado.' };
+
+    if (!failedEmail) {
+      return { success: false, error: 'Email no encontrado.' };
+    }
 
     await prisma.emailMetrics.update({
       where: { id: emailId },
@@ -1344,6 +1438,7 @@ export async function retryEmail(
     });
 
     const retrySuccessful = true;
+
     if (retrySuccessful) {
       await prisma.emailMetrics.update({
         where: { id: emailId },
