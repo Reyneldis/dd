@@ -8,8 +8,14 @@ import {
   Product,
   User,
 } from '@/types';
-import { OrderStatus, PrismaClient, Role, Status } from '@prisma/client';
-import { put } from '@vercel/blob'; // <-- 1. Importación para Vercel Blob
+import {
+  OrderStatus,
+  Prisma,
+  PrismaClient,
+  Role,
+  Status,
+} from '@prisma/client';
+import { put } from '@vercel/blob';
 
 const prisma = new PrismaClient();
 
@@ -49,7 +55,7 @@ interface CategoryFilters {
 
 interface CreateProductData {
   productName: string;
-  slug: string;
+  slug?: string;
   price: number;
   stock: number;
   description?: string;
@@ -75,7 +81,7 @@ interface UpdateProductData {
 
 interface CreateCategoryData {
   categoryName: string;
-  slug: string;
+  slug?: string;
   description?: string;
   mainImage?: File | string;
 }
@@ -84,7 +90,7 @@ interface UpdateCategoryData {
   categoryName?: string;
   slug?: string;
   description?: string;
-  mainImage?: File | string | null; // Permitir null para eliminar la imagen
+  mainImage?: File | string | null;
 }
 
 interface UpdateUserData {
@@ -125,7 +131,8 @@ export async function getProducts(
 
     const skip = (page - 1) * limit;
 
-    const whereConditions: Record<string, unknown> = {};
+    // Usamos el tipo específico de Prisma para las consultas
+    const whereConditions: Prisma.ProductWhereInput = {};
 
     if (status) {
       whereConditions.status = status;
@@ -222,7 +229,6 @@ export async function getProducts(
   }
 }
 
-// <-- 2. FUNCIÓN createProduct CORREGIDA CON VERCEL BLOB -->
 export async function createProduct(
   productData: CreateProductData,
 ): Promise<ApiResponse<Product>> {
@@ -245,14 +251,13 @@ export async function createProduct(
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-    // Subir imágenes a Vercel Blob
     const uploadedImages: { url: string; alt?: string }[] = [];
     if (productData.images && productData.images.length > 0) {
       for (const image of productData.images) {
         if (!image || image.size === 0) continue;
         const blob = await put(image.name, image, {
           access: 'public',
-          addRandomSuffix: true, // Evita errores de nombre duplicado
+          addRandomSuffix: true,
         });
         uploadedImages.push({
           url: blob.url,
@@ -277,7 +282,7 @@ export async function createProduct(
             url: img.url,
             alt: img.alt || `Imagen de ${productData.productName}`,
             sortOrder: index,
-            isPrimary: index === 0, // La primera imagen es la principal
+            isPrimary: index === 0,
           })),
         },
       },
@@ -338,7 +343,6 @@ export async function createProduct(
   }
 }
 
-// <-- FUNCIÓN updateProduct CORREGIDA PARA MANEJO DE IMÁGENES -->
 export async function updateProduct(
   productId: string,
   productData: UpdateProductData,
@@ -352,18 +356,9 @@ export async function updateProduct(
       return { success: false, error: 'El producto no existe' };
     }
 
-    if (productData.categoryId) {
-      const category = await prisma.category.findUnique({
-        where: { id: productData.categoryId },
-      });
-
-      if (!category) {
-        return { success: false, error: 'La categoría especificada no existe' };
-      }
-    }
-
     // 1. Preparamos los datos para la actualización del producto (texto, precio, etc.)
-    const updateData: any = {
+    // Este objeto solo contendrá los campos directos del producto.
+    const updateData: Prisma.ProductUpdateInput = {
       productName: productData.productName,
       slug: productData.slug,
       price: productData.price,
@@ -372,45 +367,76 @@ export async function updateProduct(
       features: productData.features,
       status: productData.status,
       featured: productData.featured,
-      categoryId: productData.categoryId,
+      // <-- ELIMINAMOS 'categoryId' DE AQUÍ -->
     };
 
-    // 2. MANEJO DE IMÁGENES (La parte clave)
-    // Si se proporcionan nuevas imágenes en la actualización...
-    if (productData.images && productData.images.length > 0) {
-      // a. Borramos todas las imágenes antiguas asociadas a este producto
-      await prisma.productImage.deleteMany({
-        where: { productId: productId },
+    // <-- CORRECCIÓN CLAVE: Manejar la relación de la categoría por separado -->
+    if (productData.categoryId) {
+      // Verificamos que la nueva categoría exista
+      const category = await prisma.category.findUnique({
+        where: { id: productData.categoryId },
       });
 
-      // b. Subimos las nuevas imágenes a Vercel Blob
-      const uploadedImages: { url: string; alt?: string }[] = [];
-      for (const image of productData.images) {
-        if (!image || image.size === 0) continue;
-        const blob = await put(image.name, image, {
-          access: 'public',
-          addRandomSuffix: true,
-        });
-        uploadedImages.push({
-          url: blob.url,
-          alt: productData.productName || 'Imagen de producto',
-        });
+      if (!category) {
+        return { success: false, error: 'La categoría especificada no existe' };
       }
 
-      // c. Añadimos las nuevas imágenes al objeto de actualización
-      updateData.images = {
-        create: uploadedImages.map((img, index) => ({
-          url: img.url,
-          alt: img.alt,
-          sortOrder: index,
-          isPrimary: index === 0, // La primera nueva imagen será la principal
-        })),
+      // Usamos la sintaxis 'connect' para la relación
+      updateData.category = {
+        connect: {
+          id: productData.categoryId,
+        },
       };
     }
-    // Si NO se proporcionan nuevas imágenes, no hacemos nada con 'updateData.images',
-    // por lo que las imágenes existentes se mantienen intactas.
 
-    // 3. Ejecutamos la actualización del producto con los datos y las imágenes (si las hay)
+    // 2. MANEJO DE IMÁGENES (LA PARTE CLAVE Y CORREGIDA)
+    // Verificamos si la propiedad 'images' fue enviada en la petición.
+    if (productData.images) {
+      // Caso A: Se enviaron una o más imágenes nuevas.
+      if (productData.images.length > 0) {
+        // a. Borramos todas las imágenes antiguas asociadas a este producto.
+        await prisma.productImage.deleteMany({
+          where: { productId: productId },
+        });
+
+        // b. Subimos las nuevas imágenes a Vercel Blob.
+        const uploadedImages: { url: string; alt?: string }[] = [];
+        for (const image of productData.images) {
+          if (!image || image.size === 0) continue;
+          const blob = await put(image.name, image, {
+            access: 'public',
+            addRandomSuffix: true,
+          });
+          uploadedImages.push({
+            url: blob.url,
+            alt: productData.productName || 'Imagen de producto',
+          });
+        }
+
+        // c. Añadimos las nuevas imágenes al objeto de actualización.
+        // Esto le dice a Prisma: "crea estas nuevas imágenes para este producto".
+        updateData.images = {
+          create: uploadedImages.map((img, index) => ({
+            url: img.url,
+            alt: img.alt,
+            sortOrder: index,
+            isPrimary: index === 0, // La primera imagen será la principal
+          })),
+        };
+      } else {
+        // Caso B: Se envió un array de imágenes vacío explícitamente (`images: []`).
+        // Esto significa que el usuario NO quiere cambiar las imágenes.
+        // La acción correcta es NO HACER NADA. No añadimos la clave 'images' a 'updateData'.
+        // Así, Prisma ignora la relación y las imágenes existentes se conservan.
+        console.log(
+          `Se recibió un array de imágenes vacío para el producto ${productId}. No se realizarán cambios en las imágenes.`,
+        );
+      }
+    }
+    // Si 'productData.images' es 'undefined', tampoco hacemos nada, logrando el mismo resultado.
+
+    // 3. Ejecutamos la actualización del producto.
+    // El objeto 'updateData' ahora es seguro y está correctamente tipado.
     const product = await prisma.product.update({
       where: { id: productId },
       data: updateData,
@@ -512,7 +538,7 @@ export async function getCategories(
   try {
     const { search = '', page = 1, limit = 50 } = filters;
 
-    const whereConditions: Record<string, unknown> = {};
+    const whereConditions: Prisma.CategoryWhereInput = {};
 
     if (search) {
       whereConditions.OR = [
@@ -552,7 +578,6 @@ export async function getCategories(
   }
 }
 
-// <-- 3. FUNCIÓN createCategory CORREGIDA CON VERCEL BLOB -->
 export async function createCategory(
   categoryData: CreateCategoryData,
 ): Promise<ApiResponse<Category>> {
@@ -583,7 +608,7 @@ export async function createCategory(
         categoryData.mainImage,
         {
           access: 'public',
-          addRandomSuffix: true, // Evita errores de nombre duplicado
+          addRandomSuffix: true,
         },
       );
       mainImageUrl = blob.url;
@@ -626,7 +651,6 @@ export async function createCategory(
   }
 }
 
-// <-- 4. FUNCIÓN updateCategory CORREGIDA CON TIPO EXPLÍCITO Y VERCEL BLOB -->
 export async function updateCategory(
   categoryId: string,
   categoryData: UpdateCategoryData,
@@ -653,15 +677,7 @@ export async function updateCategory(
       }
     }
 
-    // <-- CORRECCIÓN CLAVE: Definir tipo explícito para evitar 'any'
-    type CategoryUpdateData = {
-      categoryName?: string;
-      slug?: string;
-      description?: string;
-      mainImage?: string | null;
-    };
-
-    const updateData: CategoryUpdateData = {
+    const updateData: Prisma.CategoryUpdateInput = {
       categoryName: categoryData.categoryName,
       slug: categoryData.slug,
       description: categoryData.description,
@@ -674,7 +690,7 @@ export async function updateCategory(
           categoryData.mainImage,
           {
             access: 'public',
-            addRandomSuffix: true, // Evita errores de nombre duplicado
+            addRandomSuffix: true,
           },
         );
         updateData.mainImage = blob.url;
@@ -702,10 +718,7 @@ export async function updateCategory(
       _count: category._count,
     };
 
-    return {
-      success: true,
-      data: serializedCategory,
-    };
+    return { success: true, data: serializedCategory };
   } catch (error) {
     console.error('Error updating category:', error);
     return {
@@ -823,7 +836,7 @@ export async function getUsers(
 
     const skip = (page - 1) * limit;
 
-    const whereConditions: Record<string, unknown> = {};
+    const whereConditions: Prisma.UserWhereInput = {};
 
     if (role) {
       whereConditions.role = role;
@@ -972,7 +985,7 @@ export async function getOrders(
 
     const skip = (page - 1) * limit;
 
-    const whereConditions: Record<string, unknown> = {};
+    const whereConditions: Prisma.OrderWhereInput = {};
 
     if (status) {
       whereConditions.status = status;
@@ -1490,7 +1503,6 @@ export async function retryEmail(
       data: { status: 'retry', attempt: { increment: 1 } },
     });
 
-    // Simulamos que el reintento fue exitoso
     const retrySuccessful = true;
 
     if (retrySuccessful) {
