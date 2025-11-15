@@ -70,7 +70,6 @@ interface UpdateProductData {
   status?: Status;
   featured?: boolean;
   categoryId?: string;
-  images?: File[];
 }
 
 interface CreateCategoryData {
@@ -222,7 +221,7 @@ export async function getProducts(
   }
 }
 
-// <-- 2. FUNCIÓN createProduct CORREGIDA CON VERCEL BLOB Y addRandomSuffix -->
+// <-- 2. FUNCIÓN createProduct CORREGIDA CON VERCEL BLOB -->
 export async function createProduct(
   productData: CreateProductData,
 ): Promise<ApiResponse<Product>> {
@@ -277,7 +276,7 @@ export async function createProduct(
             url: img.url,
             alt: img.alt || `Imagen de ${productData.productName}`,
             sortOrder: index,
-            isPrimary: index === 0,
+            isPrimary: index === 0, // La primera imagen es la principal
           })),
         },
       },
@@ -338,11 +337,9 @@ export async function createProduct(
   }
 }
 
-// <-- DENTRO de src/lib/dashboard-service.ts, reemplaza la función updateProduct
-
 export async function updateProduct(
   productId: string,
-  productData: UpdateProductData, // Asegúrate de que esta interfaz incluya `images?: File[]`
+  productData: UpdateProductData,
 ): Promise<ApiResponse<Product>> {
   try {
     const existingProduct = await prisma.product.findUnique({
@@ -363,59 +360,12 @@ export async function updateProduct(
       }
     }
 
-    // Preparar los datos para la actualización
-    const updateData: any = {
-      productName: productData.productName,
-      slug: productData.slug,
-      price: productData.price,
-      stock: productData.stock,
-      description: productData.description,
-      features: productData.features,
-      status: productData.status,
-      featured: productData.featured,
-      categoryId: productData.categoryId,
-    };
-
-    // <-- MANEJO DE IMÁGENES: La parte más importante
-    // Si se proporcionan nuevas imágenes, las subimos y reemplazamos las antiguas.
-    if (productData.images && productData.images.length > 0) {
-      const uploadedImages: { url: string; alt?: string }[] = [];
-      for (const image of productData.images) {
-        if (!image || image.size === 0) continue;
-        const blob = await put(image.name, image, {
-          access: 'public',
-          addRandomSuffix: true, // Evita errores de nombre duplicado
-        });
-        uploadedImages.push({
-          url: blob.url,
-          alt: productData.productName || 'Imagen de producto',
-        });
-      }
-
-      // Para simplificar, eliminamos las imágenes antiguas y creamos las nuevas.
-      await prisma.productImage.deleteMany({
-        where: { productId: productId },
-      });
-
-      // Añadimos las nuevas imágenes al objeto de actualización
-      updateData.images = {
-        create: uploadedImages.map((img, index) => ({
-          url: img.url,
-          alt: img.alt || `Imagen de ${productData.productName}`,
-          sortOrder: index,
-          isPrimary: index === 0, // La primera imagen subida será la principal
-        })),
-      };
-    }
-
     const product = await prisma.product.update({
       where: { id: productId },
-      data: updateData,
+      data: productData,
       include: {
         category: true,
-        images: {
-          orderBy: { sortOrder: 'asc' },
-        },
+        images: { orderBy: { sortOrder: 'asc' } },
         _count: { select: { orderItems: true, reviews: true } },
       },
     });
@@ -469,6 +419,7 @@ export async function updateProduct(
     };
   }
 }
+
 export async function deleteProduct(
   productId: string,
 ): Promise<ApiResponse<{ success: boolean }>> {
@@ -548,7 +499,7 @@ export async function getCategories(
   }
 }
 
-// <-- 3. FUNCIÓN createCategory CORREGIDA CON VERCEL BLOB Y addRandomSuffix -->
+// <-- 3. FUNCIÓN createCategory CORREGIDA CON VERCEL BLOB -->
 export async function createCategory(
   categoryData: CreateCategoryData,
 ): Promise<ApiResponse<Category>> {
@@ -608,7 +559,10 @@ export async function createCategory(
       _count: category._count,
     };
 
-    return { success: true, data: serializedCategory };
+    return {
+      success: true,
+      data: serializedCategory,
+    };
   } catch (error) {
     console.error('Error creating category:', error);
     return {
@@ -619,7 +573,7 @@ export async function createCategory(
   }
 }
 
-// <-- 4. FUNCIÓN updateCategory CORREGIDA CON VERCEL BLOB Y addRandomSuffix -->
+// <-- 4. FUNCIÓN updateCategory CORREGIDA CON TIPO EXPLÍCITO Y VERCEL BLOB -->
 export async function updateCategory(
   categoryId: string,
   categoryData: UpdateCategoryData,
@@ -646,6 +600,7 @@ export async function updateCategory(
       }
     }
 
+    // <-- CORRECCIÓN CLAVE: Definir tipo explícito para evitar 'any'
     type CategoryUpdateData = {
       categoryName?: string;
       slug?: string;
@@ -694,7 +649,10 @@ export async function updateCategory(
       _count: category._count,
     };
 
-    return { success: true, data: serializedCategory };
+    return {
+      success: true,
+      data: serializedCategory,
+    };
   } catch (error) {
     console.error('Error updating category:', error);
     return {
@@ -734,7 +692,7 @@ export async function deleteCategory(
       };
     }
 
-    const deletedCategory = await prisma.category.delete({
+    await prisma.category.delete({
       where: { id: categoryId },
     });
 
@@ -1221,12 +1179,7 @@ export async function getOrderById(
         user: true,
         items: {
           include: {
-            product: {
-              include: {
-                category: true,
-                images: true,
-              },
-            },
+            product: { include: { category: true, images: true } },
           },
         },
       },
@@ -1484,6 +1437,7 @@ export async function retryEmail(
       data: { status: 'retry', attempt: { increment: 1 } },
     });
 
+    // Simulamos que el reintento fue exitoso
     const retrySuccessful = true;
 
     if (retrySuccessful) {
