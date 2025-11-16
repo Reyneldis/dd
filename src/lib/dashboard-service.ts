@@ -655,13 +655,14 @@ export async function updateCategory(
       }
     }
 
+    // Usamos el tipo específico de Prisma para la actualización
     const updateData: Prisma.CategoryUpdateInput = {
       categoryName: categoryData.categoryName,
       slug: categoryData.slug,
       description: categoryData.description,
     };
 
-    // <-- CORRECCIÓN CLAVE PARA MANEJO DE IMÁGENES -->
+    // Manejo especial para la imagen
     if (categoryData.mainImage !== undefined) {
       if (categoryData.mainImage instanceof File) {
         const blob = await put(
@@ -674,9 +675,10 @@ export async function updateCategory(
         );
         updateData.mainImage = blob.url;
       } else if (categoryData.mainImage === 'DELETE') {
-        // <-- MANEJO ESPECÍFICO PARA LA SEÑAL 'DELETE'
+        // Si se envía la señal 'DELETE', eliminamos la imagen de la base de datos
         updateData.mainImage = null;
-      } else {
+      } else if (typeof categoryData.mainImage === 'string') {
+        // Si es un string (URL existente), lo mantenemos
         updateData.mainImage = categoryData.mainImage;
       }
     }
@@ -710,6 +712,8 @@ export async function updateCategory(
     };
   }
 }
+
+// ... (el resto de tu archivo dashboard-service.ts)
 
 export async function deleteCategory(
   categoryId: string,

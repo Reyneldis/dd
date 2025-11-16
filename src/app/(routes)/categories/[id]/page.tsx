@@ -126,9 +126,9 @@ export default async function CategoryPage({
   const totalPages = Math.ceil(totalProducts / pageSize);
   const priceRanges = [
     { label: 'Todos', value: 'all' },
-    { label: '0 - 50', value: '0-50' },
-    { label: '50 - 100', value: '50-100' },
-    { label: '100 - 150', value: '100-150' },
+    { label: '0-50', value: '0-50' },
+    { label: '50-100', value: '50-100' },
+    { label: '100-150', value: '100-150' },
     { label: '150+', value: '150-' },
   ];
 
