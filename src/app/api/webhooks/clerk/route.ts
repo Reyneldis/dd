@@ -3,9 +3,24 @@ import { prisma } from '@/lib/prisma';
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+// Definir tipos para los datos de Clerk
+interface ClerkUserWebhook {
+  id: string;
+  email_addresses: Array<{
+    email_address: string;
+    id: string;
+    verification: {
+      status: string;
+      strategy: string;
+    };
+  }>;
+  first_name: string | null;
+  last_name: string | null;
+  image_url: string | null;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // CORRECCIÓN: Agregar await a headers()
     const headerList = await headers();
     const svixId = headerList.get('svix-id');
     const svixTimestamp = headerList.get('svix-timestamp');
@@ -21,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     // Por ahora, aceptamos el webhook sin verificación estricta
     const eventType = payload.type;
-    const eventData = payload.data;
+    const eventData = payload.data as ClerkUserWebhook;
 
     if (eventType === 'user.created') {
       await handleUserCreated(eventData);
@@ -36,7 +51,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function handleUserCreated(userData: any) {
+async function handleUserCreated(userData: ClerkUserWebhook) {
   try {
     console.log('Creating user from webhook:', userData.id);
 
@@ -47,7 +62,7 @@ async function handleUserCreated(userData: any) {
         firstName: userData.first_name || '',
         lastName: userData.last_name || '',
         avatar: userData.image_url,
-        role: 'USER',
+        role: 'USER', // Rol por defecto
         isActive: true,
       },
     });
@@ -58,7 +73,7 @@ async function handleUserCreated(userData: any) {
   }
 }
 
-async function handleUserUpdated(userData: any) {
+async function handleUserUpdated(userData: ClerkUserWebhook) {
   try {
     console.log('Updating user from webhook:', userData.id);
 
