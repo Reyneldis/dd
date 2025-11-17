@@ -56,7 +56,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      className="fixed inset-0 z-50 flex  justify-center sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cart-modal-title"
