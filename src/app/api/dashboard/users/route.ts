@@ -1,7 +1,6 @@
-export const runtime = 'nodejs';
 // src/app/api/dashboard/users/route.ts
 import { getUsers } from '@/lib/dashboard-service';
-import { Role } from '@prisma/client'; // Importar el enum Role
+import { Role } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -38,7 +37,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Eliminamos el POST porque los usuarios no se crean manualmente
 export async function POST(_request: NextRequest) {
-  // Implementación futura para crear usuarios
-  return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
+  return NextResponse.json(
+    { error: 'Los usuarios se crean a través del registro en la web' },
+    { status: 405 },
+  );
 }

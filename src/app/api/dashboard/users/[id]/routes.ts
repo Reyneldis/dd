@@ -1,3 +1,5 @@
+// src/app/api/dashboard/users/[id]/route.ts
+import { requireRole } from '@/lib/auth-guard';
 import {
   getUserById,
   toggleUserActive,
@@ -29,6 +31,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Verificar permisos de administrador
+    await requireRole(['ADMIN', 'SUPER_ADMIN']);
+
     const { id } = await params;
     const body = await request.json();
 
@@ -41,6 +46,12 @@ export async function PUT(
     return NextResponse.json(result.data);
   } catch (error) {
     console.error('Error updating user:', error);
+
+    // Manejar el error de autenticación
+    if (error instanceof NextResponse) {
+      return error;
+    }
+
     return NextResponse.json({ error: 'Error updating user' }, { status: 500 });
   }
 }
@@ -50,6 +61,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Verificar permisos de administrador
+    await requireRole(['ADMIN', 'SUPER_ADMIN']);
+
     const { id } = await params;
     const result = await toggleUserActive(id);
 
@@ -63,6 +77,12 @@ export async function DELETE(
     });
   } catch (error) {
     console.error('Error deleting user:', error);
+
+    // Manejar el error de autenticación
+    if (error instanceof NextResponse) {
+      return error;
+    }
+
     return NextResponse.json({ error: 'Error deleting user' }, { status: 500 });
   }
 }

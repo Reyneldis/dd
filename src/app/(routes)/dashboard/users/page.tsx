@@ -29,10 +29,10 @@ import {
   Edit,
   Eye,
   MoreHorizontal,
-  Plus,
   Search,
-  Trash2,
+  UserCheck,
   User as UserIcon,
+  UserX,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -41,7 +41,7 @@ import { toast } from 'sonner';
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
@@ -80,9 +80,9 @@ export default function UsersPage() {
     fetchUsers();
   }, [searchTerm, pagination.page, pagination.limit]);
 
-  // Eliminar usuario (desactivar)
-  const handleDeleteUser = async (id: string) => {
-    setDeletingId(id);
+  // Activar/Desactivar usuario
+  const handleToggleUserActive = async (id: string) => {
+    setTogglingId(id);
 
     try {
       const response = await fetch(`/api/dashboard/users/${id}`, {
@@ -92,16 +92,23 @@ export default function UsersPage() {
       const result = await response.json();
 
       if (response.ok) {
-        setUsers(users.filter(user => user.id !== id));
-        toast.success(result.message || 'Usuario desactivado correctamente');
+        // Actualizar el estado del usuario en la lista
+        setUsers(
+          users.map(user =>
+            user.id === id ? { ...user, isActive: !user.isActive } : user,
+          ),
+        );
+        toast.success(result.message || 'Estado del usuario actualizado');
       } else {
-        toast.error(result.error || 'Error al desactivar el usuario');
+        toast.error(
+          result.error || 'Error al actualizar el estado del usuario',
+        );
       }
     } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error('Error de conexión al desactivar el usuario');
+      console.error('Error toggling user:', error);
+      toast.error('Error de conexión al actualizar el estado del usuario');
     } finally {
-      setDeletingId(null);
+      setTogglingId(null);
     }
   };
 
@@ -112,14 +119,11 @@ export default function UsersPage() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
             Gestión de Usuarios
           </h1>
-          <p className="text-gray-500">Administra los usuarios de tu tienda</p>
+          <p className="text-gray-500">
+            Administra los usuarios registrados en tu tienda
+          </p>
         </div>
-        <Button asChild className="mt-4 md:mt-0 w-full md:w-auto">
-          <Link href="/dashboard/users/create">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Usuario
-          </Link>
-        </Button>
+        {/* Eliminamos el botón de Nuevo Usuario */}
       </div>
 
       {/* Filtros */}
@@ -174,11 +178,18 @@ export default function UsersPage() {
                         {user.email}
                       </CardDescription>
                     </div>
-                    <Badge
-                      variant={user.role === 'ADMIN' ? 'default' : 'secondary'}
-                    >
-                      {user.role}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-2">
+                      <Badge
+                        variant={
+                          user.role === 'ADMIN' ? 'default' : 'secondary'
+                        }
+                      >
+                        {user.role}
+                      </Badge>
+                      <Badge variant={user.isActive ? 'default' : 'secondary'}>
+                        {user.isActive ? 'Activo' : 'Inactivo'}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -206,19 +217,30 @@ export default function UsersPage() {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="text-red-600"
-                          disabled={deletingId === user.id}
+                          onClick={() => handleToggleUserActive(user.id)}
+                          className={
+                            user.isActive ? 'text-orange-600' : 'text-green-600'
+                          }
+                          disabled={togglingId === user.id}
                         >
-                          {deletingId === user.id ? (
+                          {togglingId === user.id ? (
                             <>
                               <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              Desactivando...
+                              Actualizando...
                             </>
                           ) : (
                             <>
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Desactivar
+                              {user.isActive ? (
+                                <>
+                                  <UserX className="mr-2 h-4 w-4" />
+                                  Desactivar
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="mr-2 h-4 w-4" />
+                                  Activar
+                                </>
+                              )}
                             </>
                           )}
                         </DropdownMenuItem>
@@ -240,7 +262,7 @@ export default function UsersPage() {
             Usuarios ({users.length})
           </CardTitle>
           <CardDescription>
-            Lista de todos los usuarios en tu tienda
+            Lista de todos los usuarios registrados en tu tienda
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -256,6 +278,7 @@ export default function UsersPage() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Rol</TableHead>
+                    <TableHead>Estado</TableHead>
                     <TableHead>Fecha de registro</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -263,7 +286,7 @@ export default function UsersPage() {
                 <TableBody>
                   {users.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
+                      <TableCell colSpan={6} className="text-center py-8">
                         No se encontraron usuarios
                       </TableCell>
                     </TableRow>
@@ -283,6 +306,13 @@ export default function UsersPage() {
                             }
                           >
                             {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={user.isActive ? 'default' : 'secondary'}
+                          >
+                            {user.isActive ? 'Activo' : 'Inactivo'}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -309,19 +339,32 @@ export default function UsersPage() {
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => handleDeleteUser(user.id)}
-                                className="text-red-600"
-                                disabled={deletingId === user.id}
+                                onClick={() => handleToggleUserActive(user.id)}
+                                className={
+                                  user.isActive
+                                    ? 'text-orange-600'
+                                    : 'text-green-600'
+                                }
+                                disabled={togglingId === user.id}
                               >
-                                {deletingId === user.id ? (
+                                {togglingId === user.id ? (
                                   <>
                                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                    Desactivando...
+                                    Actualizando...
                                   </>
                                 ) : (
                                   <>
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Desactivar
+                                    {user.isActive ? (
+                                      <>
+                                        <UserX className="mr-2 h-4 w-4" />
+                                        Desactivar
+                                      </>
+                                    ) : (
+                                      <>
+                                        <UserCheck className="mr-2 h-4 w-4" />
+                                        Activar
+                                      </>
+                                    )}
                                   </>
                                 )}
                               </DropdownMenuItem>
