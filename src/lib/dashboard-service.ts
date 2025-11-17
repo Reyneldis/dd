@@ -642,6 +642,7 @@ export async function updateCategory(
       return { success: false, error: 'La categoría no existe' };
     }
 
+    // Verificar si el slug ya existe en otra categoría
     if (categoryData.slug && categoryData.slug !== existingCategory.slug) {
       const slugExists = await prisma.category.findUnique({
         where: { slug: categoryData.slug },
@@ -665,6 +666,7 @@ export async function updateCategory(
     // Manejo especial para la imagen
     if (categoryData.mainImage !== undefined) {
       if (categoryData.mainImage instanceof File) {
+        // Subir nueva imagen a Vercel Blob
         const blob = await put(
           categoryData.mainImage.name,
           categoryData.mainImage,

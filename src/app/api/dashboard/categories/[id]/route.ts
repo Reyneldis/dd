@@ -1,5 +1,3 @@
-// src/app/api/dashboard/categories/[id]/route.ts
-
 import { requireRole } from '@/lib/auth-guard';
 import {
   deleteCategory,
@@ -98,9 +96,6 @@ export async function DELETE(
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
-// src/app/api/dashboard/categories/[id]/route.ts
-
-// ... (importaciones y funciones GET y DELETE)
 
 // <-- AÑADE ESTA FUNCIÓN COMPLETA PARA EDITAR -->
 export async function PUT(

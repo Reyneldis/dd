@@ -108,6 +108,7 @@ export default function EditCategoryPage() {
   };
 
   // Enviar formulario
+  // En la función handleSubmit, modifica el manejo de la imagen
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -121,13 +122,15 @@ export default function EditCategoryPage() {
       categoryData.append('slug', formData.slug);
       categoryData.append('description', formData.description);
 
-      // Agregar imagen si existe
+      // Manejo de la imagen
       if (imageFile) {
+        // Si se seleccionó una nueva imagen, agregarla al FormData
         categoryData.append('mainImage', imageFile);
       } else if (imagePreview === null && category?.mainImage) {
-        // Si se quitó la imagen, enviar un indicador para eliminarla
+        // Si se quitó la imagen existente, enviar un indicador para eliminarla
         categoryData.append('mainImage', 'DELETE');
       }
+      // Si no se cambia la imagen, no se envía nada y se mantiene la existente
 
       const response = await fetch(`/api/dashboard/categories/${categoryId}`, {
         method: 'PUT',
