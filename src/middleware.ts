@@ -1,4 +1,5 @@
 // middleware.ts
+import { syncUserMiddleware } from '@/lib/sync-user-middleware';
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
 // Define las rutas que son públicas
@@ -13,13 +14,16 @@ const isPublicRoute = createRouteMatcher([
   '/terms',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/api/webhooks(.*)',
+  '/api/webhooks(.*)', // Excluir webhooks de la sincronización
 ]);
 
-export default clerkMiddleware((auth, req) => {
-  // Si la ruta no es pública, verificar autenticación
+export default clerkMiddleware(async (auth, req) => {
+  // Si la ruta no es pública, verificar autenticación y sincronizar
   if (!isPublicRoute(req)) {
     auth.protect();
+
+    // Sincronizar usuario si está autenticado
+    await syncUserMiddleware(req);
   }
 });
 
