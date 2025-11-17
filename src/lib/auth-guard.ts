@@ -12,64 +12,78 @@ import { NextResponse } from 'next/server';
 export async function requireRole(
   allowedRoles: string[] = ['ADMIN'],
 ): Promise<User> {
-  // 1. Validar autenticación
-  const { userId } = await auth();
-  if (!userId) {
+  try {
+    // 1. Validar autenticación usando la nueva API de Clerk
+    const { userId } = await auth();
+    if (!userId) {
+      const errorResponse = NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 },
+      );
+      throw errorResponse;
+    }
+
+    // 2. Buscar usuario en la base de datos
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId },
+      select: {
+        id: true,
+        clerkId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        avatar: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      const errorResponse = NextResponse.json(
+        { error: 'Usuario no encontrado' },
+        { status: 404 },
+      );
+      throw errorResponse;
+    }
+
+    // 3. Validar rol
+    if (!allowedRoles.includes(user.role)) {
+      const errorResponse = NextResponse.json(
+        { error: 'Acceso denegado' },
+        { status: 403 },
+      );
+      throw errorResponse;
+    }
+
+    // 4. Transformar el objeto para que coincida con el tipo User
+    const transformedUser: User = {
+      id: user.id,
+      clerkId: user.clerkId,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
+      avatar: user.avatar,
+      isActive: user.isActive,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+    };
+
+    // 5. Retornar usuario transformado
+    return transformedUser;
+  } catch (error) {
+    // Si ya es un NextResponse, relanzarlo
+    if (error instanceof NextResponse) {
+      throw error;
+    }
+
+    // Para cualquier otro error, devolver un error genérico
     const errorResponse = NextResponse.json(
-      { error: 'No autorizado' },
-      { status: 401 },
+      { error: 'Error de autenticación' },
+      { status: 500 },
     );
     throw errorResponse;
   }
-
-  // 2. Buscar usuario en la base de datos
-  const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-    select: {
-      id: true,
-      clerkId: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      role: true,
-      avatar: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-
-  if (!user) {
-    const errorResponse = NextResponse.json(
-      { error: 'Usuario no encontrado' },
-      { status: 404 },
-    );
-    throw errorResponse;
-  }
-
-  // 3. Validar rol
-  if (!allowedRoles.includes(user.role)) {
-    const errorResponse = NextResponse.json(
-      { error: 'Acceso denegado' },
-      { status: 403 },
-    );
-    throw errorResponse;
-  }
-
-  // 4. Transformar el objeto para que coincida con el tipo User
-  const transformedUser: User = {
-    id: user.id,
-    clerkId: user.clerkId,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    role: user.role as 'USER' | 'ADMIN' | 'SUPER_ADMIN',
-    avatar: user.avatar,
-    isActive: user.isActive,
-    createdAt: user.createdAt.toISOString(),
-    updatedAt: user.updatedAt.toISOString(),
-  };
-
-  // 5. Retornar usuario transformado
-  return transformedUser;
 }

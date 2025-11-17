@@ -1,15 +1,34 @@
-export const runtime = 'experimental-edge';
-import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
+// middleware.ts
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-export function middleware(_request: NextRequest) {
-  // Middleware básico sin Clerk
-  // Si necesitas proteger rutas en el futuro, puedes agregar lógica aquí
-  return NextResponse.next();
-}
+// Define las rutas que son públicas
+const isPublicRoute = createRouteMatcher([
+  '/',
+  '/api(.*)',
+  '/categories(.*)',
+  '/products(.*)',
+  '/contact',
+  '/about',
+  '/privacy',
+  '/terms',
+  '/sign-in(.*)',
+  '/sign-up(.*)',
+  '/api/webhooks(.*)',
+]);
+
+export default clerkMiddleware((auth, req) => {
+  // Si la ruta no es pública, verificar autenticación
+  // NOTA: Cambiado de auth().protect() a auth.protect()
+  if (!isPublicRoute(req)) {
+    auth.protect();
+  }
+});
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)',
   ],
 };

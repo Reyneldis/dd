@@ -7,7 +7,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from 'next-themes';
 import NextTopLoader from 'nextjs-toploader';
-import React, { Suspense } from 'react'; // <-- CAMBIO 1: Importa Suspense
+import React, { Suspense } from 'react';
 import { Toaster } from 'sonner';
 import ClientLayout from './ClientLayout';
 import './globals.css';
@@ -130,7 +130,6 @@ export default function RootLayout({
                 shadow="0 0 10px #2563eb,0 0 5px #2563eb"
               />
 
-              {/* CAMBIO 2: Envuelve ClientLayout en Suspense */}
               <Suspense fallback={<div>Cargando interfaz...</div>}>
                 <ClientLayout>{children}</ClientLayout>
               </Suspense>

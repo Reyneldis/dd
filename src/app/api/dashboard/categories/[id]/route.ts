@@ -1,3 +1,4 @@
+// src/app/api/dashboard/categories/[id]/route.ts
 import { requireRole } from '@/lib/auth-guard';
 import {
   deleteCategory,
@@ -97,7 +98,7 @@ export async function DELETE(
   }
 }
 
-// <-- AÑADE ESTA FUNCIÓN COMPLETA PARA EDITAR -->
+// Función para manejar las peticiones PUT (actualizar una categoría)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
