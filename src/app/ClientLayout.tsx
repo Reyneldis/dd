@@ -6,6 +6,13 @@ import Navbar from '@/components/shared/Navbar/Navbar';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+// Si usas GSAP, importa y registra los plugins
+import { gsap } from 'gsap';
+import { CSSPlugin } from 'gsap/CSSPlugin';
+
+// Registra los plugins de GSAP
+gsap.registerPlugin(CSSPlugin);
+
 export default function ClientLayout({
   children,
 }: {
