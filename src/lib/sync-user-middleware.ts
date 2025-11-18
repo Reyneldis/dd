@@ -1,8 +1,11 @@
 // src/lib/sync-user-middleware.ts
+
+// <-- ¡AÑADE ESTA LÍNEA AL PRINCIPIO!
+export const runtime = 'nodejs';
+
 import { prisma } from '@/lib/prisma';
 import { clerkClient } from '@clerk/nextjs/server';
 
-// <-- CAMBIO: Renombramos la exportación para que coincida con la importación
 export async function syncUserWithDatabase(userId: string) {
   if (!userId) {
     console.log('syncUserWithDatabase: No se proporcionó userId.');
@@ -29,7 +32,6 @@ export async function syncUserWithDatabase(userId: string) {
       `syncUserWithDatabase: Usuario ${userId} no encontrado. Creando...`,
     );
 
-    // <-- CAMBIO: Usamos await con clerkClient()
     const clerk = await clerkClient();
     const clerkUser = await clerk.users.getUser(userId);
 
