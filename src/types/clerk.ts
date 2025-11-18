@@ -1,4 +1,6 @@
 // src/types/clerk.ts
+
+// Exportar todas las interfaces explícitamente
 export interface ClerkUserData {
   id: string;
   email_addresses: Array<{
@@ -23,7 +25,7 @@ export interface DbUser {
   role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
   firstName: string | null;
   lastName: string | null;
-  avatar: string | null; // Mantener como opcional en la interfaz
+  avatar: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -43,4 +45,25 @@ export interface DbTestResult {
   timestamp: string;
   error?: string;
   details?: string;
+}
+
+export interface SyncResponse {
+  success: boolean;
+  user?: DbUser;
+  error?: string;
+}
+
+export interface DebugInfo {
+  clerkUser: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    imageUrl: string | null;
+  } | null;
+  dbUser: DbTestResult | null;
+  syncResult: SyncCheckResult | null;
+  forceSyncResult: SyncResponse | null;
+  connectionTest: any | null;
+  error: string | null;
 }

@@ -14,16 +14,20 @@ const isPublicRoute = createRouteMatcher([
   '/terms',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/api/webhooks(.*)', // Excluir webhooks de la sincronización
+  '/api/webhooks(.*)',
+  '/api/test-direct-connection(.*)', // Agregar ruta de prueba
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  // Si la ruta no es pública, verificar autenticación y sincronizar
+  // Si la ruta no es pública, verificar autenticación
   if (!isPublicRoute(req)) {
+    console.log('Middleware: Protegiendo ruta:', req.nextUrl.pathname);
     auth.protect();
 
     // Sincronizar usuario si está autenticado
     await syncUserMiddleware(req);
+  } else {
+    console.log('Middleware: Ruta pública, sin protección');
   }
 });
 

@@ -3,29 +3,17 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { DbTestResult, SyncCheckResult } from '@/types/clerk';
+import type { DebugInfo, SyncCheckResult } from '@/types/clerk';
 import { useUser } from '@clerk/nextjs';
 import { useState } from 'react';
-
-// Tipo DebugInfo completamente tipado
-interface DebugInfo {
-  clerkUser: {
-    id: string;
-    email: string;
-    firstName: string | null;
-    lastName: string | null;
-    imageUrl: string | null;
-  } | null;
-  dbUser: DbTestResult | null;
-  syncResult: SyncCheckResult | null;
-  error: string | null;
-}
 
 export default function DebugPage() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo>({
     clerkUser: null,
     dbUser: null,
     syncResult: null,
+    forceSyncResult: null,
+    connectionTest: null,
     error: null,
   });
   const [loading, setLoading] = useState(false);
@@ -47,13 +35,15 @@ export default function DebugPage() {
         : null,
       dbUser: null,
       syncResult: null,
+      forceSyncResult: null,
+      connectionTest: null,
       error: null,
     };
 
     try {
       // Test 1: Verificar conexión a BD
-      const dbResponse = await fetch('/api/test-db');
-      const dbData: DbTestResult = await dbResponse.json();
+      const dbResponse = await fetch('/api/test-direct-connection');
+      const dbData = await dbResponse.json();
       info.dbUser = dbData;
 
       // Test 2: Verificar sincronización
@@ -86,7 +76,7 @@ export default function DebugPage() {
         avatar: clerkUser.imageUrl || '',
       };
 
-      const response = await fetch('/api/sync-user', {
+      const response = await fetch('/api/sync-user/force', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(syncData),
@@ -131,7 +121,7 @@ export default function DebugPage() {
         </CardHeader>
         <CardContent>
           <pre className="text-sm bg-gray-100 p-4 rounded overflow-auto">
-            {JSON.stringify(debugInfo.clerkUser, null, 2)}
+            {JSON.stringify(debugInfo.clerkUser || null, null, 2)}
           </pre>
         </CardContent>
       </Card>
@@ -159,6 +149,34 @@ export default function DebugPage() {
           <CardContent>
             <pre className="text-sm bg-gray-100 p-4 rounded overflow-auto">
               {JSON.stringify(debugInfo.syncResult, null, 2)}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Resultado de sincronización forzada */}
+      {debugInfo.forceSyncResult && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Sincronización Forzada</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="text-sm bg-gray-100 p-4 rounded overflow-auto">
+              {JSON.stringify(debugInfo.forceSyncResult, null, 2)}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Test de conexión */}
+      {debugInfo.connectionTest && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Test de Conexión Directa</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="text-sm bg-gray-100 p-4 rounded overflow-auto">
+              {JSON.stringify(debugInfo.connectionTest, null, 2)}
             </pre>
           </CardContent>
         </Card>
