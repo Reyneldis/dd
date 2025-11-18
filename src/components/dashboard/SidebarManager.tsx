@@ -5,6 +5,7 @@ import { useSidebar } from '@/contexts/SidebarContext';
 import { useEffect } from 'react';
 
 export function SidebarManager() {
+  // <-- MOVER LA LÓGICA AQUÍ DENTRO
   const { setView } = useSidebar();
 
   useEffect(() => {
@@ -18,6 +19,6 @@ export function SidebarManager() {
   }, [setView]);
 
   // Este componente no renderiza nada visualmente,
-  // solo se encarga de la lógica del sidebar.
+  // solo se encarga de los efectos secundarios del contexto.
   return null;
 }
