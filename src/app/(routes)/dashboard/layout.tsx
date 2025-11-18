@@ -1,35 +1,17 @@
 // src/app/(routes)/dashboard/layout.tsx
 'use client';
 
-// <-- CORRECCIÓN 1: Importar SidebarProvider desde el contexto
-import { SidebarProvider } from '@/contexts/SidebarContext';
-
-// <-- CORRECCIÓN 2: Importar Sidebar y Header desde el índice del dashboard
-import { Header, Sidebar } from '@/components/dashboard/index';
-
-import { useSidebar } from '@/contexts/SidebarContext';
-import { useEffect } from 'react';
+import { Header, Sidebar, SidebarProvider } from '@/components/dashboard'; // Asegúrate que el index.ts exporte SidebarProvider
+import { SidebarManager } from '@/components/dashboard/SidebarManager'; // <-- Importar el nuevo componente
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { setView } = useSidebar();
-
-  // Efecto para determinar la vista (móvil/escritorio) basada en el tamaño de la pantalla
-  useEffect(() => {
-    const handleResize = () => {
-      setView(window.innerWidth < 1024 ? 'mobile' : 'desktop');
-    };
-
-    handleResize(); // Establecer la vista inicial
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [setView]);
-
   return (
     <SidebarProvider>
+      <SidebarManager /> {/* <-- El gestor de la lógica DENTRO del proveedor */}
       <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
         <Sidebar />
         <div className="flex flex-1 flex-col lg:pl-0">
