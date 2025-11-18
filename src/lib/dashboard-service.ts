@@ -1,5 +1,6 @@
 // src/lib/dashboard-service.ts
-
+export const runtime = 'nodejs';
+import { prisma } from '@/lib/prisma';
 import {
   ApiResponse,
   Category,
@@ -8,16 +9,8 @@ import {
   Product,
   User,
 } from '@/types';
-import {
-  OrderStatus,
-  Prisma,
-  PrismaClient,
-  Role,
-  Status,
-} from '@prisma/client';
+import { OrderStatus, Prisma, Role, Status } from '@prisma/client';
 import { put } from '@vercel/blob';
-
-const prisma = new PrismaClient();
 
 // ============================================================================
 // TIPOS Y INTERFACES
