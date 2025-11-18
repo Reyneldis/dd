@@ -1,59 +1,72 @@
-// src/components/dashboard/Header.tsx - DISEÑO 2026
+// src/components/dashboard/Header.tsx
 'use client';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 import { Button } from '@/components/ui/button';
-import { Bell, ChevronDown, Search } from 'lucide-react';
+import { useSidebar } from '@/contexts/SidebarContext';
+import { Bell, Menu, Search } from 'lucide-react';
 
 export function Header() {
+  const { toggleSidebar, setView } = useSidebar();
+
   return (
-    <div className="flex items-center justify-between h-16 px-4 md:px-6 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/30 dark:border-gray-700/30">
-      {/* Búsqueda */}
-      <div className="flex-1 max-w-lg">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+      {/* Botón para abrir sidebar en móvil */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="lg:hidden"
+        onClick={() => {
+          setView('mobile');
+          toggleSidebar();
+        }}
+      >
+        <Menu className="h-6 w-6" />
+      </Button>
+
+      {/* Buscador */}
+      <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
+        <div className="relative flex flex-1 items-center">
+          <Search
+            className="absolute left-4 h-5 w-5 text-gray-400"
+            aria-hidden="true"
+          />
           <input
-            type="text"
-            placeholder="Buscar productos, pedidos, clientes..."
-            className="block w-full pl-10 pr-3 py-3 border border-gray-300/50 rounded-2xl leading-5 bg-white/90 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition-all duration-300"
+            className="block h-full w-full border-0 bg-transparent py-0 pl-10 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
+            placeholder="Buscar..."
+            type="search"
+            name="search"
           />
         </div>
       </div>
 
-      {/* Acciones del header */}
-      <div className="ml-4 md:ml-6 flex items-center space-x-3 md:space-x-4">
+      {/* Derecha del Header */}
+      <div className="flex items-center gap-x-4 lg:gap-x-6">
         {/* Notificaciones */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative h-12 w-12 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          <Bell className="h-6 w-6 text-gray-600 dark:text-gray-300" />
-          <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+        <Button variant="ghost" size="icon">
+          <Bell className="h-6 w-6" />
         </Button>
 
-        {/* Perfil de usuario */}
-        <div className="flex items-center space-x-3">
-          <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
-            <AvatarImage src="/placeholder-user.jpg" alt="Usuario" />
-            <AvatarFallback className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-              AD
-            </AvatarFallback>
-          </Avatar>
-          <div className="hidden md:block">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">
+        {/* Perfil de Usuario (Placeholder) */}
+        <div
+          className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200"
+          aria-hidden="true"
+        />
+        <div className="flex items-center gap-x-4">
+          <img
+            className="h-8 w-8 rounded-full bg-gray-200"
+            src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+            alt=""
+          />
+          <span className="hidden lg:flex lg:items-center">
+            <span
+              className="text-sm font-semibold leading-6 text-gray-900"
+              aria-hidden="true"
+            >
               Admin User
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Administrador
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl">
-            <ChevronDown className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-          </Button>
+            </span>
+          </span>
         </div>
       </div>
-    </div>
+    </header>
   );
 }
