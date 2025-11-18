@@ -254,7 +254,7 @@ export async function createProduct(
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-    let uploadedImages: { url: string; alt?: string }[] = [];
+    const uploadedImages: { url: string; alt?: string }[] = [];
     if (productData.images && productData.images.length > 0) {
       for (const image of productData.images) {
         if (!image || image.size === 0) continue;
