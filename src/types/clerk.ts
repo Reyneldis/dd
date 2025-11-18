@@ -64,6 +64,6 @@ export interface DebugInfo {
   dbUser: DbTestResult | null;
   syncResult: SyncCheckResult | null;
   forceSyncResult: SyncResponse | null;
-  connectionTest: any | null;
+  connectionTest: string | null;
   error: string | null;
 }
