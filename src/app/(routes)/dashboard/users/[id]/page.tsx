@@ -1,3 +1,5 @@
+// src/app/dashboard/users/[id]/page.tsx
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -20,6 +22,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner'; // <-- Importar toast
 
 export default function UserDetailPage() {
   const params = useParams();
@@ -28,16 +31,36 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Cargar usuario
   useEffect(() => {
+    // <-- ¡CAMBIO CLAVE! Si no hay userId, no hacemos la petición.
+    if (!userId) {
+      console.error('User ID is undefined');
+      setLoading(false); // Dejar de cargar
+      return;
+    }
+
     const fetchUser = async () => {
       try {
         setLoading(true);
         const response = await fetch(`/api/dashboard/users/${userId}`);
+
+        // <-- ¡CAMBIO CLAVE! Comprobar si la respuesta fue exitosa.
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Error al cargar el usuario');
+        }
+
         const data = await response.json();
         setUser(data);
       } catch (error) {
         console.error('Error fetching user:', error);
+        // <-- ¡CAMBIO CLAVE! En caso de error, asegurar que user sea null.
+        setUser(null);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : 'Error de conexión al cargar el usuario',
+        );
       } finally {
         setLoading(false);
       }
@@ -58,7 +81,10 @@ export default function UserDetailPage() {
     return (
       <div className="text-center py-12">
         <h1 className="text-2xl font-bold">Usuario no encontrado</h1>
-        <Button asChild className="mt-4">
+        <p className="text-gray-500 mb-4">
+          El usuario que buscas no existe o ha sido eliminado.
+        </p>
+        <Button asChild>
           <Link href="/dashboard/users">Volver a usuarios</Link>
         </Button>
       </div>
@@ -88,7 +114,6 @@ export default function UserDetailPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Información principal */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -144,7 +169,6 @@ export default function UserDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Avatar */}
         <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Avatar</CardTitle>
@@ -156,6 +180,8 @@ export default function UserDetailPage() {
                   src={user.avatar}
                   alt={`${user.firstName} ${user.lastName}`}
                   className="w-full h-48 object-cover"
+                  width={200}
+                  height={200}
                 />
               </div>
             ) : (

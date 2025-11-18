@@ -1,4 +1,4 @@
-// src/app/(routes)/dashboard/users/[id]/edit/page.tsx
+// src/app/dashboard/users/[id]/edit/page.tsx
 
 'use client';
 
@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox'; // Usamos Checkbox en lugar de Switch
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -41,12 +41,25 @@ export default function EditUserPage() {
     isActive: true,
   });
 
-  // Cargar usuario
   useEffect(() => {
+    // <-- ¡CAMBIO CLAVE! Si no hay userId, redirigir.
+    if (!userId) {
+      toast.error('ID de usuario no válido');
+      router.push('/dashboard/users');
+      return;
+    }
+
     const fetchUser = async () => {
       try {
         setLoading(true);
         const response = await fetch(`/api/dashboard/users/${userId}`);
+
+        // <-- ¡CAMBIO CLAVE! Comprobar respuesta.
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Error al cargar el usuario');
+        }
+
         const data = await response.json();
         setFormData({
           firstName: data.firstName || '',
@@ -57,32 +70,31 @@ export default function EditUserPage() {
         });
       } catch (error) {
         console.error('Error fetching user:', error);
-        toast.error('Error al cargar el usuario');
+        toast.error(
+          error instanceof Error ? error.message : 'Error al cargar el usuario',
+        );
+        router.push('/dashboard/users'); // Redirigir en caso de error
       } finally {
         setLoading(false);
       }
     };
 
     fetchUser();
-  }, [userId]);
+  }, [userId, router]);
 
-  // Manejar cambios en el formulario
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Manejar cambios en el select
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Manejar cambios en el checkbox
   const handleCheckboxChange = (name: string, checked: boolean) => {
     setFormData(prev => ({ ...prev, [name]: checked }));
   };
 
-  // Enviar formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -134,7 +146,6 @@ export default function EditUserPage() {
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Información básica */}
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Información Básica</CardTitle>
@@ -176,7 +187,6 @@ export default function EditUserPage() {
             </CardContent>
           </Card>
 
-          {/* Configuración */}
           <Card>
             <CardHeader>
               <CardTitle>Configuración</CardTitle>

@@ -1,3 +1,5 @@
+// src/app/dashboard/users/page.tsx
+
 'use client';
 
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +52,6 @@ export default function UsersPage() {
     pages: 0,
   });
 
-  // Cargar usuarios
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -80,7 +81,6 @@ export default function UsersPage() {
     fetchUsers();
   }, [searchTerm, pagination.page, pagination.limit]);
 
-  // Activar/Desactivar usuario
   const handleToggleUserActive = async (id: string) => {
     setTogglingId(id);
 
@@ -92,7 +92,6 @@ export default function UsersPage() {
       const result = await response.json();
 
       if (response.ok) {
-        // Actualizar el estado del usuario en la lista
         setUsers(
           users.map(user =>
             user.id === id ? { ...user, isActive: !user.isActive } : user,
@@ -114,6 +113,7 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6 px-4 md:px-0">
+      {/* ... (El resto del JSX de la página se mantiene igual) ... */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
@@ -123,10 +123,8 @@ export default function UsersPage() {
             Administra los usuarios registrados en tu tienda
           </p>
         </div>
-        {/* Eliminamos el botón de Nuevo Usuario */}
       </div>
 
-      {/* Filtros */}
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -152,7 +150,6 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* Vista móvil - Tarjetas */}
       <div className="md:hidden">
         {loading ? (
           <div className="flex justify-center py-8">
@@ -205,13 +202,21 @@ export default function UsersPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/users/${user.id}`}>
+                          {/* <-- ¡CAMBIO CLAVE! Guardia en el enlace */}
+                          <Link
+                            href={user.id ? `/dashboard/users/${user.id}` : '#'}
+                          >
                             <Eye className="mr-2 h-4 w-4" />
                             Ver detalles
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/users/${user.id}/edit`}>
+                          {/* <-- ¡CAMBIO CLAVE! Guardia en el enlace */}
+                          <Link
+                            href={
+                              user.id ? `/dashboard/users/${user.id}/edit` : '#'
+                            }
+                          >
                             <Edit className="mr-2 h-4 w-4" />
                             Editar
                           </Link>
@@ -254,7 +259,6 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* Vista escritorio - Tabla */}
       <Card className="hidden md:block">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -327,13 +331,27 @@ export default function UsersPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/users/${user.id}`}>
+                                {/* <-- ¡CAMBIO CLAVE! Guardia en el enlace */}
+                                <Link
+                                  href={
+                                    user.id
+                                      ? `/dashboard/users/${user.id}`
+                                      : '#'
+                                  }
+                                >
                                   <Eye className="mr-2 h-4 w-4" />
                                   Ver detalles
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/users/${user.id}/edit`}>
+                                {/* <-- ¡CAMBIO CLAVE! Guardia en el enlace */}
+                                <Link
+                                  href={
+                                    user.id
+                                      ? `/dashboard/users/${user.id}/edit`
+                                      : '#'
+                                  }
+                                >
                                   <Edit className="mr-2 h-4 w-4" />
                                   Editar
                                 </Link>
@@ -381,7 +399,6 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* Paginación */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-700">
           Mostrando{' '}
