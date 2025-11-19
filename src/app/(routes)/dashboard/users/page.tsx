@@ -1,5 +1,3 @@
-// src/app/dashboard/users/page.tsx
-
 'use client';
 
 import { Badge } from '@/components/ui/badge';
@@ -86,7 +84,11 @@ export default function UsersPage() {
 
     try {
       const response = await fetch(`/api/dashboard/users/${id}`, {
-        method: 'DELETE',
+        method: 'PATCH', // <-- CAMBIO: PATCH es más apropiado para actualizar un estado
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isActive: true }), // <-- Enviar el nuevo estado
       });
 
       const result = await response.json();
@@ -113,7 +115,6 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6 px-4 md:px-0">
-      {/* ... (El resto del JSX de la página se mantiene igual) ... */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
@@ -150,116 +151,7 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      <div className="md:hidden">
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-          </div>
-        ) : users.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-8">
-              No se encontraron usuarios
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {users.map(user => (
-              <Card key={user.id} className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">
-                        {user.firstName} {user.lastName}
-                      </CardTitle>
-                      <CardDescription className="text-sm mt-1">
-                        {user.email}
-                      </CardDescription>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <Badge
-                        variant={
-                          user.role === 'ADMIN' ? 'default' : 'secondary'
-                        }
-                      >
-                        {user.role}
-                      </Badge>
-                      <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                        {user.isActive ? 'Activo' : 'Inactivo'}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          {/* <-- ¡CAMBIO CLAVE! Guardia en el enlace */}
-                          <Link
-                            href={user.id ? `/dashboard/users/${user.id}` : '#'}
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            Ver detalles
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          {/* <-- ¡CAMBIO CLAVE! Guardia en el enlace */}
-                          <Link
-                            href={
-                              user.id ? `/dashboard/users/${user.id}/edit` : '#'
-                            }
-                          >
-                            <Edit className="mr-2 h-4 w-4" />
-                            Editar
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleToggleUserActive(user.id)}
-                          className={
-                            user.isActive ? 'text-orange-600' : 'text-green-600'
-                          }
-                          disabled={togglingId === user.id}
-                        >
-                          {togglingId === user.id ? (
-                            <>
-                              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              Actualizando...
-                            </>
-                          ) : (
-                            <>
-                              {user.isActive ? (
-                                <>
-                                  <UserX className="mr-2 h-4 w-4" />
-                                  Desactivar
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="mr-2 h-4 w-4" />
-                                  Activar
-                                </>
-                              )}
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <Card className="hidden md:block">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserIcon className="h-5 w-5" />
@@ -331,27 +223,13 @@ export default function UsersPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem asChild>
-                                {/* <-- ¡CAMBIO CLAVE! Guardia en el enlace */}
-                                <Link
-                                  href={
-                                    user.id
-                                      ? `/dashboard/users/${user.id}`
-                                      : '#'
-                                  }
-                                >
+                                <Link href={`/dashboard/users/${user.id}`}>
                                   <Eye className="mr-2 h-4 w-4" />
                                   Ver detalles
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
-                                {/* <-- ¡CAMBIO CLAVE! Guardia en el enlace */}
-                                <Link
-                                  href={
-                                    user.id
-                                      ? `/dashboard/users/${user.id}/edit`
-                                      : '#'
-                                  }
-                                >
+                                <Link href={`/dashboard/users/${user.id}/edit`}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Editar
                                 </Link>

@@ -1,5 +1,4 @@
-// src/app/dashboard/users/[id]/page.tsx
-
+// src/app/(routes)/dashboard/users/[id]/page.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -22,7 +21,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner'; // <-- Importar toast
 
 export default function UserDetailPage() {
   const params = useParams();
@@ -30,44 +28,45 @@ export default function UserDetailPage() {
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
+  // Cargar usuario
   useEffect(() => {
-    // <-- ¡CAMBIO CLAVE! Si no hay userId, no hacemos la petición.
-    if (!userId) {
-      console.error('User ID is undefined');
-      setLoading(false); // Dejar de cargar
-      return;
-    }
-
     const fetchUser = async () => {
+      if (!userId) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         const response = await fetch(`/api/dashboard/users/${userId}`);
 
-        // <-- ¡CAMBIO CLAVE! Comprobar si la respuesta fue exitosa.
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Error al cargar el usuario');
+          throw new Error('Error al cargar el usuario');
         }
 
-        const data = await response.json();
-        setUser(data);
+        const result = await response.json();
+
+        // <-- CAMBIO CLAVE: Manejar la estructura de la respuesta de la API
+        if (result.success) {
+          setUser(result.data); // <-- Acceder al usuario dentro de `result.data`
+        } else {
+          // Si la API devuelve success: false, es un error (ej. "no encontrado")
+          setNotFound(true);
+        }
       } catch (error) {
         console.error('Error fetching user:', error);
-        // <-- ¡CAMBIO CLAVE! En caso de error, asegurar que user sea null.
-        setUser(null);
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : 'Error de conexión al cargar el usuario',
-        );
+        // En caso de error de red o servidor, también mostramos "no encontrado" por seguridad
+        setNotFound(true);
       } finally {
         setLoading(false);
       }
     };
 
     fetchUser();
-  }, [userId]);
+  }, [userId]); // <-- Añadir userId a las dependencias
 
   if (loading) {
     return (
@@ -77,7 +76,7 @@ export default function UserDetailPage() {
     );
   }
 
-  if (!user) {
+  if (notFound || !user) {
     return (
       <div className="text-center py-12">
         <h1 className="text-2xl font-bold">Usuario no encontrado</h1>
@@ -91,6 +90,7 @@ export default function UserDetailPage() {
     );
   }
 
+  // El resto del componente se mantiene igual, ya que `user` ahora sí tendrá los datos correctos
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -114,6 +114,7 @@ export default function UserDetailPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
+        {/* Información principal */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -169,6 +170,7 @@ export default function UserDetailPage() {
           </CardContent>
         </Card>
 
+        {/* Avatar */}
         <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Avatar</CardTitle>
@@ -179,9 +181,13 @@ export default function UserDetailPage() {
                 <Image
                   src={user.avatar}
                   alt={`${user.firstName} ${user.lastName}`}
+                  width={300}
+                  height={300}
                   className="w-full h-48 object-cover"
-                  width={200}
-                  height={200}
+                  onError={e => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
                 />
               </div>
             ) : (
