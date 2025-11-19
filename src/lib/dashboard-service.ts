@@ -1,5 +1,6 @@
 // src/lib/dashboard-service.ts
 
+import { deleteBlobs } from '@/lib/vercel-blob';
 import {
   ApiResponse,
   Category,
@@ -15,11 +16,12 @@ import {
   Role,
   Status,
 } from '@prisma/client';
+import { put } from '@vercel/blob'; // <-- Asegúrate que esta línea esté presente
 
 const prisma = new PrismaClient();
 
 // ============================================================================
-// TIPOS Y INTERFACES (Sin cambios, ya están bien definidos)
+// TIPOS Y INTERFACES
 // ============================================================================
 
 interface OrderFilters {
@@ -65,7 +67,6 @@ interface CreateProductData {
   images?: File[];
 }
 
-// <-- CAMBIO CLAVE: Asegúrate que esta interfaz incluya el campo 'images'
 interface UpdateProductData {
   productName?: string;
   slug?: string;
@@ -76,6 +77,7 @@ interface UpdateProductData {
   status?: Status;
   featured?: boolean;
   categoryId?: string;
+  images?: File[];
 }
 
 interface CreateCategoryData {
@@ -112,7 +114,7 @@ interface PaginatedResponse<T> {
 }
 
 // ============================================================================
-// FUNCIONES DE PRODUCTOS (CON MANEJO DE IMÁGENES CORREGIDO)
+// FUNCIONES DE PRODUCTOS
 // ============================================================================
 
 export async function getProducts(
@@ -341,8 +343,7 @@ export async function createProduct(
   }
 }
 
-// src/lib/dashboard-service.ts - Función updateProduct mejorada
-
+// <-- FUNCIÓN CORREGIDA Y LIMPIA
 export async function updateProduct(
   productId: string,
   productData: UpdateProductData,
@@ -354,29 +355,99 @@ export async function updateProduct(
     });
 
     if (!existingProduct) {
-      return {
-        success: false,
-        error: 'El producto no existe',
-      };
+      return { success: false, error: 'El producto no existe' };
     }
 
-    // Si se actualiza la categoría, verificar que existe
-    if (productData.categoryId) {
+    // 1. Separar los datos del producto de los datos de las imágenes
+    const { images: newImages, ...dataToUpdate } = productData;
+
+    // 2. Preparar los datos para la actualización del producto
+    const updateData: Prisma.ProductUpdateInput = {
+      productName: dataToUpdate.productName,
+      slug: dataToUpdate.slug,
+      price: dataToUpdate.price,
+      stock: dataToUpdate.stock,
+      description: dataToUpdate.description,
+      features: dataToUpdate.features,
+      status: dataToUpdate.status,
+      featured: dataToUpdate.featured,
+    };
+
+    if (dataToUpdate.categoryId) {
       const category = await prisma.category.findUnique({
-        where: { id: productFields.categoryId },
+        where: { id: dataToUpdate.categoryId },
       });
 
       if (!category) {
-        return {
-          success: false,
-          error: 'La categoría especificada no existe',
-        };
+        return { success: false, error: 'La categoría especificada no existe' };
       }
+      updateData.category = {
+        connect: {
+          id: dataToUpdate.categoryId,
+        },
+      };
     }
 
+    // 3. Manejar la actualización de imágenes
+    let imageUpdateData: Prisma.ProductUpdateInput['images'] = undefined;
+    const oldImageUrls = existingProduct.images.map(img => img.url);
+
+    if (newImages && newImages.length > 0) {
+      // 3a. Eliminar las imágenes antiguas de la base de datos
+      await prisma.productImage.deleteMany({
+        where: { productId: productId },
+      });
+
+      // 3b. Subir las nuevas imágenes a Vercel Blob
+      const uploadedImages: { url: string; alt?: string }[] = [];
+      for (const image of newImages) {
+        if (!image || image.size === 0) continue;
+        const blob = await put(image.name, image, {
+          access: 'public',
+          addRandomSuffix: true,
+        });
+        uploadedImages.push({
+          url: blob.url,
+          alt: dataToUpdate.productName || 'Imagen de producto',
+        });
+      }
+
+      // 3c. Preparar los datos para Prisma
+      imageUpdateData = {
+        create: uploadedImages.map((img, index) => ({
+          url: img.url,
+          alt: img.alt,
+          sortOrder: index,
+          isPrimary: index === 0,
+        })),
+      };
+
+      // 3d. Eliminar imágenes antiguas de Vercel Blob (en segundo plano)
+      deleteBlobs(oldImageUrls).catch(error => {
+        console.error('Error deleting old images from Vercel Blob:', error);
+      });
+    } else if (newImages && newImages.length === 0) {
+      // Si se envía un array vacío, se interpreta como "borrar todas las imágenes"
+      await prisma.productImage.deleteMany({
+        where: { productId: productId },
+      });
+
+      // Eliminar imágenes antiguas de Vercel Blob (en segundo plano)
+      deleteBlobs(oldImageUrls).catch(error => {
+        console.error('Error deleting old images from Vercel Blob:', error);
+      });
+    }
+
+    // 4. Unir los datos de actualización del producto con los de las imágenes
+    const finalUpdateData = {
+      ...updateData,
+      images: imageUpdateData,
+    };
+
+    // 5. Ejecutar la actualización en la base de datos
     const product = await prisma.product.update({
       where: { id: productId },
-      data: productData,
+      data: finalUpdateData,
       include: {
         category: true,
         images: {
@@ -386,7 +457,7 @@ export async function updateProduct(
       },
     });
 
-    // *** INICIO DE LA SOLUCIÓN - Serialización Correcta ***
+    // 6. Serializar el producto actualizado para la respuesta
     const serializedProduct: Product = {
       id: product.id,
       slug: product.slug,
@@ -437,22 +508,25 @@ export async function updateProduct(
   }
 }
 
-// src/lib/dashboard-service.ts - Función deleteProduct mejorada
-
 export async function deleteProduct(
   productId: string,
 ): Promise<ApiResponse<{ success: boolean }>> {
   try {
     const existingProduct = await prisma.product.findUnique({
       where: { id: productId },
-      include: { images: true }, // Incluir imágenes para poder eliminarlas
+      include: { images: true },
     });
 
     if (!existingProduct) {
-      return {
-        success: false,
-        error: 'El producto no existe',
-      };
+      return { success: false, error: 'El producto no existe' };
+    }
+
+    // Eliminar imágenes de Vercel Blob
+    if (existingProduct.images && existingProduct.images.length > 0) {
+      const imageUrls = existingProduct.images.map(img => img.url);
+      deleteBlobs(imageUrls).catch(error => {
+        console.error('Error deleting images from Vercel Blob:', error);
+      });
     }
 
     await prisma.product.delete({
@@ -473,11 +547,7 @@ export async function deleteProduct(
 }
 
 // ============================================================================
-// ... (El resto de tus funciones como getCategories, createCategory, etc. van aquí, sin cambios)
-// ============================================================================
-
-// ============================================================================
-// FUNCIONES DE CATEGORÍAS
+// FUNCIONES DE CATEGORÍAS (Actualizadas para usar Vercel Blob)
 // ============================================================================
 
 export async function getCategories(
@@ -550,18 +620,20 @@ export async function createCategory(
 
     let mainImageUrl: string | undefined;
 
-    if (categoryData.mainImage instanceof File) {
-      const blob = await put(
-        categoryData.mainImage.name,
-        categoryData.mainImage,
-        {
-          access: 'public',
-          addRandomSuffix: true,
-        },
-      );
-      mainImageUrl = blob.url;
-    } else if (typeof categoryData.mainImage === 'string') {
-      mainImageUrl = categoryData.mainImage;
+    if (categoryData.mainImage) {
+      if (categoryData.mainImage instanceof File) {
+        const blob = await put(
+          categoryData.mainImage.name,
+          categoryData.mainImage,
+          {
+            access: 'public',
+            addRandomSuffix: true,
+          },
+        );
+        mainImageUrl = blob.url;
+      } else {
+        mainImageUrl = categoryData.mainImage;
+      }
     }
 
     const category = await prisma.category.create({
@@ -609,10 +681,12 @@ export async function updateCategory(
     });
 
     if (!existingCategory) {
-      return { success: false, error: 'La categoría no existe' };
+      return {
+        success: false,
+        error: 'La categoría no existe',
+      };
     }
 
-    // Verificar si el slug ya existe en otra categoría
     if (categoryData.slug && categoryData.slug !== existingCategory.slug) {
       const slugExists = await prisma.category.findUnique({
         where: { slug: categoryData.slug },
@@ -626,17 +700,14 @@ export async function updateCategory(
       }
     }
 
-    // Usamos el tipo específico de Prisma para la actualización
     const updateData: Prisma.CategoryUpdateInput = {
       categoryName: categoryData.categoryName,
       slug: categoryData.slug,
       description: categoryData.description,
     };
 
-    // Manejo especial para la imagen
     if (categoryData.mainImage !== undefined) {
       if (categoryData.mainImage instanceof File) {
-        // Subir nueva imagen a Vercel Blob
         const blob = await put(
           categoryData.mainImage.name,
           categoryData.mainImage,
@@ -646,11 +717,19 @@ export async function updateCategory(
           },
         );
         updateData.mainImage = blob.url;
-      } else if (categoryData.mainImage === 'DELETE') {
-        // Si se envía la señal 'DELETE', eliminamos la imagen de la base de datos
+        if (existingCategory.mainImage) {
+          deleteBlobs([existingCategory.mainImage]).catch(e =>
+            console.error(e),
+          );
+        }
+      } else if (categoryData.mainImage === null) {
         updateData.mainImage = null;
-      } else if (typeof categoryData.mainImage === 'string') {
-        // Si es un string (URL existente), lo mantenemos
+        if (existingCategory.mainImage) {
+          deleteBlobs([existingCategory.mainImage]).catch(e =>
+            console.error(e),
+          );
+        }
+      } else {
         updateData.mainImage = categoryData.mainImage;
       }
     }
@@ -672,7 +751,10 @@ export async function updateCategory(
       _count: category._count,
     };
 
-    return { success: true, data: serializedCategory };
+    return {
+      success: true,
+      data: serializedCategory,
+    };
   } catch (error) {
     console.error('Error updating category:', error);
     return {
@@ -684,8 +766,6 @@ export async function updateCategory(
     };
   }
 }
-
-// ... (el resto de tu archivo dashboard-service.ts)
 
 export async function deleteCategory(
   categoryId: string,
@@ -703,7 +783,10 @@ export async function deleteCategory(
     });
 
     if (!existingCategory) {
-      return { success: false, error: 'La categoría no existe' };
+      return {
+        success: false,
+        error: 'La categoría no existe',
+      };
     }
 
     if (existingCategory._count.products > 0) {
@@ -714,25 +797,20 @@ export async function deleteCategory(
       };
     }
 
+    if (existingCategory.mainImage) {
+      deleteBlobs([existingCategory.mainImage]).catch(e => console.error(e));
+    }
+
     await prisma.category.delete({
       where: { id: categoryId },
     });
 
-    return { success: true, data: { success: true } };
+    return {
+      success: true,
+      data: { success: true },
+    };
   } catch (error) {
     console.error('Error in deleteCategory service:', error);
-
-    if (
-      error instanceof Error &&
-      error.message.includes('foreign key constraint')
-    ) {
-      return {
-        success: false,
-        error:
-          'No se puede eliminar la categoría porque tiene productos asociados',
-      };
-    }
-
     return {
       success: false,
       error:
@@ -742,6 +820,8 @@ export async function deleteCategory(
     };
   }
 }
+
+// ... (El resto de tus funciones como getUsers, getOrders, etc. van aquí, sin cambios)
 
 // ============================================================================
 // FUNCIONES DE USUARIOS
