@@ -1,3 +1,5 @@
+// src/app/dashboard/products/[id]/edit/page.tsx
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -20,12 +22,21 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Category, ProductFull } from '@/types';
-import { ArrowLeft, Loader2, Upload, X } from 'lucide-react';
-import Image from 'next/image'; // Importar componente Image
+import { ArrowLeft, Loader2, Trash2, Upload, X } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react'; // Importar useCallback
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+
+// Definir interfaz para imágenes existentes
+interface ExistingImage {
+  id: string;
+  url: string;
+  alt: string | null;
+  sortOrder: number;
+  isPrimary: boolean;
+}
 
 export default function EditProductPage() {
   const params = useParams();
@@ -48,10 +59,11 @@ export default function EditProductPage() {
     featured: false,
   });
   const [featureInput, setFeatureInput] = useState('');
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
 
-  // Corregir: envolver fetchProduct en useCallback
   const fetchProduct = useCallback(async () => {
     try {
       setLoading(true);
@@ -76,9 +88,7 @@ export default function EditProductPage() {
 
       // Cargar imágenes existentes
       if (data.images && data.images.length > 0) {
-        // Corregir: definir tipo explícito en lugar de any
-        const previews = data.images.map((img: { url: string }) => img.url);
-        setImagePreviews(previews);
+        setExistingImages(data.images);
       }
     } catch (error) {
       console.error('Error fetching product:', error);
@@ -88,7 +98,6 @@ export default function EditProductPage() {
     }
   }, [productId]);
 
-  // Corregir: envolver fetchCategories en useCallback
   const fetchCategories = useCallback(async () => {
     try {
       const response = await fetch('/api/dashboard/categories');
@@ -103,7 +112,7 @@ export default function EditProductPage() {
   useEffect(() => {
     fetchProduct();
     fetchCategories();
-  }, [fetchProduct, fetchCategories]); // Añadir dependencias
+  }, [fetchProduct, fetchCategories]);
 
   // Manejar cambios en el formulario
   const handleInputChange = (
@@ -142,11 +151,11 @@ export default function EditProductPage() {
     toast.info('Característica eliminada');
   };
 
-  // Manejar imágenes
+  // Manejar imágenes nuevas
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-      setImageFiles(prev => [...prev, ...files]);
+      setNewImageFiles(prev => [...prev, ...files]);
 
       // Crear vistas previas
       files.forEach(file => {
@@ -154,7 +163,7 @@ export default function EditProductPage() {
         reader.onload = event => {
           if (event.target?.result) {
             const result = event.target.result as string;
-            setImagePreviews(prev => [...prev, result]);
+            setNewImagePreviews(prev => [...prev, result]);
           }
         };
         reader.readAsDataURL(file);
@@ -164,11 +173,18 @@ export default function EditProductPage() {
     }
   };
 
-  // Eliminar imagen
-  const handleRemoveImage = (index: number) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+  // Eliminar imagen nueva
+  const handleRemoveNewImage = (index: number) => {
+    setNewImageFiles(prev => prev.filter((_, i) => i !== index));
+    setNewImagePreviews(prev => prev.filter((_, i) => i !== index));
     toast.info('Imagen eliminada');
+  };
+
+  // Marcar imagen existente para eliminar
+  const handleMarkImageForDeletion = (imageId: string) => {
+    setImagesToDelete(prev => [...prev, imageId]);
+    setExistingImages(prev => prev.filter(img => img.id !== imageId));
+    toast.info('Imagen marcada para eliminación');
   };
 
   // Generar slug automáticamente
@@ -183,7 +199,6 @@ export default function EditProductPage() {
 
   // Enviar formulario
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    // Corregir: tipar evento
     e.preventDefault();
     setSaving(true);
 
@@ -205,9 +220,14 @@ export default function EditProductPage() {
       productData.append('features', JSON.stringify(formData.features));
 
       // Agregar imágenes nuevas
-      imageFiles.forEach(file => {
+      newImageFiles.forEach(file => {
         productData.append('images', file);
       });
+
+      // Si no hay imágenes nuevas y no hay imágenes existentes, enviar array vacío
+      if (newImageFiles.length === 0 && existingImages.length === 0) {
+        productData.append('images', JSON.stringify([]));
+      }
 
       const response = await fetch(`/api/dashboard/products/${productId}`, {
         method: 'PUT',
@@ -452,12 +472,54 @@ export default function EditProductPage() {
             </CardContent>
           </Card>
 
-          {/* Imágenes */}
+          {/* Imágenes existentes */}
+          {existingImages.length > 0 && (
+            <Card className="md:col-span-3">
+              <CardHeader>
+                <CardTitle>Imágenes Actuales</CardTitle>
+                <CardDescription>
+                  Estas son las imágenes actuales del producto. Puedes
+                  eliminarlas marcándolas o agregar nuevas imágenes abajo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {existingImages.map(image => (
+                    <div key={image.id} className="relative group">
+                      <div className="aspect-square w-full overflow-hidden rounded-md border">
+                        <Image
+                          src={image.url}
+                          alt={image.alt || product.productName}
+                          width={200}
+                          height={200}
+                          className="w-full h-full object-cover rounded-md"
+                        />
+                      </div>
+                      {image.isPrimary && (
+                        <div className="bg-indigo-100 text-indigo-800 text-xs font-medium px-2 py-1 mt-1 inline-block">
+                          Imagen principal
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleMarkImageForDeletion(image.id)}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Imágenes nuevas */}
           <Card className="md:col-span-3">
             <CardHeader>
-              <CardTitle>Imágenes del Producto</CardTitle>
+              <CardTitle>Imágenes Nuevas</CardTitle>
               <CardDescription>
-                Agrega o actualiza las imágenes del producto
+                Agrega nuevas imágenes para el producto
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -487,21 +549,22 @@ export default function EditProductPage() {
                 </label>
               </div>
 
-              {imagePreviews.length > 0 && (
+              {newImagePreviews.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {imagePreviews.map((preview, index) => (
+                  {newImagePreviews.map((preview, index) => (
                     <div key={index} className="relative group">
-                      {/* Corregir: usar componente Image en lugar de img */}
-                      <Image
-                        src={preview}
-                        alt={`Preview ${index}`}
-                        width={200}
-                        height={200}
-                        className="w-full h-32 object-cover rounded-md"
-                      />
+                      <div className="aspect-square w-full overflow-hidden rounded-md border">
+                        <Image
+                          src={preview}
+                          alt={`Preview ${index}`}
+                          width={200}
+                          height={200}
+                          className="w-full h-full object-cover rounded-md"
+                        />
+                      </div>
                       <button
                         type="button"
-                        onClick={() => handleRemoveImage(index)}
+                        onClick={() => handleRemoveNewImage(index)}
                         className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <X className="h-4 w-4" />

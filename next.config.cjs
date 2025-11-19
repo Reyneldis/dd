@@ -1,6 +1,9 @@
+// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configuración optimizada para imágenes
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
   images: {
     // Usamos 'remotePatterns' que es la forma moderna y más flexible
     remotePatterns: [
@@ -36,6 +39,12 @@ const nextConfig = {
         pathname: '/**',
       },
       {
+        protocol: 'https',
+        hostname: '3urcrfdkc6hfnjsv.public.blob.vercel-storage.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
         port: '3000',
@@ -48,44 +57,10 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 días
     dangerouslyAllowSVG: true,
   },
-
-  // Configuración para paquetes que solo deben ejecutarse en el servidor
-  serverExternalPackages: ['@prisma/client'],
-
-  // Configuración experimental para mejorar el rendimiento
-  experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
-    // runtime: 'experimental-edge', // Desactivado para Vercel (Node.js)
-  },
-
   // Optimizaciones adicionales
   compress: true,
   poweredByHeader: false,
   generateEtags: false,
-
-  // Configuración de caché para imágenes estáticas
-  async headers() {
-    return [
-      {
-        source: '/img/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-      {
-        source: '/uploads/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-    ];
-  },
 };
 
 export default nextConfig;

@@ -1,11 +1,17 @@
-// src/components/dashboard/Sidebar.tsx - DISEÑO 2026
+// src/components/dashboard/Sidebar.tsx - VERSIÓN INSPIRADA EN REFERENCIA
 'use client';
+
+import { useSidebar } from '@/contexts/SidebarContext';
 import { cn } from '@/lib/utils';
+import { useUser } from '@clerk/nextjs'; // <-- Importar el hook de Clerk
 import {
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard,
   LogOut,
   MailWarning,
   Package,
+  Search,
   Settings,
   ShoppingCart,
   Tags,
@@ -15,162 +21,121 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navigation = [
-  {
-    name: 'Dashboard',
-    href: '/dashboard',
-    icon: LayoutDashboard,
-    color: 'from-indigo-500 to-purple-500',
-  },
-  {
-    name: 'Pedidos',
-    href: '/dashboard/orders',
-    icon: ShoppingCart,
-    color: 'from-amber-500 to-orange-500',
-  },
-  {
-    name: 'Productos',
-    href: '/dashboard/products',
-    icon: Package,
-    color: 'from-emerald-500 to-teal-500',
-  },
-  {
-    name: 'Categorías',
-    href: '/dashboard/categories',
-    icon: Tags,
-    color: 'from-blue-500 to-cyan-500',
-  },
-  {
-    name: 'Usuarios',
-    href: '/dashboard/users',
-    icon: Users,
-    color: 'from-violet-500 to-fuchsia-500',
-  },
-  {
-    name: 'Emails Fallidos',
-    href: '/dashboard/emails',
-    icon: MailWarning,
-    color: 'from-red-500 to-rose-500',
-  },
-  {
-    name: 'Configuración',
-    href: '/dashboard/settings',
-    icon: Settings,
-    color: 'from-gray-500 to-slate-500',
-  },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Pedidos', href: '/dashboard/orders', icon: ShoppingCart },
+  { name: 'Productos', href: '/dashboard/products', icon: Package },
+  { name: 'Categorías', href: '/dashboard/categories', icon: Tags },
+  { name: 'Usuarios', href: '/dashboard/users', icon: Users },
+  { name: 'Emails Fallidos', href: '/dashboard/emails', icon: MailWarning },
+  { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
 ];
 
 export function Sidebar() {
+  const { isCollapsed, toggleSidebar } = useSidebar();
+  const { user } = useUser(); // <-- Obtener datos del usuario de Clerk
   const pathname = usePathname();
 
   return (
-    <div className="hidden md:flex md:w-72 md:flex-col bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-700/30">
-      {/* Logo y título */}
-      <div className="flex items-center flex-shrink-0 px-6 py-8">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-xl">
-              <LayoutDashboard className="h-7 w-7 text-white" />
-            </div>
+    <aside
+      className={cn(
+        'hidden lg:flex lg:flex-col lg:sticky lg:top-0 lg:h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out z-50',
+        isCollapsed ? 'lg:w-20' : 'lg:w-72',
+      )}
+    >
+      <div className="flex h-full flex-col">
+        {/* Perfil de Usuario y Botón de Colapsar */}
+        <div className="flex h-16 shrink-0 items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3 overflow-hidden">
+            {/* Avatar del Usuario Real */}
+            <img
+              className="h-8 w-8 rounded-full object-cover border-2 border-indigo-500"
+              src={user?.imageUrl || '/img/user-placeholder.svg'}
+              alt={user?.fullName || 'Avatar'}
+            />
+            {/* Nombre del Usuario */}
+            {!isCollapsed && (
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                  {user?.fullName || 'Admin User'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {user?.primaryEmailAddress?.emailAddress ||
+                    'admin@tienda.com'}
+                </p>
+              </div>
+            )}
           </div>
-          <div className="ml-4">
-            <p className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
-              Admin Dashboard
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Panel de Control 2026
-            </p>
-          </div>
+          {/* Botón de Colapsar */}
+          <button
+            onClick={toggleSidebar}
+            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-5 w-5" />
+            ) : (
+              <ChevronLeft className="h-5 w-5" />
+            )}
+          </button>
         </div>
-      </div>
 
-      {/* Navegación */}
-      <div className="mt-8 flex-grow flex flex-col">
-        <nav className="flex-1 px-4 pb-4 space-y-2">
-          {navigation.map((item, _index) => {
+        {/* Navegación Principal */}
+        <nav className="flex-1 space-y-1 px-3 py-4">
+          {navigation.map(item => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'group flex items-center px-4 py-4 text-sm font-medium rounded-2xl transition-all duration-300',
+                  'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-700 dark:text-indigo-300 shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white',
+                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800',
                 )}
+                title={isCollapsed ? item.name : undefined}
               >
-                <div
+                <item.icon
                   className={cn(
-                    'flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center mr-3 transition-all duration-300',
+                    'h-5 w-5 shrink-0',
                     isActive
-                      ? 'bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-800/30 dark:to-purple-800/30'
-                      : `bg-gradient-to-r from-${
-                          item.color.split('-')[1]
-                        }-100 to-${item.color.split('-')[3]}-100 dark:from-${
-                          item.color.split('-')[1]
-                        }-900/20 dark:to-${
-                          item.color.split('-')[3]
-                        }-900/20 group-hover:from-${
-                          item.color.split('-')[1]
-                        }-200 dark:group-hover:from-${
-                          item.color.split('-')[1]
-                        }-800/30`,
+                      ? 'text-indigo-600 dark:text-indigo-400'
+                      : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300',
                   )}
-                >
-                  <item.icon
-                    className={cn(
-                      'h-6 w-6',
-                      isActive
-                        ? 'text-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400'
-                        : `text-gradient-to-r from-${
-                            item.color.split('-')[1]
-                          }-600 to-${item.color.split('-')[3]}-600 dark:from-${
-                            item.color.split('-')[1]
-                          }-400 dark:to-${
-                            item.color.split('-')[3]
-                          }-400 group-hover:from-${
-                            item.color.split('-')[1]
-                          }-700 dark:group-hover:from-${
-                            item.color.split('-')[1]
-                          }-300`,
-                    )}
-                    aria-hidden="true"
-                  />
-                </div>
-                <span
-                  className={cn(
-                    'transition-all duration-300',
-                    isActive ? 'font-semibold' : 'group-hover:font-medium',
-                  )}
-                >
-                  {item.name}
-                </span>
+                />
+                {!isCollapsed && <span>{item.name}</span>}
               </Link>
             );
           })}
         </nav>
 
-        {/* Separador */}
-        <div className="px-4 py-3">
-          <div className="border-t border-gray-200/30 dark:border-gray-700/30"></div>
-        </div>
-
-        {/* Botón de cerrar sesión */}
-        <div className="px-4 py-3">
-          <Link
-            href="/"
-            className="group flex items-center px-4 py-4 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white rounded-2xl transition-all duration-300"
-          >
-            <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-gradient-to-r from-red-100 to-rose-100 dark:from-red-900/20 dark:to-rose-900/20 flex items-center justify-center mr-3 group-hover:from-red-200 dark:group-hover:from-red-800/30">
-              <LogOut
-                className="h-6 w-6 text-gradient-to-r from-red-600 to-rose-600 dark:from-red-400 dark:to-rose-400 group-hover:from-red-700 dark:group-hover:from-red-300"
-                aria-hidden="true"
+        {/* Buscador y Botón de Salir */}
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+          {/* Buscador */}
+          {!isCollapsed && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar..."
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 pl-9 pr-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
-            Volver a la Tienda
+          )}
+
+          {/* Botón Volver a la Tienda */}
+          <Link
+            href="/"
+            className={cn(
+              'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800',
+              isCollapsed && 'justify-center',
+            )}
+            title={isCollapsed ? 'Volver a la Tienda' : undefined}
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            {!isCollapsed && <span>Volver a la Tienda</span>}
           </Link>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
