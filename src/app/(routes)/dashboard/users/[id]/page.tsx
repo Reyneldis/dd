@@ -71,6 +71,12 @@ export default function UserDetailPage() {
       }
     };
 
+    // Validar userId antes de continuar
+    if (!userId) {
+      setNotFound(true);
+      return;
+    }
+
     fetchUser();
   }, [isReady, userId]); // <-- CAMBIO CLAVE: El efecto ahora depende de `isReady` y `userId`
 
