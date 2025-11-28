@@ -72,7 +72,9 @@ export default function UserDetailPage() {
     };
 
     // Validar userId antes de continuar
+    // Redirigir si userId es undefined
     if (!userId) {
+      console.error('El parámetro userId es undefined');
       setNotFound(true);
       return;
     }
