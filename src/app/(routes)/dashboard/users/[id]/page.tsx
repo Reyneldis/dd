@@ -1,4 +1,3 @@
-// src/app/(routes)/dashboard/users/[id]/page.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -26,30 +25,43 @@ export default function UserDetailPage() {
   const params = useParams();
   const userId = params.id as string;
 
+  // <-- ESTADO 1: Añadir un estado para controlar cuándo está listo para renderizar
+  const [isReady, setIsReady] = useState(false);
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Cargar usuario
+  // <-- ESTADO 2: Efecto para obtener el userId y marcar como listo
   useEffect(() => {
+    // Si hay un userId, marcamos como listo
+    if (userId) {
+      setIsReady(true);
+    }
+  }, [userId]);
+
+  // <-- ESTADO 3: Efecto para cargar los datos del usuario (solo si está listo)
+  useEffect(() => {
+    // <-- CAMBIO CLAVE: No hacer nada si no está listo o no hay userId
+    if (!isReady || !userId) {
+      return;
+    }
+
     const fetchUser = async () => {
       try {
         setLoading(true);
         setNotFound(false);
         const response = await fetch(`/api/dashboard/users/${userId}`);
 
-        // Verificar si la respuesta es exitosa antes de intentar parsear JSON
         if (!response.ok) {
           throw new Error('Error al cargar el usuario');
         }
 
         const result = await response.json();
 
-        // <-- CAMBIO CLAVE: Verificar `result.success` antes de acceder a `result.data`
         if (result.success) {
-          setUser(result.data); // <-- Acceder al usuario solo si la API fue exitosa
+          setUser(result.data);
         } else {
-          // Si la API devuelve success: false, es un error (ej. "no encontrado")
           setNotFound(true);
         }
       } catch (error) {
@@ -60,32 +72,51 @@ export default function UserDetailPage() {
     };
 
     fetchUser();
-  }, [userId]);
+  }, [isReady, userId]); // <-- CAMBIO CLAVE: El efecto ahora depende de `isReady` y `userId`
+
+  // <-- ESTADO 4: Renderizado condicional
+  if (!isReady) {
+    // Mientras el componente no está listo, muestra un loader
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+          <p className="text-gray-500">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+          <p className="text-gray-500">Cargando usuario...</p>
+        </div>
       </div>
     );
   }
 
   if (notFound || !user) {
     return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold">Usuario no encontrado</h1>
-        <p className="text-gray-500 mb-4">
-          El usuario que buscas no existe o ha sido eliminado.
-        </p>
-        <Button asChild>
-          <Link href="/dashboard/users">Volver a usuarios</Link>
-        </Button>
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Usuario no encontrado</h1>
+          <p className="text-gray-500 mb-4">
+            El usuario que buscas no existe o ha sido eliminado.
+          </p>
+          <Button asChild>
+            <Link href="/dashboard/users">Volver a usuarios</Link>
+          </Button>
+        </div>
       </div>
     );
   }
 
+  // <-- ESTADO 5: Renderizado principal (solo si todo está listo)
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Button variant="ghost" size="sm" asChild>
@@ -94,7 +125,7 @@ export default function UserDetailPage() {
               Volver a usuarios
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
             Detalles del Usuario
           </h1>
         </div>
@@ -178,7 +209,6 @@ export default function UserDetailPage() {
                   height={300}
                   className="w-full h-48 object-cover"
                   onError={e => {
-                    // Si la imagen falla al cargar, ocultarla
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
                   }}
