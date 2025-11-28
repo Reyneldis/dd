@@ -33,40 +33,34 @@ export default function UserDetailPage() {
   // Cargar usuario
   useEffect(() => {
     const fetchUser = async () => {
-      if (!userId) {
-        setNotFound(true);
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
+        setNotFound(false);
         const response = await fetch(`/api/dashboard/users/${userId}`);
 
+        // Verificar si la respuesta es exitosa antes de intentar parsear JSON
         if (!response.ok) {
           throw new Error('Error al cargar el usuario');
         }
 
         const result = await response.json();
 
-        // <-- CAMBIO CLAVE: Manejar la estructura de la respuesta de la API
+        // <-- CAMBIO CLAVE: Verificar `result.success` antes de acceder a `result.data`
         if (result.success) {
-          setUser(result.data); // <-- Acceder al usuario dentro de `result.data`
+          setUser(result.data); // <-- Acceder al usuario solo si la API fue exitosa
         } else {
           // Si la API devuelve success: false, es un error (ej. "no encontrado")
           setNotFound(true);
         }
       } catch (error) {
         console.error('Error fetching user:', error);
-        // En caso de error de red o servidor, también mostramos "no encontrado" por seguridad
-        setNotFound(true);
       } finally {
         setLoading(false);
       }
     };
 
     fetchUser();
-  }, [userId]); // <-- Añadir userId a las dependencias
+  }, [userId]);
 
   if (loading) {
     return (
@@ -90,7 +84,6 @@ export default function UserDetailPage() {
     );
   }
 
-  // El resto del componente se mantiene igual, ya que `user` ahora sí tendrá los datos correctos
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -185,6 +178,7 @@ export default function UserDetailPage() {
                   height={300}
                   className="w-full h-48 object-cover"
                   onError={e => {
+                    // Si la imagen falla al cargar, ocultarla
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
                   }}
