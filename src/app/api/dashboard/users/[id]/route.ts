@@ -13,6 +13,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    }
+
     const result = await getUserById(id);
 
     if (!result.success) {
@@ -35,6 +40,11 @@ export async function PUT(
     await requireRole(['ADMIN', 'SUPER_ADMIN']);
 
     const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    }
+
     const body = await request.json();
 
     const result = await updateUser(id, body);
@@ -65,6 +75,11 @@ export async function DELETE(
     await requireRole(['ADMIN', 'SUPER_ADMIN']);
 
     const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    }
+
     const result = await toggleUserActive(id);
 
     if (!result.success) {
