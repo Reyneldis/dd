@@ -1,4 +1,4 @@
-// prisma.config.ts
+// prisma.config.js
 module.exports = {
   schema: './prisma/schema.prisma',
   datasource: {
