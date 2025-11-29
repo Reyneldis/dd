@@ -8,6 +8,7 @@ import Hero from '@/components/shared/Hero/Hero';
 import HowItWorks from '@/components/shared/HowItWorks/HowItWorks';
 import PremiumFeatures from '@/components/shared/PremiumFeatures/PremiumFeatures';
 import { ScrollReveal } from '@/components/shared/ScrollReveal';
+import ScrollToTopButton from '@/components/shared/ScrollToTopButton';
 import StatsCounter from '@/components/shared/StatsCounter/StatsCounter';
 import Testimonials from '@/components/shared/Testimonials/Testimonials';
 import { motion, Variants } from 'framer-motion';
@@ -79,6 +80,7 @@ export default function Home() {
           </ScrollReveal>
         </motion.div>
       </motion.main>
+      <ScrollToTopButton />
       <Footer />
     </>
   );

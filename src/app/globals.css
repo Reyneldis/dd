@@ -48,8 +48,18 @@ body {
   line-height: 1.5;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-poppins, 'Poppins', 'Inter', sans-serif);
+  letter-spacing: var(--tracking-tight);
+}
+
 body {
-  font-family: var(--font-onest);
+  font-family: var(--font-onest, 'Onest', 'Inter', sans-serif);
 }
 
 /* --- REGLA BASE CLAVE Y LIMPIA --- */
@@ -99,6 +109,7 @@ body {
 :root {
   --font-onest: 'Onest', 'Inter', sans-serif;
   --font-inter: 'Inter', sans-serif;
+  --font-poppins: var(--font-poppins, 'Poppins', 'Inter', sans-serif);
   --background: oklch(0.99 0.002 110);
   --foreground: oklch(0.18 0.01 250);
   --card: oklch(1 0 0);
@@ -131,7 +142,8 @@ body {
   --sidebar-accent-foreground: oklch(0.18 0.01 250);
   --sidebar-border: oklch(0.92 0.01 155);
   --sidebar-ring: oklch(0.68 0.15 155);
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: var(--font-onest, 'Onest', 'Inter', system-ui, sans-serif);
+  --font-heading: var(--font-poppins, 'Poppins', 'Inter', sans-serif);
   --font-serif: 'Playfair Display', serif;
   --font-mono: 'Fira Code', monospace;
   --radius: 0.75rem;
@@ -182,7 +194,8 @@ body {
   --sidebar-accent-foreground: oklch(0.95 0.01 110);
   --sidebar-border: oklch(0.25 0.02 250);
   --sidebar-ring: oklch(0.72 0.18 155);
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: var(--font-onest, 'Onest', 'Inter', system-ui, sans-serif);
+  --font-heading: var(--font-poppins, 'Poppins', 'Inter', sans-serif);
   --font-serif: 'Playfair Display', serif;
   --font-mono: 'Fira Code', monospace;
   --radius: 0.75rem;
