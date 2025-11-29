@@ -1,3 +1,4 @@
+import { ThemeProvider } from '@/components/shared/theme-provider';
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
@@ -12,9 +13,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Mi Tienda',
+  title: 'Delivery Express',
   description:
-    'Plataforma e-commerce para administrar productos, órdenes y usuarios.',
+    'Tu tienda online de confianza, productos de calidad con entrega express, diseñados para simplificar tu vida.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -22,7 +23,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <ClerkProvider>
       <html lang="es" suppressHydrationWarning>
         <body className={inter.className}>
-          <ClientLayout>{children}</ClientLayout>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <ClientLayout>{children}</ClientLayout>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

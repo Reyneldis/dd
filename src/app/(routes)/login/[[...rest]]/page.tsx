@@ -1,13 +1,17 @@
 // Versión minimalista
 'use client';
+
+import { ModeToggle } from '@/components/shared/model-dark';
 import { SignIn } from '@clerk/nextjs';
 import { ArrowLeft } from 'lucide-react';
-
 import Link from 'next/link';
 
 export default function LoginPage() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="relative flex items-center justify-center min-h-screen">
+      <div className="absolute top-4 right-4">
+        <ModeToggle />
+      </div>
       <div className="w-full max-w-md p-8 grid place-content-center items-center">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
