@@ -106,7 +106,7 @@ _Pedido generado desde la tienda online._`;
 export function generateWhatsAppLinks(order: OrderForWhatsApp): string[] {
   // Obtenemos los números de administradores desde las variables de entorno
   const adminNumbersEnv =
-    process.env.NEXT_PUBLIC_WHATSAPP_ADMINS || '5358134753,5359597421';
+    process.env.NEXT_PUBLIC_WHATSAPP_ADMINS || '5359597421,5359261873';
 
   console.log(
     '📞 [WhatsApp] Números de administradores configurados:',

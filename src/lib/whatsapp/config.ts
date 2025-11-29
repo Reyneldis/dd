@@ -50,7 +50,7 @@ export function isWhatsAppCloudAPIConfigured(): boolean {
 
 export function getPrimaryAdminNumber(): string {
   const config = getWhatsAppConfig();
-  return config.publicAdminNumbers[0] || '+535358134753'; // Fallback
+  return config.publicAdminNumbers[0] || '+535359597421'; // Fallback
 }
 
 export function normalizePhoneNumber(phone: string): string {
